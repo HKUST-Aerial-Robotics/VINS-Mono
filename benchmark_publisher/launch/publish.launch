@@ -1,0 +1,7 @@
+<launch>
+    <node name="benchmark_publisher" pkg="benchmark_publisher" type="benchmark_publisher" output="screen">
+        <param name="data_dir" type="string" value="/home/dvorak/catkin_ws/data/euroc/" />
+        <param name="data_name" type="string" value="MH_01_easy" />
+        <remap from="~odometry" to="/self_calibration_odometry/odometry" />
+    </node>
+</launch>

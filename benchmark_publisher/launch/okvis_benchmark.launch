@@ -1,0 +1,16 @@
+   <launch>
+    <arg name="dataset_name" default = "MH_05_difficult" />
+    <!-- change to your euroc dataset path-->
+    <!--MH_01_easy MH_02_easy MH_03_medium MH_04_difficult MH_05_difficult V1_01_easy V1_02_medium V1_03_difficult V2_01_easy V2_02_medium V2_03_difficult  -->
+    <!-- change to your euroc dataset path-->
+    <arg name="dataset_bag_path" default = "/home/peiliang/rosbag" />
+    <arg name="dataset_groundtruth_path" default = "/home/peiliang/rosbag/$(arg dataset_name)/mav0/state_groundtruth_estimate0/"/>
+
+    <node name="benchmark_publisher" pkg="benchmark_publisher" type="benchmark_publisher" output="screen">
+        <param name="data_dir" type="string" value="$(arg dataset_groundtruth_path)" />
+        <param name="data_name" type="string" value="" />
+        <remap from="~estimated_odometry" to="/okvis_node/okvis_odometry" />
+        <param name="output_path" type="string" value="/home/catkin_ws/raw_data/$(arg dataset_name)/okvis.csv" />
+    </node>
+    
+    </launch>

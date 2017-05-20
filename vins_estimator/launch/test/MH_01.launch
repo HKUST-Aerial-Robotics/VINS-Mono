@@ -1,0 +1,31 @@
+<launch>
+    <arg name="dataset_name" default = "MH_03_medium" />
+    <!-- change to your euroc dataset path-->
+    <!--MH_01_easy MH_02_easy MH_03_medium MH_04_difficult MH_05_difficult V1_01_easy V1_02_medium V1_03_difficult V2_01_easy V2_02_medium V2_03_difficult  -->
+    <!-- change to your euroc dataset path-->
+    <arg name="dataset_bag_path" default = "/home/tony-ws/bag/ijrr_euroc_mav_dataset" />
+    <arg name="dataset_groundtruth_path" default = "/home/tony-ws/bag/ijrr_euroc_mav_dataset/$(arg dataset_name)/mav0/state_groundtruth_estimate0/"/>
+
+    <arg name="config_path" default = "$(find feature_tracker)/../config/euroc/euroc_config.yaml" />
+    
+    <node name="benchmark_publisher" pkg="benchmark_publisher" type="benchmark_publisher" output="log">
+        <param name="data_dir" type="string" value="$(arg dataset_groundtruth_path)" />
+        <param name="data_name" type="string" value="" />
+        <remap from="~estimated_odometry" to="/vins_estimator/odometry" />
+        <param name="output_path" type="string" value="/home/tony-ws/raw_data/$(arg dataset_name)/vins/" />
+    </node>
+    
+    <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg dataset_bag_path)/$(arg dataset_name)/$(arg dataset_name).bag -r 2" />
+
+
+    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
+        <param name="config_file" type="string" value="$(arg config_path)" />
+    </node>
+
+
+    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="screen">
+       <param name="config_file" type="string" value="$(arg config_path)" />
+    </node>
+
+</launch>

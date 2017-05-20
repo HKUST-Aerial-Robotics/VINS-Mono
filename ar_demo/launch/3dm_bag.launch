@@ -1,0 +1,21 @@
+<launch>
+<!--
+	<arg name="dataset_bag_path" default = "/home/tony-ws/bag/AR/ar_box.bag"/>
+    <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg dataset_bag_path) -s 0" />
+-->
+
+	<include file="$(find vins_estimator)/launch/test/3dm.launch"/>
+
+    <node pkg="ar_demo" type="ar_demo_node" name="ar_demo_node" output="screen">
+        <remap from="~image_undistored" to="/stereo45_cropper/cropped_middle/image"/>
+        <remap from="~image_raw" to="/mv_25001498/image_raw"/>
+        <remap from="~camera_pose" to="/vins_estimator/camera_pose"/>
+        <remap from="~pointcloud" to="/vins_estimator/point_cloud"/>
+        <param name="calib_file" type="string" value="$(find feature_tracker)/../config/3dm/3dm_config.yaml"/>
+        <param name="use_undistored_img" type="bool" value="false"/>
+    </node>
+<!--
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find ar_demo)/config/AR_demo.rviz" />
+    -->
+</launch>

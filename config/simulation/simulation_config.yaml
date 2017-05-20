@@ -1,0 +1,43 @@
+%YAML:1.0
+
+#common parameters
+vins_folder_path: "/home/tony-ws/catkin_ws/src/VINS"
+imu_topic: "/data_generator/imu"
+image_topic: ""
+output_path: "/config/simulation/vins_result.csv"         # vins outputs will be wrttento vins_folder_path + output_path
+
+# Extrinsic parameter between IMU and Camera.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+                        # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning. 
+ex_calib_result_path: "/config/simulation/ex_calib_result.yaml"  # If you choose 1 or 2, the extrinsic calibration result will be written vins_folder_path + ex_calib_result_path.                        
+
+#Rotation from camera frame to imu frame, imu^R_cam
+extrinsicRotation: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [0, 0, -1, 
+           -1, 0, 0, 
+           0, 1, 0]
+
+#Translation from camera frame to imu frame, imu^R_cam
+extrinsicTranslation: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [-0.02, 0.00, 0.02]
+
+#optimization parameters
+
+max_solver_time: 0.05  # max solver itration time (ms), to guarantee real time
+max_num_iterations: 10   # max solver itrations, to guarantee real time
+keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+
+#imu parameters       The more accurate parameters you provide, the better performance
+acc_n: 0.2          # accelerometer measurement noise standard deviation.
+gyr_n: 0.05         # gyroscope measurement noise standard deviation.
+acc_w: 0.002        # accelerometer bias random work noise standard deviation.
+gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.
+g_norm: 9.8         #
+
