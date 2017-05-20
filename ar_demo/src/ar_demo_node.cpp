@@ -42,6 +42,7 @@ const int cube_num = 1;
 const double box_length = 0.8;
 bool USE_UNDISTORED_IMG;
 bool pose_init = false;
+int img_cnt = 0;
 
 ros::Publisher object_pub;
 image_transport::Publisher pub_ARimage;
@@ -50,6 +51,7 @@ Vector3d Cube_center[3];
 vector<Vector3d> Cube_corner[3];
 vector<Vector3d> output_Axis[6];
 vector<Vector3d> output_Cube[3];
+vector<double> output_corner_dis[3];
 double Cube_center_depth[3];
 queue<ImageConstPtr> img_buf;
 camodocal::CameraPtr m_camera;
@@ -133,13 +135,13 @@ void cube_generate(visualization_msgs::Marker &marker, Vector3d &origin, int id)
     marker.colors.push_back(line_color_r);
     Cube_corner[id].clear();
     Cube_corner[id].push_back(Vector3d(origin.x() - box_length / 2, origin.y() - box_length / 2, origin.z() - box_length / 2));
+    Cube_corner[id].push_back(Vector3d(origin.x() + box_length / 2, origin.y() - box_length / 2, origin.z() - box_length / 2));
     Cube_corner[id].push_back(Vector3d(origin.x() - box_length / 2, origin.y() + box_length / 2, origin.z() - box_length / 2));
     Cube_corner[id].push_back(Vector3d(origin.x() + box_length / 2, origin.y() + box_length / 2, origin.z() - box_length / 2));
-    Cube_corner[id].push_back(Vector3d(origin.x() + box_length / 2, origin.y() - box_length / 2, origin.z() - box_length / 2));
     Cube_corner[id].push_back(Vector3d(origin.x() - box_length / 2, origin.y() - box_length / 2, origin.z() + box_length / 2));
+    Cube_corner[id].push_back(Vector3d(origin.x() + box_length / 2, origin.y() - box_length / 2, origin.z() + box_length / 2));
     Cube_corner[id].push_back(Vector3d(origin.x() - box_length / 2, origin.y() + box_length / 2, origin.z() + box_length / 2));
     Cube_corner[id].push_back(Vector3d(origin.x() + box_length / 2, origin.y() + box_length / 2, origin.z() + box_length / 2));
-    Cube_corner[id].push_back(Vector3d(origin.x() + box_length / 2, origin.y() - box_length / 2, origin.z() + box_length / 2));
 }
 
 void add_object()
@@ -198,6 +200,7 @@ void project_object(Vector3d camera_p, Quaterniond camera_q)
     for (int i = 0; i < cube_num; i++)
     {
         output_Cube[i].clear();
+        output_corner_dis[i].clear();
         Vector3d local_point;
         Vector2d local_uv;
         local_point = camera_q.inverse() * (Cube_center[i] - camera_p);
@@ -215,6 +218,7 @@ void project_object(Vector3d camera_p, Quaterniond camera_q)
             for (int j = 0; j < 8; j++)
             {
                 local_point = camera_q.inverse() * (Cube_corner[i][j] - camera_p);
+                output_corner_dis[i].push_back(local_point.norm());
                 if (USE_UNDISTORED_IMG)
                 {
                     //ROS_INFO("directly project!");
@@ -281,6 +285,7 @@ void draw_object(cv::Mat &AR_image)
         //cout << "draw " << i << "depth " << Cube_center_depth[i] << endl;
         if (output_Cube[i].empty())
             continue;
+        //draw color
         cv::Point* p = new cv::Point[8];
         p[0] = cv::Point(output_Cube[i][0].x(), output_Cube[i][0].y());
         p[1] = cv::Point(output_Cube[i][1].x(), output_Cube[i][1].y());
@@ -290,61 +295,70 @@ void draw_object(cv::Mat &AR_image)
         p[5] = cv::Point(output_Cube[i][5].x(), output_Cube[i][5].y());
         p[6] = cv::Point(output_Cube[i][6].x(), output_Cube[i][6].y());
         p[7] = cv::Point(output_Cube[i][7].x(), output_Cube[i][7].y());
-
+        
         int npts[1] = {4};
-
+        float min_depth = 100000;
+        int min_index = 5;
+        for(int j= 0; j < (int)output_corner_dis[i].size(); j++)
+        {
+            if(output_corner_dis[i][j] < min_depth)
+            {
+                min_depth = output_corner_dis[i][j];
+                min_index = j;
+            }
+        }
+        
         cv::Point plain[1][4];
-        plain[0][0] = p[0];
-        plain[0][1] = p[1];
-        plain[0][2] = p[2];
-        plain[0][3] = p[3];
-        const cv::Point* ppt[1] = {plain[0]};  
+        const cv::Point* ppt[1] = {plain[0]};
+        //first draw large depth plane
+        int point_group[8][12] = {{0,1,5,4, 0,4,6,2, 0,1,3,2},
+            {0,1,5,4, 1,5,7,3, 0,1,3,2},
+            {2,3,7,6, 0,4,6,2, 0,1,3,2},
+            {2,3,7,6, 1,5,7,3, 0,1,3,2},
+            {0,1,5,4, 0,4,6,2, 4,5,7,6},
+            {0,1,5,4, 1,5,7,3, 4,5,7,6},
+            {2,3,7,6, 0,4,6,2, 4,5,7,6},
+            {2,3,7,6, 1,5,7,3, 4,5,7,6}};
         
-        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 255));  
-        plain[0][0] = p[4];
-        plain[0][1] = p[5];
-        plain[0][2] = p[6];
-        plain[0][3] = p[7];
-        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 255));  
-        plain[0][0] = p[0];
-        plain[0][1] = p[1];
-        plain[0][2] = p[5];
-        plain[0][3] = p[4];
-        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 255));  
-        plain[0][0] = p[1];
-        plain[0][1] = p[5];
-        plain[0][2] = p[6];
-        plain[0][3] = p[2];
-        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 255)); 
-        plain[0][0] = p[2];
-        plain[0][1] = p[3];
-        plain[0][2] = p[7];
-        plain[0][3] = p[6];
-        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 255)); 
-        plain[0][0] = p[3];
-        plain[0][1] = p[7];
-        plain[0][2] = p[4];
-        plain[0][3] = p[0];
-        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 255)); 
+        plain[0][0] = p[point_group[min_index][4]];
+        plain[0][1] = p[point_group[min_index][5]];
+        plain[0][2] = p[point_group[min_index][6]];
+        plain[0][3] = p[point_group[min_index][7]];
+        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 200, 0));
         
-        cv::line(AR_image, p[0], p[1], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[1], p[2], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[2], p[3], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[3], p[0], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[0], p[4], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[1], p[5], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[2], p[6], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[3], p[7], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[4], p[5], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[5], p[6], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[6], p[7], cv::Scalar(255, 0, 0), 1.8, 8, 0);
-        cv::line(AR_image, p[7], p[4], cv::Scalar(255, 0, 0), 1.8, 8, 0);
+        plain[0][0] = p[point_group[min_index][0]];
+        plain[0][1] = p[point_group[min_index][1]];
+        plain[0][2] = p[point_group[min_index][2]];
+        plain[0][3] = p[point_group[min_index][3]];
+        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(200, 0, 0));
+        
+        if(output_corner_dis[i][point_group[min_index][2]] + output_corner_dis[i][point_group[min_index][3]] >
+           output_corner_dis[i][point_group[min_index][5]] + output_corner_dis[i][point_group[min_index][6]])
+        {
+            plain[0][0] = p[point_group[min_index][4]];
+            plain[0][1] = p[point_group[min_index][5]];
+            plain[0][2] = p[point_group[min_index][6]];
+            plain[0][3] = p[point_group[min_index][7]];
+            cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 200, 0));
+
+        }
+        plain[0][0] = p[point_group[min_index][8]];
+        plain[0][1] = p[point_group[min_index][9]];
+        plain[0][2] = p[point_group[min_index][10]];
+        plain[0][3] = p[point_group[min_index][11]];
+        cv::fillPoly(AR_image, ppt, npts, 1, cv::Scalar(0, 0, 200));
         delete p;
     }
 }
 
 void callback(const ImageConstPtr& img_msg, const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
 {
+    //throw the first few unstable pose
+    if(img_cnt < 20)
+    {
+        img_cnt ++;
+        return;
+    }
    //ROS_INFO("sync callback!");
    Vector3d camera_p(pose_msg->pose.position.x,
                      pose_msg->pose.position.y,
@@ -358,7 +372,7 @@ void callback(const ImageConstPtr& img_msg, const geometry_msgs::PoseStamped::Co
    Vector3d cam_z(0, 0, -1);
    Vector3d w_cam_z = camera_q * cam_z;
    //cout << "angle " << acos(w_cam_z.dot(Vector3d(0, 0, 1))) * 180.0 / M_PI << endl;
-   if (acos(w_cam_z.dot(Vector3d(0, 0, 1))) * 180.0 / M_PI < 80)
+   if (acos(w_cam_z.dot(Vector3d(0, 0, 1))) * 180.0 / M_PI < 90)
    {
         //ROS_WARN(" look down");
         look_ground = 1;
@@ -496,9 +510,9 @@ int main( int argc, char** argv )
     Axis[4]= Vector3d(5, 10, -5);
     Axis[5] = Vector3d(0, 10, -1);
 
-    Cube_center[0] = Vector3d(-1.8, 0, -1.2 + box_length / 2.0);
+    Cube_center[0] = Vector3d(-2, 0, -1.2 + box_length / 2.0);
     //Cube_center[0] = Vector3d(0, 3, -1.2 + box_length / 2.0);
-    Cube_center[1] = Vector3d(-1.5, 3, -1.2 + box_length / 2.0);
+    Cube_center[1] = Vector3d(4, -2, -1.2 + box_length / 2.0);
     Cube_center[2] = Vector3d(0, -2, -1.2 + box_length / 2.0);
 
     ros::Subscriber pose_img = n.subscribe("camera_pose", 100, pose_callback);

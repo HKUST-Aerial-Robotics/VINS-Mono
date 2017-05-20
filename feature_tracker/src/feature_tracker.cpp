@@ -30,9 +30,6 @@ void reduceVector(vector<int> &v, vector<uchar> status)
 }
 
 FeatureTracker::FeatureTracker()
-#if GPU
-    : g_detector{1000, 0.01, 30.0, 3, true}
-#endif
 {
 }
 
@@ -112,40 +109,7 @@ void FeatureTracker::readImage(const cv::Mat &_img)
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
-#if GPU
-        g_cur_img.upload(cur_img);
-        g_forw_img.upload(forw_img);
-
-        cv::Mat tmp_cur_pts{1, static_cast<int>(cur_pts.size()), CV_32FC2};
-        for (int i = 0; i < tmp_cur_pts.cols; i++)
-        {
-            tmp_cur_pts.at<cv::Vec2f>(0, i)[0] = cur_pts[i].x;
-            tmp_cur_pts.at<cv::Vec2f>(0, i)[1] = cur_pts[i].y;
-        }
-        g_cur_pts.upload(tmp_cur_pts);
-
-        g_tracker.sparse(g_cur_img, g_forw_img, g_cur_pts, g_forw_pts, g_status);
-
-        cv::Mat tmp_forw_pts;
-        g_forw_pts.download(tmp_forw_pts);
-        forw_pts.resize(tmp_forw_pts.cols);
-        for (int i = 0; i < tmp_forw_pts.cols; i++)
-        {
-            cv::Vec2f p = tmp_forw_pts.at<cv::Vec2f>(0, i);
-            forw_pts[i].x = p[0];
-            forw_pts[i].y = p[1];
-        }
-        ROS_DEBUG("GPU gives %d -> %d", tmp_cur_pts.cols, tmp_forw_pts.cols);
-
-        cv::Mat tmp_status;
-        g_status.download(tmp_status);
-        status.resize(tmp_status.cols);
-        for (int i = 0; i < tmp_status.cols; i++)
-            status[i] = tmp_status.at<uchar>(0, i);
-
-#else
         cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
-#endif
 
         for (int i = 0; i < int(forw_pts.size()); i++)
             if (status[i] && !inBorder(forw_pts[i]))
@@ -175,24 +139,6 @@ void FeatureTracker::readImage(const cv::Mat &_img)
         int n_max_cnt = MAX_CNT - static_cast<int>(forw_pts.size());
         if (n_max_cnt > 0)
         {
-#if GPU
-            g_forw_img.upload(forw_img);
-            g_mask.upload(mask);
-            g_detector(g_forw_img, g_corners, g_mask);
-            cv::Mat c_corners;
-            g_corners.download(c_corners);
-            ROS_DEBUG("GPU gives %d", c_corners.cols);
-
-            int n = std::min(n_max_cnt, c_corners.cols);
-            ROS_DEBUG("choose %d", c_corners.cols);
-            n_pts.resize(n);
-            for (int i = 0; i < n; i++)
-            {
-                cv::Vec2f p = c_corners.at<cv::Vec2f>(0, i);
-                n_pts[i].x = p[0];
-                n_pts[i].y = p[1];
-            }
-#else
             if(mask.empty())
                 cout << "mask is empty " << endl;
             if (mask.type() != CV_8UC1)
@@ -200,7 +146,6 @@ void FeatureTracker::readImage(const cv::Mat &_img)
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
             cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.1, MIN_DIST, mask);
-#endif
         }
         else
             n_pts.clear();

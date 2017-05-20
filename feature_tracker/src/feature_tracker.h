@@ -7,7 +7,6 @@
 #include <csignal>
 
 #include <opencv2/opencv.hpp>
-#include <opencv2/gpu/gpu.hpp>
 #include <eigen3/Eigen/Dense>
 
 #include "camodocal/camera_models/CameraFactory.h"
@@ -59,15 +58,4 @@ class FeatureTracker
     camodocal::CameraPtr m_camera;
 
     static int n_id, img_cnt;
-
-#if GPU
-    cv::gpu::GpuMat g_forw_img, g_corners, g_mask;
-
-    cv::gpu::GpuMat g_cur_img, g_cur_pts, g_forw_pts, g_status;
-
-    cv::gpu::PyrLKOpticalFlow g_tracker;
-
-    cv::gpu::GoodFeaturesToTrackDetector_GPU g_detector;
-
-#endif
 };

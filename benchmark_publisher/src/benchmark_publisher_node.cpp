@@ -123,69 +123,6 @@ void odom_callback(const nav_msgs::OdometryConstPtr &odom_msg)
     path.header = odometry.header;
     path.poses.push_back(pose_stamped);
     pub_path.publish(path);
-
-    // write result to file
-    {
-        ofstream fout(benchmark_output_path, ios::app);
-        fout.setf(ios::fixed, ios::floatfield);
-        fout.precision(0);
-        fout << benchmark[idx - 1].t * 1e9 << ",";
-        fout.precision(5);
-        fout  << benchmark[idx - 1].px << ","
-              << benchmark[idx - 1].py << ","
-              << benchmark[idx - 1].pz << ","
-              << benchmark[idx - 1].qw << ","
-              << benchmark[idx - 1].qx << ","
-              << benchmark[idx - 1].qy << ","
-              << benchmark[idx - 1].qz << ","
-              << benchmark[idx - 1].vx << ","
-              << benchmark[idx - 1].vy << ","
-              << benchmark[idx - 1].vz << "," 
-              << benchmark[idx - 1].wx << ","
-              << benchmark[idx - 1].wy << ","
-              << benchmark[idx - 1].wz << "," 
-              << benchmark[idx - 1].ax << ","
-              << benchmark[idx - 1].ay << ","
-              << benchmark[idx - 1].az << "," 
-              << endl;
-        fout.close();
-    }
-
-    {
-      Vector3d tmp_T = baseRgt.inverse() * (Vector3d{odom_msg->pose.pose.position.x, odom_msg->pose.pose.position.y, odom_msg->pose.pose.position.z} - baseTgt);
-      Quaterniond tmp_R = baseRgt.inverse() * Quaterniond{odom_msg->pose.pose.orientation.w,
-                                                odom_msg->pose.pose.orientation.x,
-                                                odom_msg->pose.pose.orientation.y,
-                                                odom_msg->pose.pose.orientation.z};
-      Vector3d tmp_V = baseRgt.inverse() * Vector3d{odom_msg->twist.twist.linear.x,
-                                          odom_msg->twist.twist.linear.y,
-                                          odom_msg->twist.twist.linear.z};
-
-        ofstream fout(estimate_output_path, ios::app);
-        fout.setf(ios::fixed, ios::floatfield);
-        fout.precision(0);
-        fout << odom_msg->header.stamp.toSec() * 1e9 << ",";
-        fout.precision(5);
-        fout  << tmp_T.x() << ","
-              << tmp_T.y() << ","
-              << tmp_T.z() << ","
-              << tmp_R.w() << ","
-              << tmp_R.x() << ","
-              << tmp_R.y() << ","
-              << tmp_R.z() << ","
-              << tmp_V.x() << ","
-              << tmp_V.y() << ","
-              << tmp_V.z() << "," 
-              << odom_msg->pose.covariance[0] << "," 
-              << odom_msg->pose.covariance[1] << "," 
-              << odom_msg->pose.covariance[2] << "," 
-              << odom_msg->pose.covariance[3] << "," 
-              << odom_msg->pose.covariance[4] << "," 
-              << odom_msg->pose.covariance[5] << "," 
-              << endl;
-        fout.close();
-    }
-
 }
 
 int main(int argc, char **argv)
@@ -193,18 +130,15 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "benchmark_publisher");
     ros::NodeHandle n("~");
 
-    string data_dir = readParam<string>(n, "data_dir");
-    string data_name = readParam<string>(n, "data_name");
-    string csv_file = data_dir + data_name + "/data.csv";
-    benchmark_output_path = readParam<string>(n, "output_path") + "benchmark.csv";
-    estimate_output_path = readParam<string>(n, "output_path") + "estimate_align_benchmark.csv";
-    ofstream fout_benchmark(benchmark_output_path, ios::out);
-    fout_benchmark.close();
-    ofstream fout_estimate(estimate_output_path, ios::out);
-    fout_estimate.close();
-
-
+    string csv_file = readParam<string>(n, "data_name");
+    std::cout << "load ground truth " << csv_file << std::endl;
     FILE *f = fopen(csv_file.c_str(), "r");
+    if (f==NULL)
+    {
+      ROS_WARN("can't load ground truth; wrong path");
+      //std::cerr << "can't load ground truth; wrong path " << csv_file << std::endl;
+      return 0;
+    }
     char tmp[10000];
     fgets(tmp, 10000, f);
     while (!feof(f))

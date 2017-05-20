@@ -1,5 +1,4 @@
 *~
-support_files
 *.rviz
 ex_calib_result.yaml
 vins_result.csv

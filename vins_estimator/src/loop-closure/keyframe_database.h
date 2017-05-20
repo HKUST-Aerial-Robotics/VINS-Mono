@@ -50,17 +50,12 @@ private:
 
 template <typename T>
 T NormalizeAngle(const T& angle_degrees) {
-  // Use ceres::floor because it is specialized for double and Jet types.
-  T two_pi(2.0 * 180);
-  //return angle_degrees -
-  //    two_pi * ceres::floor((angle_degrees + T(180)) / two_pi);
-
-  if (angle_degrees > T(0))
-  return angle_degrees -
-      two_pi * ceres::floor((angle_degrees + T(180)) / two_pi);
+  if (angle_degrees > T(180.0))
+  	return angle_degrees - T(360.0);
+  else if (angle_degrees < T(-180.0))
+  	return angle_degrees + T(360.0);
   else
-  	return angle_degrees +
-  	    two_pi * ceres::floor((-angle_degrees + T(180)) / two_pi);
+  	return angle_degrees;
 };
 
 class AngleLocalParameterization {

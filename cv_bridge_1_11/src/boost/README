@@ -1,0 +1,2 @@
+this code is taken from Boost at https://github.com/boostorg/endian.git
+We should remove this folder once Boost 1.58 or above is the default.

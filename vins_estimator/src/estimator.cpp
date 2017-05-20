@@ -123,6 +123,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Vector3d>>> &image,
 
     if(ESTIMATE_EXTRINSIC == 2)
     {
+        ROS_INFO("calibrating extrinsic param, rotation movement is needed");
         if (frame_count != 0)
         {
             vector<pair<Vector3d, Vector3d>> corres = f_manager.getCorresponding(frame_count - 1, frame_count);
@@ -607,7 +608,7 @@ bool Estimator::failureDetection()
     Quaterniond delta_Q(delta_R);
     double delta_angle;
     delta_angle = acos(delta_Q.w()) * 2.0 / 3.14 * 180.0;
-    if (delta_angle > 30)
+    if (delta_angle > 50)
     {
         ROS_INFO(" big delta_angle ");
         return true;

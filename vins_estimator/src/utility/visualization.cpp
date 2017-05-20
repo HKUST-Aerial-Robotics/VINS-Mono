@@ -58,10 +58,8 @@ void printStatistics(const Estimator &estimator, double t)
 {
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
-    //ROS_DEBUG_STREAM("vo position: " << estimator.Ps[WINDOW_SIZE].transpose());
-    //ROS_DEBUG_STREAM("vo velocity: " << estimator.Vs[WINDOW_SIZE].transpose());
-    ROS_DEBUG_STREAM("vo bias gyr: " << estimator.Bgs[WINDOW_SIZE].transpose());
-    ROS_DEBUG_STREAM("vo bias acc: " << estimator.Bas[WINDOW_SIZE].transpose());
+    ROS_INFO_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
+    ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         //ROS_DEBUG("calibration result for camera %d", i);

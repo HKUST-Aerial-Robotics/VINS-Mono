@@ -34,6 +34,7 @@ extern double SOLVER_TIME;
 extern int NUM_ITERATIONS;
 extern std::string EX_CALIB_RESULT_PATH;
 extern std::string VINS_RESULT_PATH;
+extern std::string VINS_FOLDER_PATH;
 
 extern int LOOP_CLOSURE;
 extern int MIN_LOOP_NUM;

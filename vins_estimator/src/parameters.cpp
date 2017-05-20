@@ -25,6 +25,7 @@ std::string VOC_FILE;
 std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;
 int IMAGE_ROW, IMAGE_COL;
+std::string VINS_FOLDER_PATH;
 
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
@@ -52,7 +53,7 @@ void readParameters(ros::NodeHandle &n)
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
 
-    std::string VINS_FOLDER_PATH  = fsSettings["vins_folder_path"];
+    VINS_FOLDER_PATH = readParam<std::string>(n, "vins_folder");
     fsSettings["image_topic"] >> IMAGE_TOPIC;
     fsSettings["imu_topic"] >> IMU_TOPIC;
 

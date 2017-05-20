@@ -8,7 +8,7 @@ KeyFrameDatabase::KeyFrameDatabase()
     t_drift = Eigen::Vector3d(0, 0, 0);
     yaw_drift = 0;
     r_drift = Eigen::Matrix3d::Identity();
-    max_frame_num = 1000;
+    max_frame_num = 400;
     total_length = 0;
     last_P = Eigen::Vector3d(0, 0, 0);
 }

@@ -6,7 +6,6 @@ extern int ROW;
 extern int COL;
 extern int FOCAL_LENGTH;
 const int NUM_OF_CAM = 1;
-#define GPU 0
 
 
 extern std::string IMAGE_TOPIC;
