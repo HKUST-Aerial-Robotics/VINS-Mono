@@ -6,13 +6,22 @@ VINS-Mono is a real-time SLAM framework for **Monocular Visual-Inertial Systems*
 **Authors:** [Tong Qin](https://github.com/qintony), [Peiliang Li](https://github.com/PeiliangLi), [Zhenfei Yang](https://github.com/dvorak0), and [Shaojie Shen](http://www.ece.ust.hk/ece.php/profile/facultydetail/eeshaojie) from the [HUKST Aerial Robotics Group](http://uav.ust.hk/)
 
 **Videos:**
-EuRoC dataset; Indoor and outdoor performance; AR application; MAV application; Mobile implementation
+
+<a href="https://www.youtube.com/embed/mv_9snb_bKs" target="_blank"><img src="http://img.youtube.com/vi/mv_9snb_bKs/0.jpg" 
+alt="euroc" width="240" height="180" border="10" /></a>
+<a href="https://www.youtube.com/embed/g_wN0Nt0VAU" target="_blank"><img src="http://img.youtube.com/vi/g_wN0Nt0VAU/0.jpg" 
+alt="indoor_outdoor" width="240" height="180" border="10" /></a>
+<a href="https://www.youtube.com/embed/I4txdvGhT6I" target="_blank"><img src="http://img.youtube.com/vi/I4txdvGhT6I/0.jpg" 
+alt="AR_demo" width="240" height="180" border="10" /></a>
+
+EuRoC dataset;                  Indoor and outdoor performance;                         AR application;
 
 <a href="https://www.youtube.com/embed/2zE84HqT0es" target="_blank"><img src="http://img.youtube.com/vi/2zE84HqT0es/0.jpg" 
 alt="MAV platform" width="240" height="180" border="10" /></a>
-<a href="https://www.youtube.com/embed/qazzGT84Scc" target="_blank"><img src="http://img.youtube.com/vi/qazzGT84Scc/0.jpg" 
+<a href="https://www.youtube.com/embed/CI01qbPWlYY" target="_blank"><img src="http://img.youtube.com/vi/CI01qbPWlYY/0.jpg" 
 alt="Mobile platform" width="240" height="180" border="10" /></a>
 
+ MAV application;               Mobile implementation
 
 **Related Papers**
 * **VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator**, Tong Qin, Peiliang Li, Zhenfei Yang, Shaojie Shen (Submitted to ***T-RO***) [pdf](https://github.com/HKUST-Aerial-Robotics/VINS-Mono/blob/master/support_files/paper/tro2017tong.pdf) 
@@ -102,4 +111,7 @@ We are still working on improving the code reliability. For any technical issues
 
 For commercial inquiries, please contact Shaojie SHEN <eeshaojie@ust.hk>
 
-VINS-mapping will be released soon...
+<!---
+VINS-Android and VINS-Mapping will be released soon...
+-->
+
