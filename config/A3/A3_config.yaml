@@ -57,7 +57,7 @@ ex_calib_result_path: "/config/A3/ex_calib_result.yaml"  # If you choose 1 or 2,
 #    rows: 3
 #    cols: 1
 #    dt: d
-#    data: [ 0, 0.05, 0.01]
+#    data: [ 0, 0.05, 0]
 
 
 #feature traker paprameters

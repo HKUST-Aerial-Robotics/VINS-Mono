@@ -65,6 +65,7 @@ Clone the repository and catkin_make:
     roslaunch vins_estimator vins_rviz.launch
     rosbag play YOUR_PATH_TO_DATASET/MH_05_difficult.bag 
 ```
+/vins_estimator/path is the IMU ceter's trajectory, /vins_estimator/odometry is the IMU ceter's odometry and /vins_estimator/camera_pose is the camera's pose.
 
 3.3 (Optional) Visualize ground truth. We write a naive benchmark publisher to help you visualize the ground truth. It uses a naive strategy to align VINS with ground truth. Just for visualization. not for quantitative comparison on academic publications.
 ```
@@ -93,7 +94,7 @@ We put one 0.8m x 0.8m x 0.8m virtual box in front of your view.
 
 Suppose you are familiar with ROS and you can get a camera and an IMU with raw metric measurements in ROS topic, you can follow these steps to set up your device. For beginners, we highly recommend you to first try out [VINS-Mobile](https://github.com/HKUST-Aerial-Robotics/VINS-Mobile) if you have iOS devices since you don't need to set up anything.
 
-5.1 Change to your topic name in the config file.
+5.1 Change to your topic name in the config file. The image should exceed 20Hz and IMU should exceed 100Hz. Both image and IMU should have the accurate time stamp.
 
 5.2 Camera calibration:
 
@@ -101,7 +102,7 @@ We support the [pinhole model](http://docs.opencv.org/2.4.8/modules/calib3d/doc/
 
 5.3 Camera-Imu extrinsic parameters:
 
-If you have seen the config files for EuRoC and AR demos, you can find that we just use coarse values. If you familiar with transformation, you can figure out the rotation and position by your eyes or via hand measuerments. Then write these values into config as the initial guess. Our estimator will refine extrinsic parameters online. If you don't know anything about the camera-IMU transformation, just ignore the extrinsic parameters and set the **estimate_extrinsic** to **2**, and rotate your device set at the beginning for a few seconds. When the system works successfully, we will save the calibration result. you can use these result as initial values for next time.
+If you have seen the config files for EuRoC and AR demos, you can find that we just use coarse values. If you familiar with transformation, you can figure out the rotation and position by your eyes or via hand measurements. Then write these values into config as the initial guess. Our estimator will refine extrinsic parameters online. If you don't know anything about the camera-IMU transformation, just ignore the extrinsic parameters and set the **estimate_extrinsic** to **2**, and rotate your device set at the beginning for a few seconds. When the system works successfully, we will save the calibration result. you can use these result as initial values for next time. [extrinsic_parameter_example](https://github.com/HKUST-Aerial-Robotics/VINS-Mono/blob/master/config/extrinsic_parameter_example.pdf)
 
 5.4 Other parameter settings: Details are included in the config file.
 
