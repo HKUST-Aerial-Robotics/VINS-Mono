@@ -43,11 +43,9 @@
   <build_depend>roscpp</build_depend>
   <build_depend>camera_model</build_depend>
   <build_depend>message_generation</build_depend>
-  <build_depend>cv_bridge_1_11</build_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>camera_model</run_depend>
   <run_depend>message_runtime</run_depend>
-  <run_depend>cv_bridge_1_11</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

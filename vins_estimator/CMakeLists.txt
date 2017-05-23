@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
     nav_msgs
     tf
-    cv_bridge_1_11
+    cv_bridge
     camera_model
     )
 

@@ -1,8 +1,0 @@
- - builder: doxygen
-   name: C++ API
-   output_dir: c++
-   file_patterns: '*.c *.cpp *.h *.cc *.hh *.dox'
- - builder: sphinx
-   name: Python API
-   output_dir: python
-   sphinx_root_dir: doc

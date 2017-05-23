@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   image_transport
   sensor_msgs
-  cv_bridge_1_11
+  cv_bridge
   message_filters
   camera_model
 )

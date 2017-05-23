@@ -35,7 +35,11 @@ Ubuntu 14.04 16.04.
 ROS Indigo, Kinetic. [ROS Installation](http://wiki.ros.org/indigo/Installation/Ubuntu)
 additional ROS pacakge
 ```
-    sudo apt-get install  ros-YOUR_DISTRO-tf ros-YOUR_DISTRO-message-filters ros-YOUR_DISTRO-image-transport
+    sudo apt-get install ros-YOUR_DISTRO-cv-bridge ros-YOUR_DISTRO-tf ros-YOUR_DISTRO-message-filters ros-YOUR_DISTRO-image-transport
+```
+For ROS Kinetic
+```
+    sudo apt-get install ros-kinetic-opencv3
 ```
 
 1.2. **Ceres Solver**
