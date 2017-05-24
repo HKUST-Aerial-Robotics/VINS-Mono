@@ -1,7 +1,6 @@
 #include "feature_tracker.h"
 
 int FeatureTracker::n_id = 0;
-int FeatureTracker::img_cnt = 0;
 
 bool inBorder(const cv::Point2f &pt)
 {
@@ -122,7 +121,7 @@ void FeatureTracker::readImage(const cv::Mat &_img)
         ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
     }
 
-    if (img_cnt == 0)
+    if (PUB_THIS_FRAME)
     {
         rejectWithF();
 

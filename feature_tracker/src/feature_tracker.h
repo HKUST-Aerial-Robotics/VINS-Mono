@@ -55,5 +55,5 @@ class FeatureTracker
     vector<int> track_cnt;
     camodocal::CameraPtr m_camera;
 
-    static int n_id, img_cnt;
+    static int n_id;
 };

@@ -27,8 +27,21 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     {
         first_image_flag = false;
         first_image_time = img_msg->header.stamp.toSec();
-        return;
     }
+
+    // frequency control
+    if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
+    {
+        PUB_THIS_FRAME = true;
+        // reset the frequency control
+        if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
+        {
+            first_image_time = img_msg->header.stamp.toSec();
+            pub_count = 0;
+        }
+    }
+    else
+        PUB_THIS_FRAME = false;
 
     cv_bridge::CvImageConstPtr ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
     cv::Mat show_img = ptr->image;
@@ -54,7 +67,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 #endif
     }
 
-    if ( round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ && STEREO_TRACK && trackerData[0].cur_pts.size() > 0)
+    if ( PUB_THIS_FRAME && STEREO_TRACK && trackerData[0].cur_pts.size() > 0)
     {
         pub_count++;
         r_status.clear();
@@ -111,13 +124,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             break;
     }
 
-   if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
+   if (PUB_THIS_FRAME)
    {
-        if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
-        {
-            first_image_time = img_msg->header.stamp.toSec();
-            pub_count = 0;
-        }
         pub_count++;
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
         sensor_msgs::ChannelFloat32 id_of_point;
