@@ -17,10 +17,6 @@
 #include "factor/projection_factor.h"
 #include "factor/marginalization_factor.h"
 
-#include <thread>
-#include <pthread.h>
-#include <syscall.h>
-#include <sys/types.h>
 #include <unordered_map>
 #include <queue>
 #include <opencv2/core/eigen.hpp>

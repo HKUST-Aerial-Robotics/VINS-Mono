@@ -1,10 +1,3 @@
-// #define BACKWARD_HAS_DW 1
-// #include <backward.hpp>
-// namespace backward
-// {
-// backward::SignalHandling sh;
-// } // namespace backward
-
 #include <glog/logging.h>
 #include <stdio.h>
 #include <queue>
@@ -12,31 +5,19 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-
 #include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
-#include <diagnostic_msgs/KeyValue.h>
-#include <execinfo.h>
-#include <csignal>
+#include <opencv2/opencv.hpp>
 
 #include "estimator.h"
-#include "utility/visualization.h"
-
-#include <opencv2/opencv.hpp>
-#include <cstdio>
-#include <cstdlib>
 #include "parameters.h"
-
+#include "utility/visualization.h"
 #include "loop-closure/loop_closure.h"
 #include "loop-closure/keyframe.h"
 #include "loop-closure/keyframe_database.h"
-#include <boost/thread/thread.hpp>
-#include "sstream"
 #include "camodocal/camera_models/CameraFactory.h"
 #include "camodocal/camera_models/CataCamera.h"
-#include "camodocal/camera_models/EquidistantCamera.h"
 #include "camodocal/camera_models/PinholeCamera.h"
-#include "camodocal/camera_models/ScaramuzzaCamera.h"
 
 Estimator estimator;
 

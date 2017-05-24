@@ -4,12 +4,7 @@
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/Imu.h>
 #include <cv_bridge/cv_bridge.h>
-
 #include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/exact_time.h>
-
-#include <thread>
 
 #include "feature_tracker.h"
 
@@ -121,7 +116,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
         {
             first_image_time = img_msg->header.stamp.toSec();
-              pub_count = 0;
+            pub_count = 0;
         }
         pub_count++;
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);

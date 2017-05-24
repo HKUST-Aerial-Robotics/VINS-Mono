@@ -21,9 +21,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include "camodocal/camera_models/CameraFactory.h"
 #include "camodocal/camera_models/CataCamera.h"
-#include "camodocal/camera_models/EquidistantCamera.h"
 #include "camodocal/camera_models/PinholeCamera.h"
-#include "camodocal/camera_models/ScaramuzzaCamera.h"
 #include <queue>
 #include <cmath>
 #include <algorithm> 

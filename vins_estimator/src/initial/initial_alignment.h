@@ -6,7 +6,6 @@
 #include <ros/ros.h>
 #include <map>
 #include "../feature_manager.h"
-#include <ros/ros.h>
 
 using namespace Eigen;
 using namespace std;
