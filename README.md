@@ -65,6 +65,7 @@ Clone the repository and catkin_make:
     roslaunch vins_estimator vins_rviz.launch
     rosbag play YOUR_PATH_TO_DATASET/MH_05_difficult.bag 
 ```
+(If you fail to open vins_rviz.launch, just open an empty rviz, then load the config file: file -> Open Config-> YOUR_VINS_FOLDER/config/vins_rviz_config.rviz)
 /vins_estimator/path is the IMU center's trajectory, /vins_estimator/odometry is the IMU center's odometry and /vins_estimator/camera_pose is the camera's pose.
 
 3.3 (Optional) Visualize ground truth. We write a naive benchmark publisher to help you visualize the ground truth. It uses a naive strategy to align VINS with ground truth. Just for visualization. not for quantitative comparison on academic publications.
