@@ -1,4 +1,3 @@
-#include <glog/logging.h>
 #include <stdio.h>
 #include <queue>
 #include <map>
@@ -567,7 +566,6 @@ void process()
 
 int main(int argc, char **argv)
 {
-    google::InitGoogleLogging(argv[0]);
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
