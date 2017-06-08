@@ -45,7 +45,6 @@ bool GlobalSFM::solveFrameByPnP(Matrix3d &R_initial, Vector3d &P_initial, int i,
 	if (int(pts_2_vector.size()) < 15)
 	{
 		printf("unstable features tracking, please slowly move you device!\n");
-		return false;
 	}
 	cv::Mat r, rvec, t, D, tmp_r;
 	cv::eigen2cv(R_initial, tmp_r);
@@ -154,7 +153,6 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 
 	//1: trangulate between l ----- frame_num - 1
 	//2: solve pnp l + 1; trangulate l + 1 ------- frame_num - 1; 
-	//   ...   solve pnp l + 1; trigangulate 0 -----1;
 	for (int i = l; i < frame_num - 1 ; i++)
 	{
 		// solve pnp
@@ -184,7 +182,8 @@ bool GlobalSFM::construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 		//solve pnp
 		Matrix3d R_initial = c_Rotation[i + 1];
 		Vector3d P_initial = c_Translation[i + 1];
-		solveFrameByPnP(R_initial, P_initial, i, sfm_f);
+		if(!solveFrameByPnP(R_initial, P_initial, i, sfm_f))
+			return false;
 		c_Rotation[i] = R_initial;
 		c_Translation[i] = P_initial;
 		c_Quat[i] = c_Rotation[i];
