@@ -38,6 +38,7 @@ extern std::string VINS_FOLDER_PATH;
 
 extern int LOOP_CLOSURE;
 extern int MIN_LOOP_NUM;
+extern int MAX_KEYFRAME_NUM;
 extern std::string PATTERN_FILE;
 extern std::string VOC_FILE;
 extern std::string CAM_NAMES;

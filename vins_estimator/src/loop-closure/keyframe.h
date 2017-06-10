@@ -33,10 +33,11 @@ private:
 class KeyFrame
 {
 public:
-	KeyFrame(double _header, int _global_index, Eigen::Vector3d _T_w_c, Eigen::Matrix3d _R_w_c, cv::Mat &_image, const char *_brief_pattern_file);
+	KeyFrame(double _header, Eigen::Vector3d _vio_T_w_c, Eigen::Matrix3d _vio_R_w_c, 
+				Eigen::Vector3d _cur_T_w_c, Eigen::Matrix3d _cur_R_w_c,cv::Mat &_image, const char *_brief_pattern_file);
 	void setExtrinsic(Eigen::Vector3d T, Eigen::Matrix3d R);	
-	void rejectWithF(vector<cv::Point2f> &measurements_old,
-          			 vector<cv::Point2f> &measurements_old_norm,
+	void rejectWithF(vector<cv::Point2f> &measurements_cur, vector<cv::Point2f> &measurements_old,
+          			 vector<cv::Point2f> &measurements_old_norm, vector<int> &features_id_matched,
                  	 const camodocal::CameraPtr &m_camera);
 
 	void extractBrief(cv::Mat &image);
@@ -51,17 +52,16 @@ public:
                       const std::vector<cv::KeyPoint> &keypoints_old,
                       cv::Point2f &best_match);
 
-	void searchByDes(const Eigen::Vector3d T_w_i_old, const Eigen::Matrix3d R_w_i_old,
-					 std::vector<cv::Point2f> &measurements_old,
+	void searchByDes( std::vector<cv::Point2f> &measurements_old,
 					 std::vector<cv::Point2f> &measurements_old_norm,
                      const std::vector<BRIEF::bitset> &descriptors_old,
                      const std::vector<cv::KeyPoint> &keypoints_old,
+                     std::vector<int> &features_id_matched,
                      const camodocal::CameraPtr &m_camera);
 
 	bool findConnectionWithOldFrame(const KeyFrame* old_kf,
-                                    const std::vector<cv::Point2f> &cur_pts, const std::vector<cv::Point2f> &old_pts,
                                     std::vector<cv::Point2f> &measurements_old, std::vector<cv::Point2f> &measurements_old_norm,
-                                    const camodocal::CameraPtr &m_camera);
+                                    std::vector<int> &features_id_matched, const camodocal::CameraPtr &m_camera);
 
 	void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
 
@@ -89,13 +89,12 @@ public:
 
 	// data 
 	double header;
-	std::vector<Eigen::Vector3d> point_clouds, point_clouds_origin;
 	//feature in origin image plane
-	std::vector<cv::Point2f> measurements, measurements_origin;
+	std::vector<cv::Point2f> measurements, measurements_matched;
 	//feature in normalize image plane
 	std::vector<cv::Point2f> pts_normalize;
 	//feature ID
-	std::vector<int> features_id, features_id_origin;
+	std::vector<int> features_id;
 	//feature descriptor
 	std::vector<BRIEF::bitset> descriptors;
 	//keypoints
@@ -114,8 +113,6 @@ public:
 	// index t_x t_y t_z q_w q_x q_y q_z yaw
 	// old_R_cur old_T_cur
 
-
-	bool check_loop;
 	// looped by other frame
 	bool is_looped;
 	int resample_index;

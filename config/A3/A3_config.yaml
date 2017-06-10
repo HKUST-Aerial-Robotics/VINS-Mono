@@ -6,58 +6,45 @@ image_topic: "/djiros/image"
 output_path: "/config/A3/vins_result.csv"         # vins outputs will be wrttento vins_folder_path + output_path
 
 #camera calibration 
-# model_type: MEI
-# camera_name: camera
-# image_width: 752
-# image_height: 480
-# mirror_parameters:
-#    xi: 2.5826025650890592e+00
-# distortion_parameters:
-#    k1: 3.9389417936108251e-01
-#    k2: 2.2073276594959599e+00
-#    p1: -1.9253757033376501e-03
-#    p2: -6.1503758445210599e-04
-# projection_parameters:
-#    gamma1: 1.3068921176079280e+03
-#    gamma2: 1.3065892394640514e+03
-#    u0: 3.6959543908262725e+02
-#    v0: 2.1891731132428231e+02
-model_type: PINHOLE
+model_type: MEI
 camera_name: camera
 image_width: 752
 image_height: 480
+mirror_parameters:
+   xi: 2.5826025650890592e+00
 distortion_parameters:
-   k1: -2.727e-01
-   k2: 6.375e-02
-   p1: -5.850e-05
-   p2: -9.779e-05
+   k1: 3.9389417936108251e-01
+   k2: 2.2073276594959599e+00
+   p1: -1.9253757033376501e-03
+   p2: -6.1503758445210599e-04
 projection_parameters:
-   fx: 3.651e+02
-   fy: 3.652e+02
-   cx: 3.695e+02
-   cy: 2.182e+02
+   gamma1: 1.3068921176079280e+03
+   gamma2: 1.3065892394640514e+03
+   u0: 3.6959543908262725e+02
+   v0: 2.1891731132428231e+02
+
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 2   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning. 
 ex_calib_result_path: "/config/A3/ex_calib_result.yaml"  # If you choose 1 or 2, the extrinsic calibration result will be written vins_folder_path + ex_calib_result_path.                        
 #If you choose 0 or 1, you should write down the following matrix.
 #Rotation from camera frame to imu frame, imu^R_cam
-# extrinsicRotation: !!opencv-matrix
-#    rows: 3
-#    cols: 3
-#    dt: d
-#    data: [ 0, -1, 0,
-#            1, 0, 0, 
-#            0, 0, 1]
+extrinsicRotation: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 0, -1, 0,
+           1, 0, 0, 
+           0, 0, 1]
 
-# #Translation from camera frame to imu frame, imu^T_cam
-# extrinsicTranslation: !!opencv-matrix
-#    rows: 3
-#    cols: 1
-#    dt: d
-#    data: [ 0, 0.05, 0]
+#Translation from camera frame to imu frame, imu^T_cam
+extrinsicTranslation: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 0, 0.05, 0]
 
 
 #feature traker paprameters
@@ -88,4 +75,4 @@ loop_closure: 1   #if you want to use loop closure to minimize the drift, set lo
                      #also give the camera calibration file same as feature_tracker node
 pattern_file: "/support_files/brief_pattern.yml"
 voc_file: "/support_files/brief_k10L6.bin"
-min_loop_num: 25
+min_loop_num: 30

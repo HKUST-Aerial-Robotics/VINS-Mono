@@ -17,14 +17,13 @@ class KeyFrameDatabase
 public:
 	KeyFrameDatabase();
 	void add(KeyFrame* pKF);
-	void resample(vector<int> &erase_index);
+	void downsample(vector<int> &erase_index);
 	void erase(KeyFrame* pKF);
 	int size();
 	void optimize4DoFLoopPoseGraph(int cur_index, Eigen::Vector3d &loop_correct_t, Eigen::Matrix3d &loop_correct_r);
 	KeyFrame* getKeyframe(int index);
 	KeyFrame* getLastKeyframe();
 	KeyFrame* getLastKeyframe(int last_index);
-	KeyFrame* getLastUncheckKeyframe();
 	void getKeyframeIndexList(vector<int> &keyframe_index_list);
 	void updateVisualization();
 	void addLoop(int loop_index);
@@ -41,7 +40,6 @@ private:
 	Vector3d t_drift;
 	double yaw_drift;
 	Matrix3d r_drift;
-	int max_frame_num;
 	double total_length;
 	Vector3d last_P;
 	nav_msgs::Path refine_path;

@@ -8,7 +8,6 @@ KeyFrameDatabase::KeyFrameDatabase()
     t_drift = Eigen::Vector3d(0, 0, 0);
     yaw_drift = 0;
     r_drift = Eigen::Matrix3d::Identity();
-    max_frame_num = 400;
     total_length = 0;
     last_P = Eigen::Vector3d(0, 0, 0);
 }
@@ -21,9 +20,6 @@ void KeyFrameDatabase::add(KeyFrame* pKF)
 	Vector3d P;
 	Matrix3d R;
 	pKF->getPose(P, R);
-	P = r_drift * P + t_drift;
-	R = r_drift * R;
-	pKF->updatePose(P, R);
 	Quaterniond Q;
 	Q = R;
 
@@ -79,16 +75,15 @@ void KeyFrameDatabase::add(KeyFrame* pKF)
 
 }
 
-void KeyFrameDatabase::resample(vector<int> &erase_index)
+void KeyFrameDatabase::downsample(vector<int> &erase_index)
 {
 	ROS_DEBUG("resample keyframe begin!");
 	unique_lock<mutex> lock(mMutexkeyFrameList);
-	if ((int)keyFrameList.size() < max_frame_num)
-		return;
+	int frame_num = (int)keyFrameList.size();
 	if (mOptimiazationPosegraph.try_lock())
 	{
 		erase_index.clear();
-		double min_dis = total_length / (max_frame_num * 0.7);
+		double min_dis = total_length / (frame_num * 0.7);
 
 		list<KeyFrame*>::iterator it = keyFrameList.begin();
 		Vector3d last_P = Vector3d(0, 0, 0);
@@ -98,7 +93,7 @@ void KeyFrameDatabase::resample(vector<int> &erase_index)
 			Matrix3d tmp_r;
 			(*it)->getPose(tmp_t, tmp_r);
 			double dis = (tmp_t - last_P).norm();
-		    if(it == keyFrameList.begin() || dis > min_dis || (*it)->update_loop_info || (*it)->is_looped || !(*it)->check_loop)
+		    if(it == keyFrameList.begin() || dis > min_dis || (*it)->has_loop || (*it)->is_looped)
 		    {
 		    	last_P = tmp_t;
 		    	it++;
@@ -179,18 +174,6 @@ KeyFrame* KeyFrameDatabase::getLastKeyframe(int last_index)
     return *rit;
 }
 
-KeyFrame* KeyFrameDatabase::getLastUncheckKeyframe()
-{
-	unique_lock<mutex> lock(mMutexkeyFrameList);
-	list<KeyFrame*>::reverse_iterator rit = keyFrameList.rbegin();
-	for (; rit != keyFrameList.rend(); rit++)  
-    {  
-        if ((*rit)->check_loop == 1)
-        	break;
-    } 
-    assert(rit != keyFrameList.rbegin());
-    return *(--rit);
-}
 void KeyFrameDatabase::optimize4DoFLoopPoseGraph(int cur_index, Eigen::Vector3d &loop_correct_t, Eigen::Matrix3d &loop_correct_r)
 {
 	ROS_DEBUG("optimizae pose graph begin!");
@@ -273,7 +256,6 @@ void KeyFrameDatabase::optimize4DoFLoopPoseGraph(int cur_index, Eigen::Vector3d 
 		//add loop edge
 		if((*it)->update_loop_info)
 		{
-			
 			int connected_index = getKeyframe((*it)->loop_index)->resample_index;
 			assert((*it)->loop_index >= earliest_loop_index);
 			Vector3d euler_conncected = Utility::R2ypr(q_array[connected_index].toRotationMatrix());
@@ -294,7 +276,7 @@ void KeyFrameDatabase::optimize4DoFLoopPoseGraph(int cur_index, Eigen::Vector3d 
 	}
 
 	ceres::Solve(options, &problem, &summary);
-	std::cout << summary.BriefReport() << "\n";
+	//std::cout << summary.BriefReport() << "\n";
 
 	i = 0;
 	for (it = keyFrameList.begin(); it != keyFrameList.end(); it++)
@@ -337,6 +319,7 @@ void KeyFrameDatabase::optimize4DoFLoopPoseGraph(int cur_index, Eigen::Vector3d 
 
 void KeyFrameDatabase::updateVisualization()
 {
+	ROS_DEBUG("updateVisualization begin");
 	unique_lock<mutex> mlockPath(mPath);
 	unique_lock<mutex> mlockPosegraph(mPosegraphVisualization);
 	total_length = 0;
@@ -399,9 +382,6 @@ void KeyFrameDatabase::updateVisualization()
 			Matrix3d R_previous;
 			(*lit)->getPose(P_previous, R_previous);
 			posegraph_visualization->add_loopedge(P, P_previous);
-			
-			
-
 		}
 
 		// add key frame to path for visualization
@@ -423,13 +403,16 @@ void KeyFrameDatabase::updateVisualization()
 		refine_path.poses.push_back(pose_stamped);
 
 	}
+	ROS_DEBUG("updateVisualization end");
 }
 
 void KeyFrameDatabase::addLoop(int loop_index)
 {
 	unique_lock<mutex> lock(mPosegraphVisualization);
-	KeyFrame* cur_KF = getLastKeyframe();
+	if (earliest_loop_index > loop_index || earliest_loop_index == -1)
+		earliest_loop_index = loop_index;
 
+	KeyFrame* cur_KF = getLastKeyframe();
 	KeyFrame* connected_KF = getKeyframe(loop_index);
 	Vector3d conncected_P, P;
 	Matrix3d connected_R, R;

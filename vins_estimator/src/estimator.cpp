@@ -52,6 +52,8 @@ void Estimator::clearState()
     solver_flag = INITIAL;
     initial_timestamp = 0;
     all_image_frame.clear();
+    relocalize = false;
+    retrive_data_vector.clear();
 
     if (tmp_pre_integration != nullptr)
         delete tmp_pre_integration;
@@ -566,6 +568,21 @@ void Estimator::double2vector()
         dep(i) = para_Feature[i][0];
     f_manager.setDepth(dep);
 
+    if (LOOP_CLOSURE && relocalize && retrive_data_vector[0].relative_pose)
+    {
+
+        Matrix3d vio_loop_r;
+        Vector3d vio_loop_t;
+        vio_loop_r = rot_diff * Quaterniond(retrive_data_vector[0].loop_pose[6], retrive_data_vector[0].loop_pose[3], retrive_data_vector[0].loop_pose[4], retrive_data_vector[0].loop_pose[5]).normalized().toRotationMatrix();
+        vio_loop_t = rot_diff * Vector3d(retrive_data_vector[0].loop_pose[0] - para_Pose[0][0],
+                                retrive_data_vector[0].loop_pose[1] - para_Pose[0][1],
+                                retrive_data_vector[0].loop_pose[2] - para_Pose[0][2]) + origin_P0;
+        double relocalize_yaw;
+        relocalize_yaw = Utility::R2ypr(retrive_data_vector[0].R_old).x() - Utility::R2ypr(vio_loop_r).x();
+        relocalize_r = Utility::ypr2R(Vector3d(relocalize_yaw, 0, 0));
+        relocalize_t = retrive_data_vector[0].P_old- relocalize_r * vio_loop_t;
+    }
+
 }
 
 bool Estimator::failureDetection()
@@ -688,71 +705,57 @@ void Estimator::optimization()
             f_m_cnt++;
         }
     }
+    relocalize = false;
+    //loop close factor
     if(LOOP_CLOSURE)
     {
-        //loop close factor
-        //front_pose.measurements.clear();
-        if(front_pose.header != retrive_pose_data.header)
-        {
-            front_pose = retrive_pose_data;  
-        }
-        if(!front_pose.measurements.empty())
-        {   
-            //the retrive pose is in the current window
-            if(front_pose.header >= Headers[0].stamp.toSec())
+        int loop_constraint_num = 0;
+        for (int k = 0; k < (int)retrive_data_vector.size(); k++)
+        {    
+            for(int i = 0; i < WINDOW_SIZE; i++)
             {
-                //tmp_retrive_pose_buf.push(front_pose);
-                for(int i = 0; i < WINDOW_SIZE; i++)
+                if(retrive_data_vector[k].header == Headers[i].stamp.toSec())
                 {
-                    if(front_pose.header == Headers[i].stamp.toSec())
+                    relocalize = true;
+                    ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
+                    problem.AddParameterBlock(retrive_data_vector[k].loop_pose, SIZE_POSE, local_parameterization);
+                    loop_window_index = i;
+                    loop_constraint_num++;
+                    int retrive_feature_index = 0;
+                    int feature_index = -1;
+                    for (auto &it_per_id : f_manager.feature)
                     {
-                        for (int k = 0; k < 7; k++)
-                            front_pose.loop_pose[k] = para_Pose[i][k];
-                        ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-                        problem.AddParameterBlock(front_pose.loop_pose, SIZE_POSE, local_parameterization);
-                        loop_window_index = i;
-                        
-                        int retrive_feature_index = 0;
-                        int feature_index = -1;
-                        int loop_factor_cnt = 0;
-                        for (auto &it_per_id : f_manager.feature)
-                        {
-                            it_per_id.used_num = it_per_id.feature_per_frame.size();
-                            if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
-                                continue;
+                        it_per_id.used_num = it_per_id.feature_per_frame.size();
+                        if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+                            continue;
 
-                            ++feature_index;
-                            int start = it_per_id.start_frame;
-                            //feature has been obeserved in ith frame
-                            int end = (start + it_per_id.feature_per_frame.size() - i - 1);
-                            if(start <= i && end >=0)
-                            {   
-                                while(front_pose.features_ids[retrive_feature_index] < it_per_id.feature_id)
-                                {
-                                    retrive_feature_index++;
-                                }
-
-                                if(front_pose.features_ids[retrive_feature_index] == it_per_id.feature_id)
-                                {
-                                    Vector3d pts_j = Vector3d(front_pose.measurements[retrive_feature_index].x, front_pose.measurements[retrive_feature_index].y, 1.0);
-                                    Vector3d pts_i = it_per_id.feature_per_frame[0].point;
-                                    
-                                    ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
-                                    problem.AddResidualBlock(f, loss_function, para_Pose[start], front_pose.loop_pose, para_Ex_Pose[0], para_Feature[feature_index]);
-                                
-                                    retrive_feature_index++;
-                                    loop_factor_cnt++;
-                                }
-                                
+                        ++feature_index;
+                        int start = it_per_id.start_frame;
+                        if(start <= i)
+                        {   
+                            while(retrive_data_vector[k].features_ids[retrive_feature_index] < it_per_id.feature_id)
+                            {
+                                retrive_feature_index++;
                             }
-                        }
+
+                            if(retrive_data_vector[k].features_ids[retrive_feature_index] == it_per_id.feature_id)
+                            {
+                                Vector3d pts_j = Vector3d(retrive_data_vector[k].measurements[retrive_feature_index].x, retrive_data_vector[k].measurements[retrive_feature_index].y, 1.0);
+                                Vector3d pts_i = it_per_id.feature_per_frame[0].point;
                                 
+                                ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
+                                problem.AddResidualBlock(f, loss_function, para_Pose[start], retrive_data_vector[k].loop_pose, para_Ex_Pose[0], para_Feature[feature_index]);
+                            
+                                retrive_feature_index++;
+                            }     
+                        }
                     }
+                            
                 }
             }
         }
+        ROS_DEBUG("loop constraint num: %d", loop_constraint_num);
     }
-
     ROS_DEBUG("visual measurement count: %d", f_m_cnt);
     ROS_DEBUG("prepare for ceres: %f", t_prepare.toc());
 
@@ -776,22 +779,31 @@ void Estimator::optimization()
     ROS_DEBUG("Iterations : %d", static_cast<int>(summary.iterations.size()));
     ROS_DEBUG("solver costs: %f", t_solver.toc());
 
-    if(LOOP_CLOSURE)
+    // relative info between two loop frame
+    if(LOOP_CLOSURE && relocalize)
     { 
-        for(int i = 0; i< WINDOW_SIZE; i++)
+        for (int k = 0; k < (int)retrive_data_vector.size(); k++)
         {
-            if(front_pose.header == Headers[i].stamp.toSec())
+            for(int i = 0; i< WINDOW_SIZE; i++)
             {
-                Matrix3d Rs_i = Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
-                Vector3d Ps_i = Vector3d(para_Pose[i][0], para_Pose[i][1], para_Pose[i][2]);
-                Matrix3d Rs_loop = Quaterniond(front_pose.loop_pose[6],  front_pose.loop_pose[3],  front_pose.loop_pose[4],  front_pose.loop_pose[5]).normalized().toRotationMatrix();
-                Vector3d Ps_loop = Vector3d( front_pose.loop_pose[0],  front_pose.loop_pose[1],  front_pose.loop_pose[2]);
+                if(retrive_data_vector[k].header == Headers[i].stamp.toSec())
+                {
+                    retrive_data_vector[k].relative_pose = true;
+                    Matrix3d Rs_i = Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
+                    Vector3d Ps_i = Vector3d(para_Pose[i][0], para_Pose[i][1], para_Pose[i][2]);
+                    Matrix3d Rs_loop = Quaterniond(retrive_data_vector[k].loop_pose[6],  retrive_data_vector[k].loop_pose[3],  retrive_data_vector[k].loop_pose[4],  retrive_data_vector[k].loop_pose[5]).normalized().toRotationMatrix();
+                    Vector3d Ps_loop = Vector3d( retrive_data_vector[k].loop_pose[0],  retrive_data_vector[k].loop_pose[1],  retrive_data_vector[k].loop_pose[2]);
 
-                front_pose.relative_t = Rs_loop.transpose() * (Ps_i - Ps_loop);
-                front_pose.relative_q = Rs_loop.transpose() * Rs_i;
-                front_pose.relative_yaw = Utility::normalizeAngle(Utility::R2ypr(Rs_i).x() - Utility::R2ypr(Rs_loop).x());
-            }
-        }  
+                    retrive_data_vector[k].relative_t = Rs_loop.transpose() * (Ps_i - Ps_loop);
+                    retrive_data_vector[k].relative_q = Rs_loop.transpose() * Rs_i;
+                    retrive_data_vector[k].relative_yaw = Utility::normalizeAngle(Utility::R2ypr(Rs_i).x() - Utility::R2ypr(Rs_loop).x());
+                    cout << "loop after cere " << Ps_loop.transpose() << endl;
+                    if (abs(retrive_data_vector[k].relative_yaw) > 30.0 || retrive_data_vector[k].relative_t.norm() > 20.0)
+                        retrive_data_vector[k].relative_pose = false;
+                        
+                }
+            } 
+        } 
     }
 
     double2vector();

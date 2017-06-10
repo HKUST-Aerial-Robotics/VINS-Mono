@@ -26,6 +26,8 @@ queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 std::mutex m_posegraph_buf;
 queue<int> optimize_posegraph_buf;
+queue<KeyFrame*> keyframe_buf;
+queue<RetriveData> retrive_data_buf;
 
 int sum_of_wait = 0;
 
@@ -35,6 +37,8 @@ std::mutex i_buf;
 std::mutex m_loop_drift;
 std::mutex m_keyframedatabase_resample;
 std::mutex m_update_visualization;
+std::mutex m_keyframe_buf;
+std::mutex m_retrive_data_buf;
 
 double latest_time;
 Eigen::Vector3d tmp_P;
@@ -49,16 +53,14 @@ queue<pair<cv::Mat, double>> image_buf;
 LoopClosure *loop_closure;
 KeyFrameDatabase keyframe_database;
 
-int process_keyframe_cnt = 0;
-int miss_keyframe_num = 0;
-int keyframe_freq = 0;
 int global_frame_cnt = 0;
-int loop_check_cnt = 0;
 //camera param
 camodocal::CameraPtr m_camera;
 vector<int> erase_index;
-Eigen::Vector3d loop_correct_t = Eigen::Vector3d(0, 0, 0);
-Eigen::Matrix3d loop_correct_r = Eigen::Matrix3d::Identity();
+std_msgs::Header cur_header;
+Eigen::Vector3d relocalize_t{Eigen::Vector3d(0, 0, 0)};
+Eigen::Matrix3d relocalize_r{Eigen::Matrix3d::Identity()};
+
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -96,8 +98,8 @@ void update()
 {
     TicToc t_predict;
     latest_time = current_time;
-    tmp_P = loop_correct_r * estimator.Ps[WINDOW_SIZE] + loop_correct_t;
-    tmp_Q = loop_correct_r * estimator.Rs[WINDOW_SIZE];
+    tmp_P = relocalize_r * estimator.Ps[WINDOW_SIZE] + relocalize_t;
+    tmp_Q = relocalize_r * estimator.Rs[WINDOW_SIZE];
     tmp_V = estimator.Vs[WINDOW_SIZE];
     tmp_Ba = estimator.Bas[WINDOW_SIZE];
     tmp_Bg = estimator.Bgs[WINDOW_SIZE];
@@ -164,206 +166,6 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     }
 }
 
-void process_loop_detection()
-{
-    if(loop_closure == NULL)
-    {
-        const char *voc_file = VOC_FILE.c_str();
-        TicToc t_load_voc;
-        ROS_DEBUG("loop start loop");
-        cout << "voc file: " << voc_file << endl;
-        loop_closure = new LoopClosure(voc_file, IMAGE_COL, IMAGE_ROW);
-        ROS_DEBUG("loop load vocbulary %lf", t_load_voc.toc());
-        loop_closure->initCameraModel(CAM_NAMES);
-    }
-
-    while(LOOP_CLOSURE)
-    {
-        m_posegraph_buf.lock();
-        int index = -1;
-        if (!optimize_posegraph_buf.empty())
-        {
-            index = optimize_posegraph_buf.front();
-            optimize_posegraph_buf.pop();
-        }
-        m_posegraph_buf.unlock();
-        if(index != -1)
-        {
-            Vector3d correct_t = Vector3d::Zero();
-            Matrix3d correct_r = Matrix3d::Identity();
-            TicToc t_posegraph;
-            keyframe_database.optimize4DoFLoopPoseGraph(index,
-                                                    correct_t,
-                                                    correct_r);
-            ROS_DEBUG("t_posegraph %f ms", t_posegraph.toc());
-            m_loop_drift.lock();
-            loop_correct_r = correct_r;
-            loop_correct_t = correct_t;
-            m_loop_drift.unlock();
-            m_update_visualization.lock();
-            keyframe_database.updateVisualization();
-            m_update_visualization.unlock();
-            nav_msgs::Path refine_path = keyframe_database.getPath();
-            updateLoopPath(refine_path);
-        }
-
-        if (loop_check_cnt < global_frame_cnt)
-        {
-            erase_index.clear();
-            m_keyframedatabase_resample.lock();
-            keyframe_database.resample(erase_index);
-            m_keyframedatabase_resample.unlock();
-            
-            m_update_visualization.lock();
-            keyframe_database.updateVisualization();
-            m_update_visualization.unlock();
-
-            if(!erase_index.empty())
-                loop_closure->eraseIndex(erase_index);
-
-            KeyFrame* cur_kf = keyframe_database.getLastUncheckKeyframe();
-            assert(loop_check_cnt == cur_kf->global_index);
-            loop_check_cnt++;
-            cur_kf->check_loop = 1;
-
-            cv::Mat current_image;
-            current_image = cur_kf->image;
-
-            std::vector<cv::Point2f> measurements_old;
-            std::vector<cv::Point2f> measurements_old_norm;
-            std::vector<cv::Point2f> measurements_cur;
-            std::vector<int> features_id;     
-            std::vector<cv::Point2f> measurements_cur_origin = cur_kf->measurements;
-
-            bool loop_succ = false;
-            int old_index = -1;
-            TicToc t_loop;
-            vector<cv::Point2f> cur_pts;
-            vector<cv::Point2f> old_pts;
-            TicToc t_brief;
-            cur_kf->extractBrief(current_image);
-            //printf("loop extract %d feature using %lf\n", cur_kf->keypoints.size(), t_brief.toc());
-            TicToc t_loopdetect;
-            loop_succ = loop_closure->startLoopClosure(cur_kf->keypoints, cur_kf->descriptors, cur_pts, old_pts, old_index);
-            ROS_DEBUG("t_loopdetect %f ms", t_loopdetect.toc());
-            if(loop_succ)
-            {
-                KeyFrame* old_kf = keyframe_database.getKeyframe(old_index);
-                if (old_kf == NULL)
-                {
-                    ROS_WARN("NO such frame in keyframe_database");
-                    ROS_BREAK();
-                }
-                ROS_DEBUG("loop succ %d with %drd image", loop_check_cnt, old_index);
-                assert(old_index!=-1);
-                
-                Vector3d T_w_i_old, T_w_i_refine;
-                Matrix3d R_w_i_old, R_w_i_refine;
-
-                old_kf->getOriginPose(T_w_i_old, R_w_i_old);
-                cur_kf->findConnectionWithOldFrame(old_kf, cur_pts, old_pts,
-                                                   measurements_old, measurements_old_norm, m_camera);
-                measurements_cur = cur_kf->measurements;
-                features_id = cur_kf->features_id;
-                
-                /**
-                *** send features and ids to VINS
-                **/
-                //if(measurements_old_norm.size()>MIN_LOOP_NUM && process_keyframe_cnt - old_index > 50 && old_index > 50)
-                int loop_fusion = 0;
-                if( (int)measurements_old_norm.size() > MIN_LOOP_NUM && loop_check_cnt - old_index > 35 && old_index > 30)
-                {
-
-                    Quaterniond Q_loop_old(R_w_i_old);
-                    Quaterniond Q_loop_cur(R_w_i_refine);
-                    RetriveData retrive_data;
-                    retrive_data.cur_index = cur_kf->global_index;
-                    retrive_data.header = cur_kf->header;
-                    retrive_data.P_old = T_w_i_old;
-                    retrive_data.Q_old = Q_loop_old;
-                    retrive_data.P_cur = T_w_i_refine;
-                    retrive_data.Q_cur = Q_loop_cur;
-                    retrive_data.use = true;
-                    retrive_data.measurements = measurements_old_norm;
-                    retrive_data.features_ids = features_id;
-                    estimator.retrive_pose_data = (retrive_data);    
-
-                    //cout << "old pose " << T_w_i_old.transpose() << endl;
-                    //cout << "refinded pose " << T_w_i_refine.transpose() << endl;
-                    // add loop edge in current frame
-                    cur_kf->detectLoop(old_index);
-                    //keyframe_database.addLoop(old_index);
-                    old_kf->is_looped = 1;
-                    loop_fusion = 1;
-                }
-                if(0)
-                {
-                    int COL = current_image.cols;
-                    //int ROW = current_image.rows;
-                    cv::Mat gray_img, loop_match_img;
-                    cv::Mat old_img = old_kf->image;
-                    cv::hconcat(old_img, current_image, gray_img);
-                    cvtColor(gray_img, loop_match_img, CV_GRAY2RGB);
-                    cv::Mat loop_match_img2;
-                    loop_match_img2 = loop_match_img.clone();
-
-                    for(int i = 0; i< (int)cur_pts.size(); i++)
-                    {
-                        cv::Point2f cur_pt = cur_pts[i];
-                        cur_pt.x += COL;
-                        cv::circle(loop_match_img, cur_pt, 5, cv::Scalar(0, 255, 0));
-                    }
-                    for(int i = 0; i< (int)old_pts.size(); i++)
-                    {
-                        cv::circle(loop_match_img, old_pts[i], 5, cv::Scalar(0, 255, 0));
-                    }
-                    for (int i = 0; i< (int)old_pts.size(); i++)
-                    {
-                        cv::Point2f cur_pt = cur_pts[i];
-                        cur_pt.x += COL ;
-                        cv::line(loop_match_img, old_pts[i], cur_pt, cv::Scalar(0, 255, 0), 1, 8, 0);
-                    }
-                    ostringstream convert;
-                    convert << "/home/tony-ws/raw_data/loop_image/"
-                            << cur_kf->global_index << "-" 
-                            << old_index << "-" << loop_fusion <<".jpg";
-                    cv::imwrite( convert.str().c_str(), loop_match_img);
-
-
-                    
-                    for(int i = 0; i< (int)measurements_cur.size(); i++)
-                    {
-                        cv::Point2f cur_pt = measurements_cur[i];
-                        cur_pt.x += COL;
-                        cv::circle(loop_match_img2, cur_pt, 5, cv::Scalar(0, 255, 0));
-                    }
-                    for(int i = 0; i< (int)measurements_old.size(); i++)
-                    {
-                        cv::circle(loop_match_img2, measurements_old[i], 5, cv::Scalar(0, 255, 0));
-                    }
-                    for (int i = 0; i< (int)measurements_old.size(); i++)
-                    {
-                        cv::Point2f cur_pt = measurements_cur[i];
-                        cur_pt.x += COL ;
-                        cv::line(loop_match_img2, measurements_old[i], cur_pt, cv::Scalar(0, 255, 0), 1, 8, 0);
-                    }
-                    ostringstream convert2;
-                    convert2 << "/home/tony-ws/raw_data/loop_image/"
-                            << cur_kf->global_index << "-" 
-                            << old_index << "-" << loop_fusion <<"-2.jpg";
-                    cv::imwrite( convert2.str().c_str(), loop_match_img2);
-                }
-                  
-            }
-            //release memory
-            cur_kf->image.release();
-        }
-
-        std::chrono::milliseconds dura(10);
-        std::this_thread::sleep_for(dura);
-    }
-}
-
 void raw_image_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     cv_bridge::CvImagePtr img_ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
@@ -407,6 +209,233 @@ void send_imu(const sensor_msgs::ImuConstPtr &imu_msg)
     estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
 }
 
+//thread:loop detection
+void process_loop_detection()
+{
+    if(loop_closure == NULL)
+    {
+        const char *voc_file = VOC_FILE.c_str();
+        TicToc t_load_voc;
+        ROS_DEBUG("loop start loop");
+        cout << "voc file: " << voc_file << endl;
+        loop_closure = new LoopClosure(voc_file, IMAGE_COL, IMAGE_ROW);
+        ROS_DEBUG("loop load vocbulary %lf", t_load_voc.toc());
+        loop_closure->initCameraModel(CAM_NAMES);
+    }
+
+    while(LOOP_CLOSURE)
+    {
+        KeyFrame* cur_kf = NULL; 
+        m_keyframe_buf.lock();
+        while(!keyframe_buf.empty())
+        {
+            if(cur_kf!=NULL)
+                delete cur_kf;
+            cur_kf = keyframe_buf.front();
+            keyframe_buf.pop();
+        }
+        m_keyframe_buf.unlock();
+        if (cur_kf != NULL)
+        {
+            cur_kf->global_index = global_frame_cnt;
+            cur_kf->buildKeyFrameFeatures(estimator, m_camera);
+            m_keyframedatabase_resample.lock();
+            keyframe_database.add(cur_kf);
+            m_keyframedatabase_resample.unlock();
+
+            cv::Mat current_image;
+            current_image = cur_kf->image;   
+
+            bool loop_succ = false;
+            int old_index = -1;
+            vector<cv::Point2f> cur_pts;
+            vector<cv::Point2f> old_pts;
+            TicToc t_brief;
+            cur_kf->extractBrief(current_image);
+            //printf("loop extract %d feature using %lf\n", cur_kf->keypoints.size(), t_brief.toc());
+            TicToc t_loopdetect;
+            loop_succ = loop_closure->startLoopClosure(cur_kf->keypoints, cur_kf->descriptors, cur_pts, old_pts, old_index);
+            double t_loop = t_loopdetect.toc();
+            ROS_DEBUG("t_loopdetect %f ms", t_loop);
+            if(loop_succ)
+            {
+                KeyFrame* old_kf = keyframe_database.getKeyframe(old_index);
+                if (old_kf == NULL)
+                {
+                    ROS_WARN("NO such frame in keyframe_database");
+                    ROS_BREAK();
+                }
+                ROS_DEBUG("loop succ %d with %drd image", global_frame_cnt, old_index);
+                assert(old_index!=-1);
+                
+                Vector3d T_w_i_old, T_w_i_cur;
+                Matrix3d R_w_i_old, R_w_i_cur;
+
+                old_kf->getPose(T_w_i_old, R_w_i_old);
+                cur_kf->getOriginPose(T_w_i_cur, R_w_i_cur);
+                std::vector<cv::Point2f> measurements_old;
+                std::vector<cv::Point2f> measurements_old_norm;
+                std::vector<cv::Point2f> measurements_cur;
+                std::vector<int> features_id_matched;  
+                cur_kf->findConnectionWithOldFrame(old_kf, measurements_old, measurements_old_norm, features_id_matched, m_camera);
+                measurements_cur = cur_kf->measurements_matched;
+
+                // send loop info to VINS relocalization
+                int loop_fusion = 0;
+                if( (int)measurements_old_norm.size() > MIN_LOOP_NUM && global_frame_cnt - old_index > 35 && old_index > 30)
+                {
+
+                    Quaterniond Q_loop_old(R_w_i_old);
+                    Quaterniond Q_cur(R_w_i_old);
+                    RetriveData retrive_data;
+                    retrive_data.cur_index = cur_kf->global_index;
+                    retrive_data.header = cur_kf->header;
+                    retrive_data.P_old = T_w_i_old;
+                    retrive_data.R_old = R_w_i_old;
+                    retrive_data.relative_pose = false;
+                    retrive_data.measurements = measurements_old_norm;
+                    retrive_data.features_ids = features_id_matched;
+                    retrive_data.loop_pose[0] = T_w_i_cur.x();
+                    retrive_data.loop_pose[1] = T_w_i_cur.y();
+                    retrive_data.loop_pose[2] = T_w_i_cur.z();
+                    retrive_data.loop_pose[3] = Q_cur.x();
+                    retrive_data.loop_pose[4] = Q_cur.y();
+                    retrive_data.loop_pose[5] = Q_cur.z();
+                    retrive_data.loop_pose[6] = Q_cur.w();
+                    m_retrive_data_buf.lock();
+                    retrive_data_buf.push(retrive_data);
+                    m_retrive_data_buf.unlock();
+                    cur_kf->detectLoop(old_index);
+                    old_kf->is_looped = 1;
+                    loop_fusion = 1;
+
+                    m_update_visualization.lock();
+                    keyframe_database.addLoop(old_index);
+                    CameraPoseVisualization* posegraph_visualization = keyframe_database.getPosegraphVisualization();
+                    pubPoseGraph(posegraph_visualization, cur_header);  
+                    m_update_visualization.unlock();
+                }
+
+
+                // visualization loop info
+                if(0)
+                {
+                    int COL = current_image.cols;
+                    //int ROW = current_image.rows;
+                    cv::Mat gray_img, loop_match_img;
+                    cv::Mat old_img = old_kf->image;
+                    cv::hconcat(old_img, current_image, gray_img);
+                    cvtColor(gray_img, loop_match_img, CV_GRAY2RGB);
+                    cv::Mat loop_match_img2;
+                    loop_match_img2 = loop_match_img.clone();
+                    
+                    for(int i = 0; i< (int)cur_pts.size(); i++)
+                    {
+                        cv::Point2f cur_pt = cur_pts[i];
+                        cur_pt.x += COL;
+                        cv::circle(loop_match_img, cur_pt, 5, cv::Scalar(0, 255, 0));
+                    }
+                    for(int i = 0; i< (int)old_pts.size(); i++)
+                    {
+                        cv::circle(loop_match_img, old_pts[i], 5, cv::Scalar(0, 255, 0));
+                    }
+                    for (int i = 0; i< (int)old_pts.size(); i++)
+                    {
+                        cv::Point2f cur_pt = cur_pts[i];
+                        cur_pt.x += COL ;
+                        cv::line(loop_match_img, old_pts[i], cur_pt, cv::Scalar(0, 255, 0), 1, 8, 0);
+                    }
+                    ostringstream convert;
+                    convert << "/home/tony-ws/raw_data/loop_image/"
+                            << cur_kf->global_index << "-" 
+                            << old_index << "-" << loop_fusion <<".jpg";
+                    cv::imwrite( convert.str().c_str(), loop_match_img);
+                    
+                    for(int i = 0; i< (int)measurements_cur.size(); i++)
+                    {
+                        cv::Point2f cur_pt = measurements_cur[i];
+                        cur_pt.x += COL;
+                        cv::circle(loop_match_img2, cur_pt, 5, cv::Scalar(0, 255, 0));
+                    }
+                    for(int i = 0; i< (int)measurements_old.size(); i++)
+                    {
+                        cv::circle(loop_match_img2, measurements_old[i], 5, cv::Scalar(0, 255, 0));
+                    }
+                    for (int i = 0; i< (int)measurements_old.size(); i++)
+                    {
+                        cv::Point2f cur_pt = measurements_cur[i];
+                        cur_pt.x += COL ;
+                        cv::line(loop_match_img2, measurements_old[i], cur_pt, cv::Scalar(0, 255, 0), 1, 8, 0);
+                    }
+                    ostringstream convert2;
+                    convert2 << "/home/tony-ws/raw_data/loop_image/"
+                            << cur_kf->global_index << "-" 
+                            << old_index << "-" << loop_fusion <<"-2.jpg";
+                    cv::imwrite( convert2.str().c_str(), loop_match_img2);
+                }
+                  
+            }
+            //release memory
+            cur_kf->image.release();
+            global_frame_cnt++;
+
+            if (t_loop > 300 || keyframe_database.size() > MAX_KEYFRAME_NUM)
+            {
+                m_keyframedatabase_resample.lock();
+                erase_index.clear();
+                keyframe_database.downsample(erase_index);
+                m_keyframedatabase_resample.unlock();
+                if(!erase_index.empty())
+                    loop_closure->eraseIndex(erase_index);
+            }
+        }
+        std::chrono::milliseconds dura(10);
+        std::this_thread::sleep_for(dura);
+    }
+}
+
+//thread: pose_graph optimization
+void process_pose_graph()
+{
+    while(true)
+    {
+        m_posegraph_buf.lock();
+        int index = -1;
+        while (!optimize_posegraph_buf.empty())
+        {
+            index = optimize_posegraph_buf.front();
+            optimize_posegraph_buf.pop();
+        }
+        m_posegraph_buf.unlock();
+        if(index != -1)
+        {
+            Vector3d correct_t = Vector3d::Zero();
+            Matrix3d correct_r = Matrix3d::Identity();
+            TicToc t_posegraph;
+            keyframe_database.optimize4DoFLoopPoseGraph(index,
+                                                    correct_t,
+                                                    correct_r);
+            ROS_DEBUG("t_posegraph %f ms", t_posegraph.toc());
+            m_loop_drift.lock();
+            relocalize_r = correct_r;
+            relocalize_t = correct_t;
+            m_loop_drift.unlock();
+            m_update_visualization.lock();
+            keyframe_database.updateVisualization();
+            CameraPoseVisualization* posegraph_visualization = keyframe_database.getPosegraphVisualization();
+            m_update_visualization.unlock();
+            pubOdometry(estimator, cur_header, relocalize_t, relocalize_r);
+            pubPoseGraph(posegraph_visualization, cur_header); 
+            nav_msgs::Path refine_path = keyframe_database.getPath();
+            updateLoopPath(refine_path);
+        }
+
+        std::chrono::milliseconds dura(3000);
+        std::this_thread::sleep_for(dura);
+    }
+}
+
+// thread: visual-inertial odometry
 void process()
 {
     while (true)
@@ -440,119 +469,98 @@ void process()
                 ROS_ASSERT(z == 1);
                 image[feature_id].emplace_back(camera_id, Vector3d(x, y, z));
             }
-
             estimator.processImage(image, img_msg->header);
             /**
             *** start build keyframe database for loop closure
             **/
             if(LOOP_CLOSURE)
             {
+                // remove previous loop
+                vector<RetriveData>::iterator it = estimator.retrive_data_vector.begin();
+                for(; it != estimator.retrive_data_vector.end(); )
+                {
+                    if ((*it).header < estimator.Headers[0].stamp.toSec())
+                    {
+                        it = estimator.retrive_data_vector.erase(it);
+                    }
+                    else
+                        it++;
+                }
+                m_retrive_data_buf.lock();
+                while(!retrive_data_buf.empty())
+                {
+                    RetriveData tmp_retrive_data = retrive_data_buf.front();
+                    retrive_data_buf.pop();
+                    estimator.retrive_data_vector.push_back(tmp_retrive_data);
+                }
+                m_retrive_data_buf.unlock();
+                //WINDOW_SIZE - 2 is key frame
                 if(estimator.marginalization_flag == 0 && estimator.solver_flag == estimator.NON_LINEAR)
                 {   
-                    if (keyframe_freq % 3 == 0)
+                    Vector3d T_w_i = estimator.Ps[WINDOW_SIZE - 2];
+                    Matrix3d R_w_i = estimator.Rs[WINDOW_SIZE - 2];
+                    i_buf.lock();
+                    while(!image_buf.empty() && image_buf.front().second < estimator.Headers[WINDOW_SIZE - 2].stamp.toSec())
                     {
-                        keyframe_freq = 0;
-                        /**
-                        ** save the newest keyframe to the keyframe database
-                        ** only need to save the pose to the keyframe database
-                        **/
-                        Vector3d T_w_i = estimator.Ps[WINDOW_SIZE - 2];
-                        Matrix3d R_w_i = estimator.Rs[WINDOW_SIZE - 2];
-                        i_buf.lock();
-                        while(!image_buf.empty() && image_buf.front().second < estimator.Headers[WINDOW_SIZE - 2].stamp.toSec())
-                        {
-                            image_buf.pop();
-                        }
-                        i_buf.unlock();
-                        //assert(estimator.Headers[WINDOW_SIZE - 1].stamp.toSec() == image_buf.front().second);
-                        // relative_T   i-1_T_i relative_R  i-1_R_i
-                        cv::Mat KeyFrame_image;
-                        KeyFrame_image = image_buf.front().first;
-                        
-                        const char *pattern_file = PATTERN_FILE.c_str();
-                        KeyFrame* keyframe = new KeyFrame(estimator.Headers[WINDOW_SIZE - 2].stamp.toSec(), global_frame_cnt, T_w_i, R_w_i, image_buf.front().first, pattern_file);
-                        keyframe->setExtrinsic(TIC[0], RIC[0]);
-                        /*
-                        ** we still need save the measurement to the keyframe(not database) for add connection with looped old pose
-                        ** and save the pointcloud to the keyframe for reprojection search correspondance
-                        */
-                        keyframe->buildKeyFrameFeatures(estimator, m_camera);
-                        m_keyframedatabase_resample.lock();
-                        keyframe_database.add(keyframe);
-                        m_keyframedatabase_resample.unlock();
-                        global_frame_cnt++;
+                        image_buf.pop();
                     }
-
+                    i_buf.unlock();
+                    //assert(estimator.Headers[WINDOW_SIZE - 1].stamp.toSec() == image_buf.front().second);
+                    // relative_T   i-1_T_i relative_R  i-1_R_i
+                    cv::Mat KeyFrame_image;
+                    KeyFrame_image = image_buf.front().first;
+                    
+                    const char *pattern_file = PATTERN_FILE.c_str();
+                    Vector3d cur_T;
+                    Matrix3d cur_R;
+                    cur_T = relocalize_r * T_w_i + relocalize_t;
+                    cur_R = relocalize_r * R_w_i;
+                    KeyFrame* keyframe = new KeyFrame(estimator.Headers[WINDOW_SIZE - 2].stamp.toSec(), T_w_i, R_w_i, cur_T, cur_R, image_buf.front().first, pattern_file);
+                    keyframe->setExtrinsic(TIC[0], RIC[0]);
+                    m_keyframe_buf.lock();
+                    keyframe_buf.push(keyframe);
+                    m_keyframe_buf.unlock();
                     // update loop info
-                    m_keyframedatabase_resample.lock();
-                    for (int i = 0; i < WINDOW_SIZE; i++)
+                    if (!estimator.retrive_data_vector.empty() && estimator.retrive_data_vector[0].relative_pose)
                     {
-                        if(estimator.Headers[i].stamp.toSec() == estimator.front_pose.header)
+                        if(estimator.Headers[0].stamp.toSec() == estimator.retrive_data_vector[0].header)
                         {
-                            KeyFrame* cur_kf = keyframe_database.getKeyframe(estimator.front_pose.cur_index);                            
-                            if (abs(estimator.front_pose.relative_yaw) > 30.0 || estimator.front_pose.relative_t.norm() > 20.0)
+                            KeyFrame* cur_kf = keyframe_database.getKeyframe(estimator.retrive_data_vector[0].cur_index);                            
+                            if (abs(estimator.retrive_data_vector[0].relative_yaw) > 30.0 || estimator.retrive_data_vector[0].relative_t.norm() > 20.0)
                             {
                                 ROS_DEBUG("Wrong loop");
                                 cur_kf->removeLoop();
-                                break;
                             }
-                            cur_kf->updateLoopConnection( estimator.front_pose.relative_t, 
-                                                          estimator.front_pose.relative_q, 
-                                                          estimator.front_pose.relative_yaw);
-                            break;
-                        }
-                    }
-                    /*
-                    ** update the keyframe pose when this frame slides out the window and optimize loop graph
-                    */
-                    int search_cnt = 0;
-                    
-                    for(int i = 0; i < keyframe_database.size(); i++)
-                    {
-                        search_cnt++;
-                        KeyFrame* kf = keyframe_database.getLastKeyframe(i);
-                        if(kf->header == estimator.Headers[0].stamp.toSec())
-                        {
-                            kf->updateOriginPose(estimator.Ps[0], estimator.Rs[0]);
-                            //update edge
-                            // if loop happens in this frame, update pose graph;
-                            if (kf->update_loop_info)
+                            else 
                             {
+                                cur_kf->updateLoopConnection( estimator.retrive_data_vector[0].relative_t, 
+                                                              estimator.retrive_data_vector[0].relative_q, 
+                                                              estimator.retrive_data_vector[0].relative_yaw);
                                 m_posegraph_buf.lock();
-                                optimize_posegraph_buf.push(kf->global_index);
+                                optimize_posegraph_buf.push(estimator.retrive_data_vector[0].cur_index);
                                 m_posegraph_buf.unlock();
                             }
-                            break; 
-                        }
-                        else
-                        {
-                            if(search_cnt > 2 * WINDOW_SIZE)
-                                break;
                         }
                     }
-                    m_keyframedatabase_resample.unlock();
-                    keyframe_freq++;
                 }
-                std_msgs::Header header = img_msg->header;
-                m_update_visualization.lock();
-                CameraPoseVisualization* posegraph_visualization = keyframe_database.getPosegraphVisualization();
-                //ROS_WARN("pub visualization begin!");
-                pubPoseGraph(posegraph_visualization, header);  
-                //ROS_WARN("pub visualization end!"); 
-                m_update_visualization.unlock();
             }
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
             std_msgs::Header header = img_msg->header;
             header.frame_id = "world";
-            pubOdometry(estimator, header, loop_correct_t, loop_correct_r);
+            cur_header = header;
             m_loop_drift.lock();
-            pubKeyPoses(estimator, header, loop_correct_t, loop_correct_r);
-            pubCameraPose(estimator, header, loop_correct_t, loop_correct_r);
-            pubPointCloud(estimator, header, loop_correct_t, loop_correct_r);
-            pubTF(estimator, header, loop_correct_t, loop_correct_r);
+            if (estimator.relocalize)
+            {
+                relocalize_t = estimator.relocalize_t;
+                relocalize_r = estimator.relocalize_r;
+            }
+            pubOdometry(estimator, header, relocalize_t, relocalize_r);
+            pubKeyPoses(estimator, header, relocalize_t, relocalize_r);
+            pubCameraPose(estimator, header, relocalize_t, relocalize_r);
+            pubPointCloud(estimator, header, relocalize_t, relocalize_r);
+            pubTF(estimator, header, relocalize_t, relocalize_r);
             m_loop_drift.unlock();
-
             //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.toSec(), ros::Time::now().toSec());
         }
         m_buf.lock();
@@ -583,11 +591,12 @@ int main(int argc, char **argv)
     ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 2000, raw_image_callback);
 
     std::thread measurement_process{process};
-    std::thread loop_detection;
+    std::thread loop_detection, pose_graph;
     if (LOOP_CLOSURE)
     {
         ROS_WARN("LOOP_CLOSURE true");
         loop_detection = std::thread(process_loop_detection);   
+        pose_graph = std::thread(process_pose_graph);
         m_camera = CameraFactory::instance()->generateCameraFromYamlFile(CAM_NAMES);
     }
     ros::spin();

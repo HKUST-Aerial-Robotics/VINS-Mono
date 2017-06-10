@@ -24,7 +24,7 @@ catkin_package(
     INCLUDE_DIRS include
     LIBRARIES camera_model
     CATKIN_DEPENDS roscpp std_msgs
-    DEPENDS system_lib
+#    DEPENDS system_lib
     )
 
 include_directories(
