@@ -54,6 +54,8 @@ void Estimator::clearState()
     all_image_frame.clear();
     relocalize = false;
     retrive_data_vector.clear();
+    relocalize_t = Eigen::Vector3d(0, 0, 0);
+    relocalize_r = Eigen::Matrix3d::Identity();
 
     if (tmp_pre_integration != nullptr)
         delete tmp_pre_integration;
@@ -568,21 +570,22 @@ void Estimator::double2vector()
         dep(i) = para_Feature[i][0];
     f_manager.setDepth(dep);
 
-    if (LOOP_CLOSURE && relocalize && retrive_data_vector[0].relative_pose)
+    if (LOOP_CLOSURE && relocalize && retrive_data_vector[0].relative_pose && !retrive_data_vector[0].relocalized)
     {
-
+        for (int i = 0; i < (int)retrive_data_vector.size();i++)
+            retrive_data_vector[i].relocalized = true;
         Matrix3d vio_loop_r;
         Vector3d vio_loop_t;
         vio_loop_r = rot_diff * Quaterniond(retrive_data_vector[0].loop_pose[6], retrive_data_vector[0].loop_pose[3], retrive_data_vector[0].loop_pose[4], retrive_data_vector[0].loop_pose[5]).normalized().toRotationMatrix();
         vio_loop_t = rot_diff * Vector3d(retrive_data_vector[0].loop_pose[0] - para_Pose[0][0],
                                 retrive_data_vector[0].loop_pose[1] - para_Pose[0][1],
                                 retrive_data_vector[0].loop_pose[2] - para_Pose[0][2]) + origin_P0;
+        Quaterniond vio_loop_q(vio_loop_r);
         double relocalize_yaw;
         relocalize_yaw = Utility::R2ypr(retrive_data_vector[0].R_old).x() - Utility::R2ypr(vio_loop_r).x();
         relocalize_r = Utility::ypr2R(Vector3d(relocalize_yaw, 0, 0));
         relocalize_t = retrive_data_vector[0].P_old- relocalize_r * vio_loop_t;
     }
-
 }
 
 bool Estimator::failureDetection()
@@ -791,13 +794,14 @@ void Estimator::optimization()
                     retrive_data_vector[k].relative_pose = true;
                     Matrix3d Rs_i = Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
                     Vector3d Ps_i = Vector3d(para_Pose[i][0], para_Pose[i][1], para_Pose[i][2]);
-                    Matrix3d Rs_loop = Quaterniond(retrive_data_vector[k].loop_pose[6],  retrive_data_vector[k].loop_pose[3],  retrive_data_vector[k].loop_pose[4],  retrive_data_vector[k].loop_pose[5]).normalized().toRotationMatrix();
+                    Quaterniond Qs_loop;
+                    Qs_loop = Quaterniond(retrive_data_vector[k].loop_pose[6],  retrive_data_vector[k].loop_pose[3],  retrive_data_vector[k].loop_pose[4],  retrive_data_vector[k].loop_pose[5]).normalized().toRotationMatrix();
+                    Matrix3d Rs_loop = Qs_loop.toRotationMatrix();
                     Vector3d Ps_loop = Vector3d( retrive_data_vector[k].loop_pose[0],  retrive_data_vector[k].loop_pose[1],  retrive_data_vector[k].loop_pose[2]);
 
                     retrive_data_vector[k].relative_t = Rs_loop.transpose() * (Ps_i - Ps_loop);
                     retrive_data_vector[k].relative_q = Rs_loop.transpose() * Rs_i;
                     retrive_data_vector[k].relative_yaw = Utility::normalizeAngle(Utility::R2ypr(Rs_i).x() - Utility::R2ypr(Rs_loop).x());
-                    cout << "loop after cere " << Ps_loop.transpose() << endl;
                     if (abs(retrive_data_vector[k].relative_yaw) > 30.0 || retrive_data_vector[k].relative_t.norm() > 20.0)
                         retrive_data_vector[k].relative_pose = false;
                         

@@ -72,20 +72,3 @@ voc_file: "/support_files/brief_k10L6.bin"
 min_loop_num: 25
 
 
-
-# accurate extrinsic parameter
-# extrinsicRotation: !!opencv-matrix
-#    rows: 3
-#    cols: 3
-#    dt: d
-#    data: [0.0148655429818, -0.999880929698, 0.00414029679422, 
-#            0.999557249008, 0.0149672133247, 0.025715529948, 
-#            -0.0257744366974, 0.00375618835797, 0.999660727178]
-
-# extrinsicTranslation: !!opencv-matrix
-#    rows: 3
-#    cols: 1
-#    dt: d
-#    data: [-0.0216401454975,-0.064676986768, 0.00981073058949]
-
-

@@ -31,6 +31,7 @@ struct RetriveData
     Matrix3d R_old;
     vector<cv::Point2f> measurements;
     vector<int> features_ids; 
+    bool relocalized;
     bool relative_pose;
     Vector3d relative_t;
     Quaterniond relative_q;

@@ -1,8 +1,8 @@
 #include "keyframe.h"
 
 KeyFrame::KeyFrame(double _header, Eigen::Vector3d _vio_T_w_i, Eigen::Matrix3d _vio_R_w_i, 
-                  Eigen::Vector3d _cur_T_w_i, Eigen::Matrix3d _cur_R_w_i, 
-                    cv::Mat &_image, const char *_brief_pattern_file)
+                   Eigen::Vector3d _cur_T_w_i, Eigen::Matrix3d _cur_R_w_i, 
+                   cv::Mat &_image, const char *_brief_pattern_file)
 :header{_header}, image{_image}, BRIEF_PATTERN_FILE(_brief_pattern_file)
 {
     T_w_i = _cur_T_w_i;
@@ -13,8 +13,8 @@ KeyFrame::KeyFrame(double _header, Eigen::Vector3d _vio_T_w_i, Eigen::Matrix3d _
     is_looped = 0;
     has_loop = 0;
     update_loop_info = 0;
-    origin_T_w_i = _vio_T_w_i;
-    origin_R_w_i = _vio_R_w_i;
+    vio_T_w_i = _vio_T_w_i;
+    vio_R_w_i = _vio_R_w_i;
 }
 
 /*****************************************utility function************************************************/
@@ -35,41 +35,6 @@ static void reduceVector(vector<Derived> &v, vector<uchar> status)
             v[j++] = v[i];
     v.resize(j);
 }
-
-void KeyFrame::rejectWithF(vector<cv::Point2f> &measurements_cur, vector<cv::Point2f> &measurements_old,
-                 vector<cv::Point2f> &measurements_old_norm, vector<int> &features_id_matched,
-                 const camodocal::CameraPtr &m_camera)
-{
-    if (measurements_old.size() >= 8)
-    {
-        measurements_old_norm.clear();
-
-        vector<cv::Point2f> un_measurements(measurements_cur.size()), un_measurements_old(measurements_old.size());
-        for (int i = 0; i < (int)measurements_cur.size(); i++)
-        {
-            double FOCAL_LENGTH = 460.0;
-            Eigen::Vector3d tmp_p;
-            m_camera->liftProjective(Eigen::Vector2d(measurements_cur[i].x, measurements_cur[i].y), tmp_p);
-            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
-            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
-            un_measurements[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
-
-            m_camera->liftProjective(Eigen::Vector2d(measurements_old[i].x, measurements_old[i].y), tmp_p);
-            measurements_old_norm.push_back(cv::Point2f(tmp_p.x()/tmp_p.z(), tmp_p.y()/tmp_p.z()));
-            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
-            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
-            un_measurements_old[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
-        }
-
-        vector<uchar> status;
-        cv::findFundamentalMat(un_measurements, un_measurements_old, cv::FM_RANSAC, 1.0, 0.99, status);
-        reduceVector(measurements_old, status);
-        reduceVector(measurements_old_norm, status);
-        reduceVector(measurements_matched, status);
-        reduceVector(features_id_matched, status);
-    }
-}
-/*****************************************utility function************************************************/
 
 void KeyFrame::extractBrief(cv::Mat &image)
 {
@@ -106,14 +71,13 @@ void KeyFrame::buildKeyFrameFeatures(Estimator &estimator, const camodocal::Came
             measurements.push_back(cv::Point2f(point_uv.x(), point_uv.y()));
             pts_normalize.push_back(cv::Point2f(point.x()/point.z(), point.y()/point.z()));
             features_id.push_back(it_per_id.feature_id);
+            //features 3D pos from first measurement and inverse depth
+            Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
+            point_clouds.push_back(estimator.Rs[it_per_id.start_frame] * (qic * pts_i + tic) + estimator.Ps[it_per_id.start_frame]);
         }
     }
 }
 
-/**
-** search matches by guide descriptor match
-**
-**/
 bool KeyFrame::inAera(cv::Point2f pt, cv::Point2f center, float area_size)
 {
     if(center.x < 0 || center.x > COL || center.y < 0 || center.y > ROW)
@@ -155,11 +119,46 @@ bool KeyFrame::searchInAera(cv::Point2f center_cur, float area_size,
       return false;
 }
 
+void KeyFrame::FundmantalMatrixRANSAC(vector<cv::Point2f> &measurements_old,
+                                      vector<cv::Point2f> &measurements_old_norm,
+                                      const camodocal::CameraPtr &m_camera)
+{
+    if (measurements_old.size() >= 8)
+    {
+        measurements_old_norm.clear();
+
+        vector<cv::Point2f> un_measurements(measurements_matched.size()), un_measurements_old(measurements_old.size());
+        for (int i = 0; i < (int)measurements_matched.size(); i++)
+        {
+            double FOCAL_LENGTH = 460.0;
+            Eigen::Vector3d tmp_p;
+            m_camera->liftProjective(Eigen::Vector2d(measurements_matched[i].x, measurements_matched[i].y), tmp_p);
+            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
+            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
+            un_measurements[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
+
+            m_camera->liftProjective(Eigen::Vector2d(measurements_old[i].x, measurements_old[i].y), tmp_p);
+            measurements_old_norm.push_back(cv::Point2f(tmp_p.x()/tmp_p.z(), tmp_p.y()/tmp_p.z()));
+            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
+            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
+            un_measurements_old[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
+        }
+        
+        vector<uchar> status;
+        cv::findFundamentalMat(un_measurements, un_measurements_old, cv::FM_RANSAC, 5.0, 0.99, status);
+        reduceVector(measurements_old, status);
+        reduceVector(measurements_old_norm, status);
+        reduceVector(measurements_matched, status);
+        reduceVector(features_id_matched, status);
+        reduceVector(point_clouds_matched, status);
+        
+    }
+}
+
 void KeyFrame::searchByDes(std::vector<cv::Point2f> &measurements_old, 
                            std::vector<cv::Point2f> &measurements_old_norm,
                            const std::vector<BRIEF::bitset> &descriptors_old,
                            const std::vector<cv::KeyPoint> &keypoints_old,
-                           std::vector<int> &features_id_matched,
                            const camodocal::CameraPtr &m_camera)
 {
     //ROS_INFO("loop_match before cur %d %d, old %d", (int)window_descriptors.size(), (int)measurements.size(), (int)descriptors_old.size());
@@ -175,21 +174,83 @@ void KeyFrame::searchByDes(std::vector<cv::Point2f> &measurements_old,
     }
     measurements_matched = measurements;
     features_id_matched = features_id;
+    point_clouds_matched = point_clouds;
     reduceVector(measurements_old, status);
     reduceVector(measurements_matched, status);
     reduceVector(features_id_matched, status);
-    rejectWithF(measurements_matched, measurements_old, measurements_old_norm, features_id_matched, m_camera);
-    //ROS_INFO("loop_match after cur %d %d, old %d\n", (int)window_descriptors.size(), (int)measurements.size(), (int)descriptors_old.size());
+    reduceVector(point_clouds_matched, status);
+}
+
+void KeyFrame::PnPRANSAC(vector<cv::Point2f> &measurements_old,
+                         std::vector<cv::Point2f> &measurements_old_norm, 
+                         Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old)
+{
+    cv::Mat r, rvec, t, D, tmp_r;
+    cv::Mat K = (cv::Mat_<double>(3, 3) << 1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
+    Matrix3d R_inital;
+    Vector3d P_inital;
+    Matrix3d R_w_c = vio_R_w_i * qic;
+    Vector3d T_w_c = vio_T_w_i + vio_R_w_i * tic;
+
+    R_inital = R_w_c.inverse();
+    P_inital = -(R_inital * T_w_c);
+    
+    cv::eigen2cv(R_inital, tmp_r);
+    cv::Rodrigues(tmp_r, rvec);
+    cv::eigen2cv(P_inital, t);
+
+    vector<cv::Point3f> pts_3_vector;
+    for(auto &it: point_clouds_matched)
+        pts_3_vector.push_back(cv::Point3f((float)it.x(),(float)it.y(),(float)it.z()));
+
+    cv::Mat inliers;
+    TicToc t_pnp_ransac;
+    solvePnPRansac(pts_3_vector, measurements_old_norm, K, D, rvec, t, true, 100, 10.0 / 460.0, 100, inliers);
+    ROS_DEBUG("t_pnp_ransac %f ms", t_pnp_ransac.toc());
+
+    std::vector<uchar> status;
+    for (int i = 0; i < (int)measurements_old_norm.size(); i++)
+        status.push_back(0);
+
+    for( int i = 0; i < inliers.rows; i++)
+    {
+        int n = inliers.at<int>(i);
+        status[n] = 1;
+    } 
+
+    cv::Rodrigues(rvec, r);
+    Matrix3d R_pnp, R_w_c_old;
+    cv::cv2eigen(r, R_pnp);
+    R_w_c_old = R_pnp.transpose();
+    Vector3d T_pnp, T_w_c_old;
+    cv::cv2eigen(t, T_pnp);
+    T_w_c_old = R_w_c_old * (-T_pnp);
+
+    PnP_R_old = R_w_c_old * qic.transpose();
+    PnP_T_old = T_w_c_old - PnP_R_old * tic;   
+
+    reduceVector(measurements_old, status);
+    reduceVector(measurements_old_norm, status);
+    reduceVector(measurements_matched, status);
+    reduceVector(features_id_matched, status);
+    reduceVector(point_clouds_matched, status);
+
+
 }
 
 bool KeyFrame::findConnectionWithOldFrame(const KeyFrame* old_kf,
                                           std::vector<cv::Point2f> &measurements_old, std::vector<cv::Point2f> &measurements_old_norm,
-                                          std::vector<int> &features_id_matched, const camodocal::CameraPtr &m_camera)
+                                          Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old,
+                                          const camodocal::CameraPtr &m_camera)
 {
     TicToc t_match;
-    searchByDes(measurements_old, measurements_old_norm, old_kf->descriptors, old_kf->keypoints, features_id_matched, m_camera);
+    searchByDes(measurements_old, measurements_old_norm, old_kf->descriptors, old_kf->keypoints, m_camera);
+    FundmantalMatrixRANSAC(measurements_old, measurements_old_norm, m_camera);
+    if ((int)measurements_old_norm.size() > MIN_LOOP_NUM)
+    {
+        PnPRANSAC(measurements_old, measurements_old_norm, PnP_T_old, PnP_R_old);
+    }
     ROS_DEBUG("loop final use num %d %lf---------------", (int)measurements_old.size(), t_match.toc());
-    
     return true;
 }
 
@@ -203,8 +264,8 @@ void KeyFrame::updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &
 void KeyFrame::updateOriginPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i)
 {
     unique_lock<mutex> lock(mMutexPose);
-    origin_T_w_i = _T_w_i;
-    origin_R_w_i = _R_w_i;
+    vio_T_w_i = _T_w_i;
+    vio_R_w_i = _R_w_i;
 }
 
 void KeyFrame::getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i)
@@ -217,8 +278,8 @@ void KeyFrame::getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i)
 void KeyFrame::getOriginPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i)
 {
     unique_lock<mutex> lock(mMutexPose);
-    _T_w_i = origin_T_w_i;
-    _R_w_i = origin_R_w_i;
+    _T_w_i = vio_T_w_i;
+    _R_w_i = vio_R_w_i;
 }
 
 void KeyFrame::updateLoopConnection(Vector3d relative_t, Quaterniond relative_q, double relative_yaw)
@@ -287,7 +348,7 @@ BriefExtractor::BriefExtractor(const std::string &pattern_file)
 }
 
 void BriefExtractor::operator() (const cv::Mat &im, const std::vector<cv::Point2f> window_pts,
-  vector<cv::KeyPoint> &keys, vector<BRIEF::bitset> &descriptors) const
+                                 vector<cv::KeyPoint> &keys, vector<BRIEF::bitset> &descriptors) const
 {
   // extract FAST keypoints with opencv
   const int fast_th = 20; // corner detector response threshold

@@ -268,40 +268,39 @@ void process_loop_detection()
                 ROS_DEBUG("loop succ %d with %drd image", global_frame_cnt, old_index);
                 assert(old_index!=-1);
                 
-                Vector3d T_w_i_old, T_w_i_cur;
-                Matrix3d R_w_i_old, R_w_i_cur;
+                Vector3d T_w_i_old, PnP_T_old;
+                Matrix3d R_w_i_old, PnP_R_old;
 
                 old_kf->getPose(T_w_i_old, R_w_i_old);
-                cur_kf->getOriginPose(T_w_i_cur, R_w_i_cur);
                 std::vector<cv::Point2f> measurements_old;
                 std::vector<cv::Point2f> measurements_old_norm;
                 std::vector<cv::Point2f> measurements_cur;
                 std::vector<int> features_id_matched;  
-                cur_kf->findConnectionWithOldFrame(old_kf, measurements_old, measurements_old_norm, features_id_matched, m_camera);
+                cur_kf->findConnectionWithOldFrame(old_kf, measurements_old, measurements_old_norm, PnP_T_old, PnP_R_old, m_camera);
                 measurements_cur = cur_kf->measurements_matched;
-
+                features_id_matched = cur_kf->features_id_matched;
                 // send loop info to VINS relocalization
                 int loop_fusion = 0;
                 if( (int)measurements_old_norm.size() > MIN_LOOP_NUM && global_frame_cnt - old_index > 35 && old_index > 30)
                 {
 
-                    Quaterniond Q_loop_old(R_w_i_old);
-                    Quaterniond Q_cur(R_w_i_old);
+                    Quaterniond PnP_Q_old(PnP_R_old);
                     RetriveData retrive_data;
                     retrive_data.cur_index = cur_kf->global_index;
                     retrive_data.header = cur_kf->header;
                     retrive_data.P_old = T_w_i_old;
                     retrive_data.R_old = R_w_i_old;
                     retrive_data.relative_pose = false;
+                    retrive_data.relocalized = false;
                     retrive_data.measurements = measurements_old_norm;
                     retrive_data.features_ids = features_id_matched;
-                    retrive_data.loop_pose[0] = T_w_i_cur.x();
-                    retrive_data.loop_pose[1] = T_w_i_cur.y();
-                    retrive_data.loop_pose[2] = T_w_i_cur.z();
-                    retrive_data.loop_pose[3] = Q_cur.x();
-                    retrive_data.loop_pose[4] = Q_cur.y();
-                    retrive_data.loop_pose[5] = Q_cur.z();
-                    retrive_data.loop_pose[6] = Q_cur.w();
+                    retrive_data.loop_pose[0] = PnP_T_old.x();
+                    retrive_data.loop_pose[1] = PnP_T_old.y();
+                    retrive_data.loop_pose[2] = PnP_T_old.z();
+                    retrive_data.loop_pose[3] = PnP_Q_old.x();
+                    retrive_data.loop_pose[4] = PnP_Q_old.y();
+                    retrive_data.loop_pose[5] = PnP_Q_old.z();
+                    retrive_data.loop_pose[6] = PnP_Q_old.w();
                     m_retrive_data_buf.lock();
                     retrive_data_buf.push(retrive_data);
                     m_retrive_data_buf.unlock();
@@ -318,7 +317,7 @@ void process_loop_detection()
 
 
                 // visualization loop info
-                if(0)
+                if(0 && loop_fusion)
                 {
                     int COL = current_image.cols;
                     //int ROW = current_image.rows;
@@ -328,7 +327,7 @@ void process_loop_detection()
                     cvtColor(gray_img, loop_match_img, CV_GRAY2RGB);
                     cv::Mat loop_match_img2;
                     loop_match_img2 = loop_match_img.clone();
-                    
+                    /*
                     for(int i = 0; i< (int)cur_pts.size(); i++)
                     {
                         cv::Point2f cur_pt = cur_pts[i];
@@ -350,7 +349,7 @@ void process_loop_detection()
                             << cur_kf->global_index << "-" 
                             << old_index << "-" << loop_fusion <<".jpg";
                     cv::imwrite( convert.str().c_str(), loop_match_img);
-                    
+                    */
                     for(int i = 0; i< (int)measurements_cur.size(); i++)
                     {
                         cv::Point2f cur_pt = measurements_cur[i];
@@ -367,6 +366,7 @@ void process_loop_detection()
                         cur_pt.x += COL ;
                         cv::line(loop_match_img2, measurements_old[i], cur_pt, cv::Scalar(0, 255, 0), 1, 8, 0);
                     }
+
                     ostringstream convert2;
                     convert2 << "/home/tony-ws/raw_data/loop_image/"
                             << cur_kf->global_index << "-" 
@@ -430,7 +430,7 @@ void process_pose_graph()
             updateLoopPath(refine_path);
         }
 
-        std::chrono::milliseconds dura(3000);
+        std::chrono::milliseconds dura(5000);
         std::this_thread::sleep_for(dura);
     }
 }
@@ -497,8 +497,8 @@ void process()
                 //WINDOW_SIZE - 2 is key frame
                 if(estimator.marginalization_flag == 0 && estimator.solver_flag == estimator.NON_LINEAR)
                 {   
-                    Vector3d T_w_i = estimator.Ps[WINDOW_SIZE - 2];
-                    Matrix3d R_w_i = estimator.Rs[WINDOW_SIZE - 2];
+                    Vector3d vio_T_w_i = estimator.Ps[WINDOW_SIZE - 2];
+                    Matrix3d vio_R_w_i = estimator.Rs[WINDOW_SIZE - 2];
                     i_buf.lock();
                     while(!image_buf.empty() && image_buf.front().second < estimator.Headers[WINDOW_SIZE - 2].stamp.toSec())
                     {
@@ -513,10 +513,10 @@ void process()
                     const char *pattern_file = PATTERN_FILE.c_str();
                     Vector3d cur_T;
                     Matrix3d cur_R;
-                    cur_T = relocalize_r * T_w_i + relocalize_t;
-                    cur_R = relocalize_r * R_w_i;
-                    KeyFrame* keyframe = new KeyFrame(estimator.Headers[WINDOW_SIZE - 2].stamp.toSec(), T_w_i, R_w_i, cur_T, cur_R, image_buf.front().first, pattern_file);
-                    keyframe->setExtrinsic(TIC[0], RIC[0]);
+                    cur_T = relocalize_r * vio_T_w_i + relocalize_t;
+                    cur_R = relocalize_r * vio_R_w_i;
+                    KeyFrame* keyframe = new KeyFrame(estimator.Headers[WINDOW_SIZE - 2].stamp.toSec(), vio_T_w_i, vio_R_w_i, cur_T, cur_R, image_buf.front().first, pattern_file);
+                    keyframe->setExtrinsic(estimator.tic[0], estimator.ric[0]);
                     m_keyframe_buf.lock();
                     keyframe_buf.push(keyframe);
                     m_keyframe_buf.unlock();

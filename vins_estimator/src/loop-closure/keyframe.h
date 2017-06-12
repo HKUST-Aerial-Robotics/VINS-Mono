@@ -36,8 +36,7 @@ public:
 	KeyFrame(double _header, Eigen::Vector3d _vio_T_w_c, Eigen::Matrix3d _vio_R_w_c, 
 				Eigen::Vector3d _cur_T_w_c, Eigen::Matrix3d _cur_R_w_c,cv::Mat &_image, const char *_brief_pattern_file);
 	void setExtrinsic(Eigen::Vector3d T, Eigen::Matrix3d R);	
-	void rejectWithF(vector<cv::Point2f> &measurements_cur, vector<cv::Point2f> &measurements_old,
-          			 vector<cv::Point2f> &measurements_old_norm, vector<int> &features_id_matched,
+	void FundmantalMatrixRANSAC(vector<cv::Point2f> &measurements_old, vector<cv::Point2f> &measurements_old_norm,
                  	 const camodocal::CameraPtr &m_camera);
 
 	void extractBrief(cv::Mat &image);
@@ -52,16 +51,20 @@ public:
                       const std::vector<cv::KeyPoint> &keypoints_old,
                       cv::Point2f &best_match);
 
-	void searchByDes( std::vector<cv::Point2f> &measurements_old,
+	void searchByDes(std::vector<cv::Point2f> &measurements_old,
 					 std::vector<cv::Point2f> &measurements_old_norm,
                      const std::vector<BRIEF::bitset> &descriptors_old,
                      const std::vector<cv::KeyPoint> &keypoints_old,
-                     std::vector<int> &features_id_matched,
                      const camodocal::CameraPtr &m_camera);
 
 	bool findConnectionWithOldFrame(const KeyFrame* old_kf,
-                                    std::vector<cv::Point2f> &measurements_old, std::vector<cv::Point2f> &measurements_old_norm,
-                                    std::vector<int> &features_id_matched, const camodocal::CameraPtr &m_camera);
+	                                std::vector<cv::Point2f> &measurements_old, std::vector<cv::Point2f> &measurements_old_norm,
+	                                Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old,
+	                                const camodocal::CameraPtr &m_camera);
+
+	void PnPRANSAC(vector<cv::Point2f> &measurements_old,
+	               std::vector<cv::Point2f> &measurements_old_norm, 
+	               Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old);
 
 	void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
 
@@ -89,12 +92,13 @@ public:
 
 	// data 
 	double header;
+	std::vector<Eigen::Vector3d> point_clouds, point_clouds_matched;
 	//feature in origin image plane
 	std::vector<cv::Point2f> measurements, measurements_matched;
 	//feature in normalize image plane
 	std::vector<cv::Point2f> pts_normalize;
 	//feature ID
-	std::vector<int> features_id;
+	std::vector<int> features_id, features_id_matched;
 	//feature descriptor
 	std::vector<BRIEF::bitset> descriptors;
 	//keypoints
@@ -123,8 +127,8 @@ public:
 private:
 	Eigen::Vector3d T_w_i;
 	Eigen::Matrix3d R_w_i;
-	Eigen::Vector3d origin_T_w_i;
-	Eigen::Matrix3d origin_R_w_i;
+	Eigen::Vector3d vio_T_w_i;
+	Eigen::Matrix3d vio_R_w_i;
 	std::mutex mMutexPose;
 	std::mutex mLoopInfo;
 	std::vector<cv::KeyPoint> window_keypoints;

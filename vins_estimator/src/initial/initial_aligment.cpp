@@ -122,9 +122,8 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
     g = g0;
 }
 
-bool SolveScale(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x)
+bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x)
 {
-    ROS_DEBUG("SolveScale");
     int all_frame_count = all_image_frame.size();
     int n_state = all_frame_count * 3 + 3 + 1;
 
@@ -190,25 +189,18 @@ bool SolveScale(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd 
     RefineGravity(all_image_frame, g, x);
     s = (x.tail<1>())(0) / 100.0;
     (x.tail<1>())(0) = s;
-    ROS_DEBUG("refine estimated scale: %f", s);
     ROS_DEBUG_STREAM(" refine     " << g.norm() << " " << g.transpose());
-    if(s > 0.0 )
-    {
-        ROS_DEBUG("initial succ!");
-    }
+    if(s < 0.0 )
+        return false;   
     else
-    {
-        ROS_DEBUG("initial fail");
-        return false;
-    }    
-    return true;
+        return true;
 }
 
 bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs, Vector3d &g, VectorXd &x)
 {
     solveGyroscopeBias(all_image_frame, Bgs);
 
-    if(SolveScale(all_image_frame, g, x))
+    if(LinearAlignment(all_image_frame, g, x))
         return true;
     else 
         return false;
