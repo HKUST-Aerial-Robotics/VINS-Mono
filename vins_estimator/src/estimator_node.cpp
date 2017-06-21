@@ -380,7 +380,7 @@ void process_loop_detection()
             cur_kf->image.release();
             global_frame_cnt++;
 
-            if (t_loop > 300 || keyframe_database.size() > MAX_KEYFRAME_NUM)
+            if (t_loop > 1000 || keyframe_database.size() > MAX_KEYFRAME_NUM)
             {
                 m_keyframedatabase_resample.lock();
                 erase_index.clear();
