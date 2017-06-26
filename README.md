@@ -5,7 +5,7 @@ VINS-Mono is a real-time SLAM framework for **Monocular Visual-Inertial Systems*
 
 **Authors:** [Tong Qin](https://github.com/qintony), [Peiliang Li](https://github.com/PeiliangLi), [Zhenfei Yang](https://github.com/dvorak0), and [Shaojie Shen](http://www.ece.ust.hk/ece.php/profile/facultydetail/eeshaojie) from the [HUKST Aerial Robotics Group](http://uav.ust.hk/)
    
-**Videos:**
+**Videos:** 
 
 <a href="https://www.youtube.com/embed/mv_9snb_bKs" target="_blank"><img src="http://img.youtube.com/vi/mv_9snb_bKs/0.jpg" 
 alt="euroc" width="240" height="180" border="10" /></a>
