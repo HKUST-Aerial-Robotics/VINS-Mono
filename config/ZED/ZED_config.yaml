@@ -40,7 +40,7 @@ extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [0,-0.021, 0]
+   data: [0,0, -0.021]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking
