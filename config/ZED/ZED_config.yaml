@@ -2,24 +2,24 @@
 
 #common parameters
 imu_topic: "/imu_sensor"
-image_topic: "/cam0/image_raw"
+image_topic: "/zed/right/image_raw_color"
 output_path: "/config/ZED/vins_result.csv"         # vins outputs will be wrttento vins_folder_path + output_path
 
 #camera calibration 
 model_type: PINHOLE
 camera_name: camera
-image_width: 752
-image_height: 480
+image_width: 672
+image_height: 376
 distortion_parameters:
-   k1: -2.917e-01
-   k2: 8.228e-02
-   p1: 5.333e-05
-   p2: -1.578e-04
+   k1: -0.170198
+   k2: 0.0227969
+   p1: 0
+   p2: 0
 projection_parameters:
-   fx: 4.616e+02
-   fy: 4.603e+02
-   cx: 3.630e+02
-   cy: 2.481e+02
+   fx: 350.691
+   fy: 350.691
+   cx: 323.439
+   cy: 182.687
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -69,6 +69,6 @@ loop_closure: 1   #if you want to use loop closure to minimize the drift, set lo
                      #also give the camera calibration file same as feature_tracker node
 pattern_file: "/support_files/brief_pattern.yml"
 voc_file: "/support_files/brief_k10L6.bin"
-min_loop_num: 25
+min_loop_num: 30
 
 
