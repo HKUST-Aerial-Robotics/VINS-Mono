@@ -2,7 +2,7 @@
 
 #common parameters
 imu_topic: "/imu_sensor"
-image_topic: "/zed/left/image_raw_color"
+image_topic: "/zed/right/image_raw_color"
 output_path: "/config/ZED/vins_result.csv"         # vins outputs will be wrttento vins_folder_path + output_path
 
 #camera calibration 
@@ -12,15 +12,15 @@ image_width: 672
 image_height: 376
 
 distortion_parameters:
-   k1: -0.168871
-   k2: 0.023494
+   k1: -0.170198
+   k2: 0.0227969
    p1: 0
    p2: 0
 projection_parameters:
-   fx: 349.404
-   fy: 349.404
-   cx: 333.556
-   cy: 176.614
+   fx: 350.691
+   fy: 350.691
+   cx: 323.439
+   cy: 182.687
 
 
 # Extrinsic parameter between IMU and Camera.
@@ -43,7 +43,7 @@ extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [0,0, -0.029]
+   data: [0,0, -0.021]
 
 
 #feature traker paprameters
