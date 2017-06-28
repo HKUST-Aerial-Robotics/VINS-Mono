@@ -59,3 +59,17 @@ add vins_estimator/launch/ZED.launch
 the parameters of the ZED_config.yaml are suitable for our device, IMU:LPMS-CU2 and Camera:ZED Stereo Camera
 
 
+## bug
+
+```bash
+
+OpenCV Error: Assertion failed (confidence > 0 && confidence < 1) in run, file /tmp/binarydeb/ros-kinetic-opencv3-3.2.0/modules/calib3d/src/ptsetreg.cpp, line 178
+terminate called after throwing an instance of 'cv::Exception'
+  what():  /tmp/binarydeb/ros-kinetic-opencv3-3.2.0/modules/calib3d/src/ptsetreg.cpp:178: error: (-215) confidence > 0 && confidence < 1 in function run
+
+[vins_estimator-2] process has died [pid 9424, exit code -6, cmd /home/wolfram/catkin_ws/devel/lib/vins_estimator/vins_estimator __name:=vins_estimator __log:=/home/wolfram/.ros/log/767e582a-5c25-11e7-a096-ac2b6e2eddb2/vins_estimator-2.log].
+log file: /home/wolfram/.ros/log/767e582a-5c25-11e7-a096-ac2b6e2eddb2/vins_estimator-2*.log
+
+```
+
+## rosbag
