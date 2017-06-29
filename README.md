@@ -79,6 +79,8 @@ log file: /home/wolfram/.ros/log/767e582a-5c25-11e7-a096-ac2b6e2eddb2/vins_estim
 
 or it will drift along one direction for a long time.
 
+And there is something wrong with my Coordinate System。
+
 ## rosbag
 
 
