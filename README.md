@@ -46,3 +46,16 @@ roslaunch vins_estimator ZED.launch
 roslaunch vins_estimator vins_rviz.launch
 ```
 
+
+# What we have changed
+we didn't edit the core code of the program.
+we just:
+```
+add config/ZED/ZED_config.yaml  
+add vins_estimator/launch/ZED.launch
+
+```
+
+the parameters of the ZED_config.yaml are suitable for our device, IMU:LPMS-CU2 and Camera:ZED Stereo Camera
+
+
