@@ -121,7 +121,7 @@ void FeatureTracker::readImage(const cv::Mat &_img)
         ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
     }
 
-    if (PUB_THIS_FRAME)
+    if (DETECT_NEW_FEATURE)
     {
         rejectWithF();
 

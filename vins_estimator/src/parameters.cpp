@@ -4,7 +4,7 @@ double INIT_DEPTH;
 double MIN_PARALLAX;
 double ACC_N, ACC_W;
 double GYR_N, GYR_W;
-
+int FREQ;
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
 
@@ -76,6 +76,8 @@ void readParameters(ros::NodeHandle &n)
     GYR_N = fsSettings["gyr_n"];
     GYR_W = fsSettings["gyr_w"];
     G.z() = fsSettings["g_norm"];
+
+    FREQ = fsSettings["freq"];
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2)

@@ -204,12 +204,15 @@ void KeyFrame::PnPRANSAC(vector<cv::Point2f> &measurements_old,
         pts_3_vector.push_back(cv::Point3f((float)it.x(),(float)it.y(),(float)it.z()));
 
     cv::Mat inliers;
-    TicToc t_pnp_ransac;
     if(CV_MAJOR_VERSION < 3)
-        solvePnPRansac(pts_3_vector, measurements_old_norm, K, D, rvec, t, true, 100, 10.0 / 460.0, 100, inliers);
+    {
+        TicToc t_pnp_ransac2;
+        solvePnPRansac(pts_3_vector, measurements_old_norm, K, D, rvec, t, true, 100, 10.0 / 460.0, 100, inliers, CV_EPNP);
+        ROS_DEBUG("t_pnp_ransac %f ms", t_pnp_ransac2.toc());
+    }
     else
         solvePnPRansac(pts_3_vector, measurements_old_norm, K, D, rvec, t, true, 100, 10.0 / 460.0, 0.99, inliers);
-    ROS_DEBUG("t_pnp_ransac %f ms", t_pnp_ransac.toc());
+    
 
     std::vector<uchar> status;
     for (int i = 0; i < (int)measurements_old_norm.size(); i++)

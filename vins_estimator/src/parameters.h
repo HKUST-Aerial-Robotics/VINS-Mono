@@ -13,6 +13,7 @@ const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
 const double LOOP_INFO_VALUE = 50.0;
+extern int FREQ;
 //#define DEPTH_PRIOR
 //#define GT
 #define UNIT_SPHERE_ERROR

@@ -18,7 +18,7 @@ ros::Publisher pub_img,pub_match;
 
 FeatureTracker trackerData[NUM_OF_CAM];
 double first_image_time;
-int pub_count = 1;
+int detect_count = 1;
 bool first_image_flag = true;
 
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
@@ -30,18 +30,19 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     }
 
     // frequency control
-    if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
+    if (round(1.0 * detect_count / (img_msg->header.stamp.toSec() - first_image_time)) <= 10)
     {
-        PUB_THIS_FRAME = true;
+        DETECT_NEW_FEATURE = true;
         // reset the frequency control
-        if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
+        if (abs(1.0 * detect_count / (img_msg->header.stamp.toSec() - first_image_time) - 10) < 0.01 * 10)
         {
             first_image_time = img_msg->header.stamp.toSec();
-            pub_count = 0;
+            detect_count = 0;
         }
+        detect_count++;
     }
     else
-        PUB_THIS_FRAME = false;
+        DETECT_NEW_FEATURE = false;
 
     cv_bridge::CvImageConstPtr ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
     cv::Mat show_img = ptr->image;
@@ -67,9 +68,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 #endif
     }
 
-    if ( PUB_THIS_FRAME && STEREO_TRACK && trackerData[0].cur_pts.size() > 0)
+    if ( STEREO_TRACK && trackerData[0].cur_pts.size() > 0)
     {
-        pub_count++;
         r_status.clear();
         r_err.clear();
         TicToc t_o;
@@ -124,9 +124,8 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             break;
     }
 
-   if (PUB_THIS_FRAME)
+   if (true)
    {
-        pub_count++;
         sensor_msgs::PointCloudPtr feature_points(new sensor_msgs::PointCloud);
         sensor_msgs::ChannelFloat32 id_of_point;
         sensor_msgs::ChannelFloat32 u_of_point;

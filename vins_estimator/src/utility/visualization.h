@@ -42,6 +42,9 @@ void printStatistics(const Estimator &estimator, double t);
 void pubOdometry(const Estimator &estimator, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,
                 Eigen::Matrix3d loop_correct_r);
 
+void pubOdometry(const Vector3d w_T_imu, const Matrix3d w_R_imu, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,
+                Eigen::Matrix3d loop_correct_r);
+
 void pubInitialGuess(const Estimator &estimator, const std_msgs::Header &header);
 
 void pubKeyPoses(const Estimator &estimator, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,

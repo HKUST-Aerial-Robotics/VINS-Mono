@@ -39,6 +39,7 @@ std::mutex m_keyframedatabase_resample;
 std::mutex m_update_visualization;
 std::mutex m_keyframe_buf;
 std::mutex m_retrive_data_buf;
+std::mutex m_estimator;
 
 double latest_time;
 Eigen::Vector3d tmp_P;
@@ -60,6 +61,13 @@ vector<int> erase_index;
 std_msgs::Header cur_header;
 Eigen::Vector3d relocalize_t{Eigen::Vector3d(0, 0, 0)};
 Eigen::Matrix3d relocalize_r{Eigen::Matrix3d::Identity()};
+
+Matrix3d w_R_imu = Eigen::Matrix3d::Identity();
+Vector3d w_T_imu = Eigen::Vector3d::Zero();
+
+double first_image_time;
+int optimize_count = 1;
+bool first_image_flag = true;
 
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
@@ -150,6 +158,33 @@ getMeasurements()
     return measurements;
 }
 
+void solve_pnp(vector<cv::Point3f> &corner_3, vector<cv::Point2f> &corner_2, 
+         Eigen::Vector3d &w_T_cam, Eigen::Matrix3d &w_R_cam)
+{
+    // cam_R(T)_w
+    Eigen::Matrix3d R;
+    Eigen::Vector3d T;
+    cv::Mat r, rvec, t, tmp_r;
+
+    R = w_R_cam.transpose();
+    T = -(R * w_T_cam);
+    cv::eigen2cv(R, tmp_r);
+    cv::Rodrigues(tmp_r, rvec);
+    cv::eigen2cv(T, t);
+
+    cv::Mat K = (cv::Mat_<double>(3, 3) << 1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
+    cv::Mat D;
+
+    cv::solvePnP(corner_3, corner_2, K, D, rvec, t, true);
+
+    cv::Rodrigues(rvec, r);
+    cv::cv2eigen(r, R);
+    cv::cv2eigen(t, T);
+
+    w_R_cam = R.transpose();
+    w_T_cam = -(w_R_cam * T);
+}
+
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     m_buf.lock();
@@ -181,10 +216,86 @@ void raw_image_callback(const sensor_msgs::ImageConstPtr &img_msg)
 
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
-    m_buf.lock();
-    feature_buf.push(feature_msg);
-    m_buf.unlock();
-    con.notify_one();
+    // predict pose in a high prequency
+    if(first_image_flag)
+    {
+        first_image_flag = false;
+        first_image_time = feature_msg->header.stamp.toSec();
+    }
+
+    // frequency control
+    bool optimize_frame;
+    if (round(1.0 * optimize_count / (feature_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
+    {
+        optimize_frame = true;
+        // reset the frequency control
+        if (abs(1.0 * optimize_count / (feature_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
+        {
+            first_image_time = feature_msg ->header.stamp.toSec();
+            optimize_count = 0;
+        }
+        optimize_count++;
+    }
+    else
+        optimize_frame = false;
+    
+    if (estimator.solver_flag == estimator.NON_LINEAR)
+    {
+        m_estimator.lock();
+        vector<cv::Point3f> corner_3;
+        vector<cv::Point2f> corner_2;
+
+        for (unsigned int i = 0; i < feature_msg->points.size(); i++)
+        {
+            int v = feature_msg->channels[0].values[i] + 0.5;
+            int feature_id = v / NUM_OF_CAM;
+            double x = feature_msg->points[i].x;
+            double y = feature_msg->points[i].y;
+
+            auto it = find_if(estimator.f_manager.feature.begin(), estimator.f_manager.feature.end(), [feature_id](const FeaturePerId &it)
+                              {
+                return it.feature_id == feature_id;
+                              });
+
+            if (it != estimator.f_manager.feature.end() && it->solve_flag == 1)
+            {
+                Vector3d pts_i = (*it).feature_per_frame[0].point * (*it).estimated_depth;
+                Vector3d w_pts_i = estimator.Rs[(*it).start_frame] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.Ps[(*it).start_frame];
+                corner_3.push_back(cv::Point3f(w_pts_i.x(), w_pts_i.y(), w_pts_i.z()));
+                corner_2.push_back(cv::Point2f(x, y));
+            }
+        }
+
+        if ((int)corner_3.size() > 30)
+        {
+            //Matrix3d w_R_cam = w_R_imu * estimator.ric[0];
+            Matrix3d w_R_cam = estimator.Rs[WINDOW_SIZE] * estimator.ric[0];
+            //Vector3d w_T_cam = w_T_imu + w_R_imu * estimator.tic[0];
+            Vector3d w_T_cam = estimator.Ps[WINDOW_SIZE] + estimator.Rs[WINDOW_SIZE] * estimator.tic[0];
+
+            solve_pnp(corner_3, corner_2, w_T_cam, w_R_cam);
+            
+            w_R_imu = w_R_cam * estimator.ric[0].transpose();
+            w_T_imu = w_T_cam - w_R_imu * estimator.tic[0];
+
+            ROS_INFO_STREAM("pnp position: " << w_T_imu.transpose());
+            ROS_INFO_STREAM("pnp orientation: " << Quaterniond(w_R_imu).w() << 
+                                               Quaterniond(w_R_imu).vec().transpose());
+            std_msgs::Header header = feature_msg->header;
+            header.frame_id = "world";
+            pubOdometry(w_T_imu, w_R_imu, header, relocalize_t, relocalize_r);
+
+        }
+        m_estimator.unlock();
+    }
+    
+    if(optimize_frame) 
+    {
+        m_buf.lock();
+        feature_buf.push(feature_msg);
+        m_buf.unlock();
+        con.notify_one();
+    }
 }
 
 void send_imu(const sensor_msgs::ImuConstPtr &imu_msg)
@@ -317,7 +428,7 @@ void process_loop_detection()
 
 
                 // visualization loop info
-                if(0 && loop_fusion)
+                if(1 && loop_fusion)
                 {
                     int COL = current_image.cols;
                     //int ROW = current_image.rows;
@@ -376,7 +487,7 @@ void process_loop_detection()
                   
             }
             //release memory
-            cur_kf->image.release();
+            //cur_kf->image.release();
             global_frame_cnt++;
 
             if (t_loop > 1000 || keyframe_database.size() > MAX_KEYFRAME_NUM)
@@ -424,7 +535,7 @@ void process_pose_graph()
             keyframe_database.updateVisualization();
             CameraPoseVisualization* posegraph_visualization = keyframe_database.getPosegraphVisualization();
             m_update_visualization.unlock();
-            pubOdometry(estimator, cur_header, relocalize_t, relocalize_r);
+
             pubPoseGraph(posegraph_visualization, cur_header); 
             nav_msgs::Path refine_path = keyframe_database.getPath();
             updateLoopPath(refine_path);
@@ -469,7 +580,9 @@ void process()
                 ROS_ASSERT(z == 1);
                 image[feature_id].emplace_back(camera_id, Vector3d(x, y, z));
             }
+            m_estimator.lock();
             estimator.processImage(image, img_msg->header);
+            m_estimator.unlock();
             /**
             *** start build keyframe database for loop closure
             **/
@@ -556,7 +669,7 @@ void process()
                 relocalize_t = estimator.relocalize_t;
                 relocalize_r = estimator.relocalize_r;
             }
-            pubOdometry(estimator, header, relocalize_t, relocalize_r);
+            //pubOdometry(estimator, header, relocalize_t, relocalize_r);
             pubKeyPoses(estimator, header, relocalize_t, relocalize_r);
             pubCameraPose(estimator, header, relocalize_t, relocalize_r);
             pubPointCloud(estimator, header, relocalize_t, relocalize_r);

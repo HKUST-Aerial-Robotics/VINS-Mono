@@ -21,6 +21,6 @@ extern int SHOW_TRACK;
 extern int STEREO_TRACK;
 extern int EQUALIZE;
 extern int FISHEYE;
-extern bool PUB_THIS_FRAME;
+extern bool DETECT_NEW_FEATURE;
 
 void readParameters(ros::NodeHandle &n);

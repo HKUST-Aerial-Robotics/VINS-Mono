@@ -59,7 +59,8 @@ void printStatistics(const Estimator &estimator, double t)
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
     ROS_INFO_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
-    ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
+    ROS_INFO_STREAM("orientation: " << Quaterniond(estimator.Rs[WINDOW_SIZE]).w() << 
+                                       Quaterniond(estimator.Rs[WINDOW_SIZE]).vec().transpose());
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         //ROS_DEBUG("calibration result for camera %d", i);
@@ -160,6 +161,68 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header, Eig
               << correct_v(2) << "," << endl;
         foutC.close();
     }
+}
+
+void pubOdometry(const Vector3d w_T_imu, const Matrix3d w_R_imu, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,
+                Eigen::Matrix3d loop_correct_r)
+{
+
+    nav_msgs::Odometry odometry;
+    odometry.header = header;
+    odometry.header.frame_id = "world";
+    odometry.child_frame_id = "world";
+    odometry.pose.pose.position.x = w_T_imu.x();
+    odometry.pose.pose.position.y = w_T_imu.y();
+    odometry.pose.pose.position.z = w_T_imu.z();
+    odometry.pose.pose.orientation.x = Quaterniond(w_R_imu).x();
+    odometry.pose.pose.orientation.y = Quaterniond(w_R_imu).y();
+    odometry.pose.pose.orientation.z = Quaterniond(w_R_imu).z();
+    odometry.pose.pose.orientation.w = Quaterniond(w_R_imu).w();
+    
+    geometry_msgs::PoseStamped pose_stamped;
+    pose_stamped.header = header;
+    pose_stamped.header.frame_id = "world";
+    pose_stamped.pose = odometry.pose.pose;
+    path.header = header;
+    path.header.frame_id = "world";
+    path.poses.push_back(pose_stamped);
+    pub_path.publish(path);
+
+    Vector3d correct_t;
+    Vector3d correct_v;
+    Quaterniond correct_q;
+    correct_t = loop_correct_r * w_T_imu + loop_correct_t;
+    correct_q = loop_correct_r * w_R_imu;
+
+    odometry.pose.pose.position.x = correct_t.x();
+    odometry.pose.pose.position.y = correct_t.y();
+    odometry.pose.pose.position.z = correct_t.z();
+    odometry.pose.pose.orientation.x = correct_q.x();
+    odometry.pose.pose.orientation.y = correct_q.y();
+    odometry.pose.pose.orientation.z = correct_q.z();
+    odometry.pose.pose.orientation.w = correct_q.w();
+    pub_odometry.publish(odometry);
+
+    pose_stamped.pose = odometry.pose.pose;
+    loop_path.header = header;
+    loop_path.header.frame_id = "world";
+    loop_path.poses.push_back(pose_stamped);
+    pub_loop_path.publish(loop_path);
+
+    // write result to file
+    ofstream foutC(VINS_RESULT_PATH, ios::app);
+    foutC.setf(ios::fixed, ios::floatfield);
+    foutC.precision(0);
+    foutC << header.stamp.toSec() * 1e9 << ",";
+    foutC.precision(5);
+    foutC << correct_t.x() << ","
+          << correct_t.y() << ","
+          << correct_t.z() << ","
+          << correct_q.w() << ","
+          << correct_q.x() << ","
+          << correct_q.y() << ","
+          << correct_q.z() << "," << endl;
+    foutC.close();
 }
 
 void pubKeyPoses(const Estimator &estimator, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,

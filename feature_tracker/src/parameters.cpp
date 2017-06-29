@@ -16,7 +16,7 @@ int ROW;
 int COL;
 int FOCAL_LENGTH;
 int FISHEYE;
-bool PUB_THIS_FRAME;
+bool DETECT_NEW_FEATURE;
 
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
@@ -63,7 +63,7 @@ void readParameters(ros::NodeHandle &n)
     WINDOW_SIZE = 20;
     STEREO_TRACK = false;
     FOCAL_LENGTH = 460;
-    PUB_THIS_FRAME = false;
+    DETECT_NEW_FEATURE = false;
 
     if (FREQ == 0)
         FREQ = 100;
