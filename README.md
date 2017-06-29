@@ -53,6 +53,7 @@ we just:
 ```
 add config/ZED/ZED_config.yaml  
 add vins_estimator/launch/ZED.launch
+add ar_demo/launch/zed_bag.launch
 
 ```
 
@@ -61,6 +62,8 @@ the parameters of the ZED_config.yaml are suitable for our device, IMU:LPMS-CU2 
 
 ## bug
 
+
+it will shutdown after about 10s, and alert as follows,
 ```bash
 
 OpenCV Error: Assertion failed (confidence > 0 && confidence < 1) in run, file /tmp/binarydeb/ros-kinetic-opencv3-3.2.0/modules/calib3d/src/ptsetreg.cpp, line 178
@@ -72,4 +75,12 @@ log file: /home/wolfram/.ros/log/767e582a-5c25-11e7-a096-ac2b6e2eddb2/vins_estim
 
 ```
 
+
+
+or it will drift along one direction for a long time.
+
 ## rosbag
+
+
+
+there are two ros bag in this [Google Drive link](https://drive.google.com/open?id=0B1xWo-izUELRclZUNkwtVE1yZzQ) , you can use the walk.bag mainly, the other one is about rotation.
