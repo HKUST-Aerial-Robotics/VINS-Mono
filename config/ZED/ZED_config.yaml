@@ -74,4 +74,4 @@ loop_closure: 1   #if you want to use loop closure to minimize the drift, set lo
                      #also give the camera calibration file same as feature_tracker node
 pattern_file: "/support_files/brief_pattern.yml"
 voc_file: "/support_files/brief_k10L6.bin"
-min_loop_num: 30
+min_loop_num: 50

@@ -74,8 +74,15 @@ terminate called after throwing an instance of 'cv::Exception'
 log file: /home/wolfram/.ros/log/767e582a-5c25-11e7-a096-ac2b6e2eddb2/vins_estimator-2*.log
 
 ```
+- solution:
+```
+vins_estimator>>src>>loop_closure>>keyframe.cpp
+solvePnPRansac(pts_3_vector, measurements_old_norm, K, D, rvec, t, true, 100, 10.0 / 460.0, 0.99, inliers);
+```
 
+https://github.com/opencv/opencv/blob/master/modules/calib3d/src/ptsetreg.cpp
 
+the version of the opencv, confidence has changed.
 
 or it will drift along one direction for a long time.
 
