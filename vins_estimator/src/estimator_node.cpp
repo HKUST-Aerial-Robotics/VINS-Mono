@@ -71,9 +71,6 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     double dx = imu_msg->linear_acceleration.x;
     double dy = imu_msg->linear_acceleration.y;
     double dz = imu_msg->linear_acceleration.z;
-
-    //std::cout<<imu_msg->linear_acceleration.x<<"  "<<imu_msg->linear_acceleration.y<<"  "<<imu_msg->linear_acceleration.z<<endl;
-    
     Eigen::Vector3d linear_acceleration{dx, dy, dz};
 
     double rx = imu_msg->angular_velocity.x;
@@ -242,7 +239,6 @@ void process_loop_detection()
         if (cur_kf != NULL)
         {
             cur_kf->global_index = global_frame_cnt;
-            cur_kf->buildKeyFrameFeatures(estimator, m_camera);
             m_keyframedatabase_resample.lock();
             keyframe_database.add(cur_kf);
             m_keyframedatabase_resample.unlock();
@@ -383,7 +379,7 @@ void process_loop_detection()
             cur_kf->image.release();
             global_frame_cnt++;
 
-            if (t_loop > 300 || keyframe_database.size() > MAX_KEYFRAME_NUM)
+            if (t_loop > 1000 || keyframe_database.size() > MAX_KEYFRAME_NUM)
             {
                 m_keyframedatabase_resample.lock();
                 erase_index.clear();
@@ -502,7 +498,6 @@ void process()
                 if(estimator.marginalization_flag == 0 && estimator.solver_flag == estimator.NON_LINEAR)
                 {   
                     Vector3d vio_T_w_i = estimator.Ps[WINDOW_SIZE - 2];
-                    //std::cout<<"--------"<<vio_T_w_i<<endl;
                     Matrix3d vio_R_w_i = estimator.Rs[WINDOW_SIZE - 2];
                     i_buf.lock();
                     while(!image_buf.empty() && image_buf.front().second < estimator.Headers[WINDOW_SIZE - 2].stamp.toSec())
@@ -519,12 +514,10 @@ void process()
                     Vector3d cur_T;
                     Matrix3d cur_R;
                     cur_T = relocalize_r * vio_T_w_i + relocalize_t;
-
-                    //std::cout<<cur_T<<endl;
-
                     cur_R = relocalize_r * vio_R_w_i;
                     KeyFrame* keyframe = new KeyFrame(estimator.Headers[WINDOW_SIZE - 2].stamp.toSec(), vio_T_w_i, vio_R_w_i, cur_T, cur_R, image_buf.front().first, pattern_file);
                     keyframe->setExtrinsic(estimator.tic[0], estimator.ric[0]);
+                    keyframe->buildKeyFrameFeatures(estimator, m_camera);
                     m_keyframe_buf.lock();
                     keyframe_buf.push(keyframe);
                     m_keyframe_buf.unlock();
@@ -558,16 +551,11 @@ void process()
             header.frame_id = "world";
             cur_header = header;
             m_loop_drift.lock();
-
-      
-
             if (estimator.relocalize)
             {
                 relocalize_t = estimator.relocalize_t;
                 relocalize_r = estimator.relocalize_r;
             }
-            
-
             pubOdometry(estimator, header, relocalize_t, relocalize_r);
             pubKeyPoses(estimator, header, relocalize_t, relocalize_r);
             pubCameraPose(estimator, header, relocalize_t, relocalize_r);
