@@ -34,16 +34,16 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [0, 0, -1, 
-           1, 0, 0, 
-           0, -1, 0]
+   data: [0, -1,0, 
+           -1, 0, 0, 
+           0, 0, -1]
 
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [0,0, -0.029]
+   data: [-0.0065,0, -0.04]
 
 
 #feature traker paprameters

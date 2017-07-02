@@ -15,8 +15,9 @@ CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
 
-void registerPub(ros::NodeHandle &n)
+void registerPub(ros::NodeHandle &n)//注册发布器
 {
+    //要发布的东西
     pub_latest_odometry = n.advertise<nav_msgs::Odometry>("imu_propagate", 1000);
     pub_path = n.advertise<nav_msgs::Path>("path_no_loop", 1000);
     pub_loop_path = n.advertise<nav_msgs::Path>("path", 1000);

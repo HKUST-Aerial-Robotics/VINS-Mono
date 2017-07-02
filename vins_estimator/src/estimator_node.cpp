@@ -71,6 +71,9 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     double dx = imu_msg->linear_acceleration.x;
     double dy = imu_msg->linear_acceleration.y;
     double dz = imu_msg->linear_acceleration.z;
+
+    //std::cout<<imu_msg->linear_acceleration.x<<"  "<<imu_msg->linear_acceleration.y<<"  "<<imu_msg->linear_acceleration.z<<endl;
+    
     Eigen::Vector3d linear_acceleration{dx, dy, dz};
 
     double rx = imu_msg->angular_velocity.x;
@@ -499,6 +502,7 @@ void process()
                 if(estimator.marginalization_flag == 0 && estimator.solver_flag == estimator.NON_LINEAR)
                 {   
                     Vector3d vio_T_w_i = estimator.Ps[WINDOW_SIZE - 2];
+                    //std::cout<<"--------"<<vio_T_w_i<<endl;
                     Matrix3d vio_R_w_i = estimator.Rs[WINDOW_SIZE - 2];
                     i_buf.lock();
                     while(!image_buf.empty() && image_buf.front().second < estimator.Headers[WINDOW_SIZE - 2].stamp.toSec())
@@ -515,6 +519,9 @@ void process()
                     Vector3d cur_T;
                     Matrix3d cur_R;
                     cur_T = relocalize_r * vio_T_w_i + relocalize_t;
+
+                    //std::cout<<cur_T<<endl;
+
                     cur_R = relocalize_r * vio_R_w_i;
                     KeyFrame* keyframe = new KeyFrame(estimator.Headers[WINDOW_SIZE - 2].stamp.toSec(), vio_T_w_i, vio_R_w_i, cur_T, cur_R, image_buf.front().first, pattern_file);
                     keyframe->setExtrinsic(estimator.tic[0], estimator.ric[0]);
@@ -551,11 +558,16 @@ void process()
             header.frame_id = "world";
             cur_header = header;
             m_loop_drift.lock();
+
+      
+
             if (estimator.relocalize)
             {
                 relocalize_t = estimator.relocalize_t;
                 relocalize_r = estimator.relocalize_r;
             }
+            
+
             pubOdometry(estimator, header, relocalize_t, relocalize_r);
             pubKeyPoses(estimator, header, relocalize_t, relocalize_r);
             pubCameraPose(estimator, header, relocalize_t, relocalize_r);
