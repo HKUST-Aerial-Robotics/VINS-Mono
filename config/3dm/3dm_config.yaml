@@ -49,7 +49,7 @@ extrinsicTranslation: !!opencv-matrix
 
 max_cnt: 150            # max feature number in feature tracking
 min_dist: 20            # min distance between two features 
-freq: 20                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
+freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
 show_track: 1           # publish tracking image as topic
 equalize: 0             # if image is too dark or light, trun on equalize to find enough features

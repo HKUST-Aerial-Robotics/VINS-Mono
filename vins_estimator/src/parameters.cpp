@@ -27,6 +27,7 @@ std::string IMU_TOPIC;
 int IMAGE_ROW, IMAGE_COL;
 std::string VINS_FOLDER_PATH;
 int MAX_KEYFRAME_NUM;
+int USE_MOTION_ONLY_BA = 0;
 
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
@@ -129,6 +130,7 @@ void readParameters(ros::NodeHandle &n)
         CAM_NAMES = config_file;
     }
 
+    USE_MOTION_ONLY_BA = true;
 
     INIT_DEPTH = 5.0;
     BIAS_ACC_THRESHOLD = 0.1;

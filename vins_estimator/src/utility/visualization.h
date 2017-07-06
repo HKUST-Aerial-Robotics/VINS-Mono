@@ -43,7 +43,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header, Eig
                 Eigen::Matrix3d loop_correct_r);
 
 void pubOdometry(const Vector3d w_T_imu, const Matrix3d w_R_imu, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,
-                Eigen::Matrix3d loop_correct_r);
+                Eigen::Matrix3d loop_correct_r, Eigen::Vector3d tic, Eigen::Matrix3d ric);
 
 void pubInitialGuess(const Estimator &estimator, const std_msgs::Header &header);
 

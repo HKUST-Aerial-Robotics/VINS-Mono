@@ -10,6 +10,7 @@
 
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
+const int PNP_SIZE = 5;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
 const double LOOP_INFO_VALUE = 50.0;
@@ -46,13 +47,17 @@ extern std::string CAM_NAMES;
 extern std::string IMAGE_TOPIC;
 extern std::string IMU_TOPIC;
 
+extern int USE_MOTION_ONLY_BA;
+
 void readParameters(ros::NodeHandle &n);
 
 enum SIZE_PARAMETERIZATION
 {
     SIZE_POSE = 7,
     SIZE_SPEEDBIAS = 9,
-    SIZE_FEATURE = 1
+    SIZE_FEATURE = 1,
+    SIZE_SPEED = 3,
+    SIZE_BIAS = 6
 };
 
 enum StateOrder

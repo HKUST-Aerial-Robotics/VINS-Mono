@@ -164,7 +164,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header, Eig
 }
 
 void pubOdometry(const Vector3d w_T_imu, const Matrix3d w_R_imu, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,
-                Eigen::Matrix3d loop_correct_r)
+                Eigen::Matrix3d loop_correct_r, Eigen::Vector3d tic, Eigen::Matrix3d ric)
 {
 
     nav_msgs::Odometry odometry;
@@ -202,6 +202,27 @@ void pubOdometry(const Vector3d w_T_imu, const Matrix3d w_R_imu, const std_msgs:
     odometry.pose.pose.orientation.z = correct_q.z();
     odometry.pose.pose.orientation.w = correct_q.w();
     pub_odometry.publish(odometry);
+
+    geometry_msgs::PoseStamped camera_pose;
+    camera_pose.header = header;
+    Vector3d P = w_T_imu;
+    Quaterniond R = Quaterniond(w_R_imu * ric);
+    P = (loop_correct_r * w_T_imu + loop_correct_t) + (loop_correct_r * w_R_imu) * tic;
+    R = Quaterniond((loop_correct_r * w_R_imu) * ric);
+    camera_pose.pose.position.x = P.x();
+    camera_pose.pose.position.y = P.y();
+    camera_pose.pose.position.z = P.z();
+    camera_pose.pose.orientation.w = R.w();
+    camera_pose.pose.orientation.x = R.x();
+    camera_pose.pose.orientation.y = R.y();
+    camera_pose.pose.orientation.z = R.z();
+
+    pub_camera_pose.publish(camera_pose);
+
+    cameraposevisual.reset();
+    cameraposevisual.add_pose(P, R);
+    camera_pose.header.frame_id = "world";
+    cameraposevisual.publish_by(pub_camera_pose_visual, camera_pose.header);
 
     pose_stamped.pose = odometry.pose.pose;
     loop_path.header = header;
@@ -263,32 +284,7 @@ void pubKeyPoses(const Estimator &estimator, const std_msgs::Header &header, Eig
 void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header, Eigen::Vector3d loop_correct_t,
                    Eigen::Matrix3d loop_correct_r)
 {
-    int idx2 = WINDOW_SIZE - 1;
-    if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
-    {
-        int i = idx2;
-        geometry_msgs::PoseStamped camera_pose;
-        camera_pose.header = header;
-        camera_pose.header.frame_id = std::to_string(estimator.Headers[i].stamp.toNSec());
-        Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
-        Quaterniond R = Quaterniond(estimator.Rs[i] * estimator.ric[0]);
-        P = (loop_correct_r * estimator.Ps[i] + loop_correct_t) + (loop_correct_r * estimator.Rs[i]) * estimator.tic[0];
-        R = Quaterniond((loop_correct_r * estimator.Rs[i]) * estimator.ric[0]);
-        camera_pose.pose.position.x = P.x();
-        camera_pose.pose.position.y = P.y();
-        camera_pose.pose.position.z = P.z();
-        camera_pose.pose.orientation.w = R.w();
-        camera_pose.pose.orientation.x = R.x();
-        camera_pose.pose.orientation.y = R.y();
-        camera_pose.pose.orientation.z = R.z();
-
-        pub_camera_pose.publish(camera_pose);
-
-        cameraposevisual.reset();
-        cameraposevisual.add_pose(P, R);
-        camera_pose.header.frame_id = "world";
-        cameraposevisual.publish_by(pub_camera_pose_visual, camera_pose.header);
-    }
+    
 }
 
 

@@ -9,6 +9,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "estimator.h"
+#include "motion_only_estimator.h"
 #include "parameters.h"
 #include "utility/visualization.h"
 #include "loop-closure/loop_closure.h"
@@ -19,6 +20,7 @@
 #include "camodocal/camera_models/PinholeCamera.h"
 
 Estimator estimator;
+MotionOnlyEstimator motion_only_estimator;
 
 std::condition_variable con;
 double current_time = -1;
@@ -69,6 +71,12 @@ double first_image_time;
 int optimize_count = 1;
 bool first_image_flag = true;
 
+std::mutex m_estimator_feedback;
+std::mutex m_imu_feedback;
+VINS_RESULT solved_estimator;
+vector<IMU_MSG_LOCAL> imu_msgs_local;
+queue<IMU_MSG_LOCAL> local_imu_msg_buf;
+double current_time_pnp = -1;
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -158,6 +166,27 @@ getMeasurements()
     return measurements;
 }
 
+vector<IMU_MSG_LOCAL> getImuMeasurements(double header)
+{
+    vector<IMU_MSG_LOCAL> imu_measurements;
+    static double last_header = -1;
+    if(last_header < 0 || local_imu_msg_buf.empty())
+    {
+        last_header = header;
+        return imu_measurements;
+    }
+    
+    while(!local_imu_msg_buf.empty() && local_imu_msg_buf.front().header <= last_header)
+        local_imu_msg_buf.pop();
+    while(!local_imu_msg_buf.empty() && local_imu_msg_buf.front().header <= header)
+    {
+        imu_measurements.emplace_back(local_imu_msg_buf.front());
+        local_imu_msg_buf.pop();
+    }
+    last_header = header;
+    return imu_measurements;
+}
+
 void solve_pnp(vector<cv::Point3f> &corner_3, vector<cv::Point2f> &corner_2, 
          Eigen::Vector3d &w_T_cam, Eigen::Matrix3d &w_R_cam)
 {
@@ -185,8 +214,51 @@ void solve_pnp(vector<cv::Point3f> &corner_3, vector<cv::Point2f> &corner_2,
     w_T_cam = -(w_R_cam * T);
 }
 
+void solve_vins_pnp(vector<IMG_MSG_LOCAL> &_solved_features_local,
+                    vector<IMU_MSG_LOCAL> &_solved_imu_local,
+                    double header, Eigen::Vector3d &w_T_imu, Eigen::Matrix3d &w_R_imu)
+{
+    if(_solved_features_local.size() < 5)
+        return;
+
+    for(auto &it : _solved_imu_local)
+    {
+        double t = it.header;
+        if (current_time_pnp < 0)
+            current_time_pnp = t;
+        double dt = (t - current_time_pnp);
+        current_time_pnp = t;
+        printf("%lf ",t);
+        motion_only_estimator.processIMU(dt, it.acc, it.gyr);
+    }
+    motion_only_estimator.processImage(_solved_features_local, header);
+    
+    w_T_imu = motion_only_estimator.Ps[PNP_SIZE - 1];
+    w_R_imu = motion_only_estimator.Rs[PNP_SIZE - 1];
+}
+
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
+    if(USE_MOTION_ONLY_BA)
+    {
+        IMU_MSG_LOCAL imu_msg_local;
+        imu_msg_local.header = imu_msg->header.stamp.toSec();
+        double dx = imu_msg->linear_acceleration.x;
+        double dy = imu_msg->linear_acceleration.y;
+        double dz = imu_msg->linear_acceleration.z;
+
+        double rx = imu_msg->angular_velocity.x;
+        double ry = imu_msg->angular_velocity.y;
+        double rz = imu_msg->angular_velocity.z;
+
+        imu_msg_local.acc = Vector3d(dx, dy, dz);
+        imu_msg_local.gyr = Vector3d(rx, ry, rz);
+         
+        m_imu_feedback.lock();
+        local_imu_msg_buf.push(imu_msg_local);
+        m_imu_feedback.unlock();
+    }
+
     m_buf.lock();
     imu_buf.push(imu_msg);
     m_buf.unlock();
@@ -242,9 +314,8 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     if (estimator.solver_flag == estimator.NON_LINEAR)
     {
         m_estimator.lock();
-        vector<cv::Point3f> corner_3;
-        vector<cv::Point2f> corner_2;
 
+        vector<IMG_MSG_LOCAL> solved_features_local;
         for (unsigned int i = 0; i < feature_msg->points.size(); i++)
         {
             int v = feature_msg->channels[0].values[i] + 0.5;
@@ -261,32 +332,36 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
             {
                 Vector3d pts_i = (*it).feature_per_frame[0].point * (*it).estimated_depth;
                 Vector3d w_pts_i = estimator.Rs[(*it).start_frame] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.Ps[(*it).start_frame];
-                corner_3.push_back(cv::Point3f(w_pts_i.x(), w_pts_i.y(), w_pts_i.z()));
-                corner_2.push_back(cv::Point2f(x, y));
+                IMG_MSG_LOCAL img_msg_local;
+                img_msg_local.id = (*it).feature_id;
+                img_msg_local.track_num = (*it).feature_per_frame.size();
+                img_msg_local.observation = Vector2d(x, y);
+                img_msg_local.position = w_pts_i;
+                solved_features_local.push_back(img_msg_local);
             }
         }
 
-        if ((int)corner_3.size() > 30)
-        {
-            //Matrix3d w_R_cam = w_R_imu * estimator.ric[0];
-            Matrix3d w_R_cam = estimator.Rs[WINDOW_SIZE] * estimator.ric[0];
-            //Vector3d w_T_cam = w_T_imu + w_R_imu * estimator.tic[0];
-            Vector3d w_T_cam = estimator.Ps[WINDOW_SIZE] + estimator.Rs[WINDOW_SIZE] * estimator.tic[0];
-
-            solve_pnp(corner_3, corner_2, w_T_cam, w_R_cam);
-            
-            w_R_imu = w_R_cam * estimator.ric[0].transpose();
-            w_T_imu = w_T_cam - w_R_imu * estimator.tic[0];
-
-            ROS_INFO_STREAM("pnp position: " << w_T_imu.transpose());
-            ROS_INFO_STREAM("pnp orientation: " << Quaterniond(w_R_imu).w() << 
-                                               Quaterniond(w_R_imu).vec().transpose());
-            std_msgs::Header header = feature_msg->header;
-            header.frame_id = "world";
-            pubOdometry(w_T_imu, w_R_imu, header, relocalize_t, relocalize_r);
-
-        }
         m_estimator.unlock();
+
+        m_imu_feedback.lock();
+        vector<IMU_MSG_LOCAL> _solved_imu_local = getImuMeasurements(feature_msg ->header.stamp.toSec());
+        m_imu_feedback.unlock();
+
+        m_estimator_feedback.lock();
+        motion_only_estimator.setInit(solved_estimator);
+        m_estimator_feedback.unlock();
+
+        Vector3d w_T_imu;
+        Matrix3d w_R_imu;
+        solve_vins_pnp(solved_features_local,_solved_imu_local,feature_msg ->header.stamp.toSec(), w_T_imu, w_R_imu);
+
+        ROS_INFO_STREAM("pnp position: " << w_T_imu.transpose());
+        ROS_INFO_STREAM("pnp orientation: " << Quaterniond(w_R_imu).w() << 
+                                           Quaterniond(w_R_imu).vec().transpose());
+        std_msgs::Header header = feature_msg->header;
+        header.frame_id = "world";
+        pubOdometry(w_T_imu, w_R_imu, header, relocalize_t, relocalize_r, estimator.tic[0], estimator.ric[0]);
+           
     }
     
     if(optimize_frame) 
@@ -583,6 +658,21 @@ void process()
             m_estimator.lock();
             estimator.processImage(image, img_msg->header);
             m_estimator.unlock();
+
+            if(estimator.solver_flag == estimator.NON_LINEAR && USE_MOTION_ONLY_BA)
+            {
+                m_estimator_feedback.lock();
+                solved_estimator.header = estimator.Headers[WINDOW_SIZE - 1].stamp.toSec();
+                solved_estimator.Ba = estimator.Bas[WINDOW_SIZE - 1];
+                solved_estimator.Bg = estimator.Bgs[WINDOW_SIZE - 1];
+                solved_estimator.P = estimator.Ps[WINDOW_SIZE-1];
+                solved_estimator.R = estimator.Rs[WINDOW_SIZE-1];
+                solved_estimator.V = estimator.Vs[WINDOW_SIZE - 1];
+                solved_estimator.tic = estimator.tic[0];
+                solved_estimator.ric = estimator.ric[0];
+                solved_estimator.g = estimator.g;
+                m_estimator_feedback.unlock();
+            }
             /**
             *** start build keyframe database for loop closure
             **/
