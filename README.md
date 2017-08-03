@@ -34,6 +34,15 @@ alt="Mobile platform" width="240" height="180" border="10" /></a>
      year = {2017}
     }
 ```
+```
+@article{Lin17,
+  Author = {Y. Lin and F. Gao and T. Qin and W. Gao and T. Liu and W. Wu and Z. Yang and S. Shen},
+  Journal = jfr,
+  Title = {Autonomous Aerial Navigation Using Monocular Visual-Inertial Fusion},  
+  Volume = {00},
+  Pages = {1-29},
+  Year = {2017}} 
+```
 *If you use VINS-Mono for your academic research, please cite at least one of our related papers.*
 
 ## 1. Prerequisites
@@ -44,7 +53,7 @@ additional ROS pacakge
 ```
     sudo apt-get install ros-YOUR_DISTRO-cv-bridge ros-YOUR_DISTRO-tf ros-YOUR_DISTRO-message-filters ros-YOUR_DISTRO-image-transport
 ```
-also update opencv3 for ROS Kinetic
+If you install ROS Kinetic, please update opencv3 with 
 ```
     sudo apt-get install ros-kinetic-opencv3
 ```
