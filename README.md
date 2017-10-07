@@ -135,6 +135,6 @@ We use [ceres solver](http://ceres-solver.org/) for non-linear optimization and 
 ## 7. Licence
 The source code is released under [GPLv3](http://www.gnu.org/licenses/) license.
 
-We are still working on improving the code reliability. For any technical issues, please contact Tong QIN <tong.qin@connect.ust.hk> or Peiliang LI <pliap@connect.ust.hk>.
+We are still working on improving the code reliability. For any technical issues, please contact Tong QIN <tong.qinATconnect.ust.hk> or Peiliang LI <pliapATconnect.ust.hk>.
 
-For commercial inquiries, please contact Shaojie SHEN <eeshaojie@ust.hk>
+For commercial inquiries, please contact Shaojie SHEN <eeshaojieATust.hk>
