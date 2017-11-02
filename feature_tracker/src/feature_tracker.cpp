@@ -96,11 +96,13 @@ void FeatureTracker::addPoints()
 }
 
 /**
- * @brief 对图像使用光流法进行特征点跟踪
+ * @brief 对新来的图像使用光流法进行特征点跟踪
  * 
  * optional: 使用createCLAHE对图像进行自适应直方图均衡化
  * calcOpticalFlowPyrLK() LK金字塔光流法
  * 设置mask，在setMask()函数中
+ * goodFeaturesToTrack()添加一些特征点，确保每帧都有足够的特征点
+ * addPoints()添加新的追踪点
 */
 void FeatureTracker::readImage(const cv::Mat &_img)
 {
