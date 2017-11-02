@@ -52,7 +52,7 @@ class FeatureTracker
     vector<cv::Point2f> n_pts;
     vector<cv::Point2f> prev_pts, cur_pts, forw_pts;
     vector<int> ids;
-    vector<int> track_cnt;
+    vector<int> track_cnt; //代表当前cur_ptrs被追踪的时间次数
     camodocal::CameraPtr m_camera;
 
     static int n_id;

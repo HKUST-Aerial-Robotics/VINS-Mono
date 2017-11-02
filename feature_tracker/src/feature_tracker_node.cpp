@@ -53,6 +53,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)));
         else
         {
+            //双目
             if (EQUALIZE)
             {
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
@@ -67,6 +68,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 #endif
     }
 
+    //双目
     if ( PUB_THIS_FRAME && STEREO_TRACK && trackerData[0].cur_pts.size() > 0)
     {
         pub_count++;
@@ -161,6 +163,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             }
             else if (STEREO_TRACK)
             {
+                //双目
                 auto r_un_pts = trackerData[1].undistortedPoints();
                 auto &ids = trackerData[0].ids;
                 for (unsigned int j = 0; j < ids.size(); j++)
@@ -257,8 +260,11 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 100, img_callback);
 
+    //在名为feature的话题下发布一条类型为PointCloud的消息
     pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);
+    //在名为feature_img的话题下发布一条类型为Image的消息
     pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
+
     /*
     if (SHOW_TRACK)
         cv::namedWindow("vis", cv::WINDOW_NORMAL);

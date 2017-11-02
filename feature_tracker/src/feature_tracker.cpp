@@ -2,6 +2,9 @@
 
 int FeatureTracker::n_id = 0;
 
+/**
+ * @breif 判断特征点是非在范围内
+*/
 bool inBorder(const cv::Point2f &pt)
 {
     const int BORDER_SIZE = 1;
@@ -10,6 +13,9 @@ bool inBorder(const cv::Point2f &pt)
     return BORDER_SIZE <= img_x && img_x < COL - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < ROW - BORDER_SIZE;
 }
 
+/**
+ * @breif 去除无法追踪的特征
+*/
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
 {
     int j = 0;
@@ -19,6 +25,9 @@ void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
     v.resize(j);
 }
 
+/**
+ * @breif 去除无法追踪的特征
+*/
 void reduceVector(vector<int> &v, vector<uchar> status)
 {
     int j = 0;
@@ -32,6 +41,11 @@ FeatureTracker::FeatureTracker()
 {
 }
 
+/**
+ * @brief 对图像使用光流法进行特征点跟踪
+ * 
+ * 按照被追踪到的次数排序，然后加上mask去掉部分点，主要是针对鱼眼相机
+*/
 void FeatureTracker::setMask()
 {
     if(FISHEYE)
@@ -67,6 +81,10 @@ void FeatureTracker::setMask()
     }
 }
 
+
+/**
+ * @brief 添加新的特征点
+*/
 void FeatureTracker::addPoints()
 {
     for (auto &p : n_pts)
@@ -77,6 +95,13 @@ void FeatureTracker::addPoints()
     }
 }
 
+/**
+ * @brief 对图像使用光流法进行特征点跟踪
+ * 
+ * optional: 使用createCLAHE对图像进行自适应直方图均衡化
+ * calcOpticalFlowPyrLK() LK金字塔光流法
+ * 设置mask，在setMask()函数中
+*/
 void FeatureTracker::readImage(const cv::Mat &_img)
 {
     cv::Mat img;
@@ -84,6 +109,7 @@ void FeatureTracker::readImage(const cv::Mat &_img)
 
     if (EQUALIZE)
     {
+        //使用createCLAHE对图像进行自适应直方图均衡化
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         TicToc t_c;
         clahe->apply(_img, img);
@@ -108,8 +134,11 @@ void FeatureTracker::readImage(const cv::Mat &_img)
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
+        //calcOpticalFlowPyrLK() LK金字塔光流法 
+        //ref: https://docs.opencv.org/3.1.0/d7/d8b/tutorial_py_lucas_kanade.html
         cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
 
+        //清理vector中无法追踪到的特征点
         for (int i = 0; i < int(forw_pts.size()); i++)
             if (status[i] && !inBorder(forw_pts[i]))
                 status[i] = 0;
@@ -125,11 +154,13 @@ void FeatureTracker::readImage(const cv::Mat &_img)
     {
         rejectWithF();
 
+        //在光流追踪成功就记被追踪+1，数值代表被追踪的次数，数值越大，说明被追踪的就越久
         for (auto &n : track_cnt)
             n++;
 
         ROS_DEBUG("set mask begins");
         TicToc t_m;
+        //为下面的goodFeaturesToTrack保证相邻的特征点之间要相隔30个像素,设置mask image
         setMask();
         ROS_DEBUG("set mask costs %fms", t_m.toc());
 
@@ -144,6 +175,7 @@ void FeatureTracker::readImage(const cv::Mat &_img)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
+            //上面通过光流法找到一些对应点，这里是为了确保每个帧有足够点，然后调用addPoint添加点
             cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.1, MIN_DIST, mask);
         }
         else
@@ -162,6 +194,9 @@ void FeatureTracker::readImage(const cv::Mat &_img)
     cur_pts = forw_pts;
 }
 
+/**
+ * @breif 通过前后两帧的追踪计算F矩阵，通过F矩阵去除Outliers
+*/
 void FeatureTracker::rejectWithF()
 {
     if (forw_pts.size() >= 8)
@@ -196,6 +231,9 @@ void FeatureTracker::rejectWithF()
     }
 }
 
+/**
+ * @breif 更新ID
+*/
 bool FeatureTracker::updateID(unsigned int i)
 {
     if (i < ids.size())
@@ -214,6 +252,9 @@ void FeatureTracker::readIntrinsicParameter(const string &calib_file)
     m_camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 
+/**
+ * @breif Visualize undistortedPoints Points
+*/
 void FeatureTracker::showUndistortion(const string &name)
 {
     cv::Mat undistortedImg(ROW + 600, COL + 600, CV_8UC1, cv::Scalar(0));
@@ -250,6 +291,9 @@ void FeatureTracker::showUndistortion(const string &name)
     cv::waitKey(0);
 }
 
+/**
+ * @breif undistortedPoints Points
+*/
 vector<cv::Point2f> FeatureTracker::undistortedPoints()
 {
     vector<cv::Point2f> un_pts;
