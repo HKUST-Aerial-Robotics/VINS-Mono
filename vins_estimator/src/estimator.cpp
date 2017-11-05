@@ -109,6 +109,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Vector3d>>> &image,
 {
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());
+    //通过检测两帧之间的视差决定是否作为关键帧，同时添加之前检测到的特征点到feature容器中，计算每一个点跟踪的次数，以及它的视差
     if (f_manager.addFeatureCheckParallax(frame_count, image))
         marginalization_flag = MARGIN_OLD;
     else
@@ -203,10 +204,13 @@ void Estimator::processImage(const map<int, vector<pair<int, Vector3d>>> &image,
         last_P0 = Ps[0];
     }
 }
+
+//视觉的结构初始化
 bool Estimator::initialStructure()
 {
     TicToc t_sfm;
     //check imu observibility
+    //通过重力variance确保IMU有足够的excitation
     {
         map<double, ImageFrame>::iterator frame_it;
         Vector3d sum_g;
@@ -238,6 +242,7 @@ bool Estimator::initialStructure()
     Quaterniond Q[frame_count + 1];
     Vector3d T[frame_count + 1];
     map<int, Vector3d> sfm_tracked_points;
+    
     vector<SFMFeature> sfm_f;
     for (auto &it_per_id : f_manager.feature)
     {
@@ -256,11 +261,13 @@ bool Estimator::initialStructure()
     Matrix3d relative_R;
     Vector3d relative_T;
     int l;
+    //选择跟最后一帧中有足够多特征点和视差的某一帧，利用五点法恢复相对旋转和平移量 
     if (!relativePose(relative_R, relative_T, l))
     {
         ROS_INFO("Not enough features or parallax; Move device around");
         return false;
     }
+    //全局SFM初始化全部初始帧中的相机位置和特征点空间3D位置 
     GlobalSFM sfm;
     if(!sfm.construct(frame_count + 1, Q, T, l,
               relative_R, relative_T,

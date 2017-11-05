@@ -28,6 +28,7 @@ bool first_image_flag = true;
  * calcOpticalFlowPyrLK() LK金字塔光流法，生成tracking的特征点
  * undistroted特征点
  * 然后把追踪的特征点发布到名字为pub_img的话题下，图像发布在在pub_match下
+ * 被追踪的特征点是有全局唯一的ID的，后面就方便做匹配了
 */
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
