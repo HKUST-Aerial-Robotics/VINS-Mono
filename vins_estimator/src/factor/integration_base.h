@@ -62,7 +62,20 @@ class IntegrationBase
         //ROS_INFO("midpoint integration");
         Vector3d un_acc_0 = delta_q * (_acc_0 - linearized_ba);
         Vector3d un_gyr = 0.5 * (_gyr_0 + _gyr_1) - linearized_bg;
-        result_delta_q = delta_q * Quaterniond(1, un_gyr(0) * _dt / 2, un_gyr(1) * _dt / 2, un_gyr(2) * _dt / 2);
+        Vector3d angle = un_gyr * _dt;
+        double angle_norm = angle.norm();
+        if (angle_norm < 1e-8)
+        {
+            result_delta_q = delta_q * Quaterniond(1, un_gyr(0) * _dt / 2, un_gyr(1) * _dt / 2, un_gyr(2) * _dt / 2);
+        }
+        else
+        {
+            double cos_half = cos(angle_norm * 0.5);
+            double sin_half = sin(angle_norm * 0.5);
+            Vector3d dq_xyz = sin_half * angle / angle_norm;
+            result_delta_q = delta_q * Quaterniond(cos_half, dq_xyz(0), dq_xyz(1), dq_xyz(2));
+        }
+        result_delta_q.normalize();
         Vector3d un_acc_1 = result_delta_q * (_acc_1 - linearized_ba);
         Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
         result_delta_p = delta_p + delta_v * _dt + 0.5 * un_acc * _dt * _dt;
