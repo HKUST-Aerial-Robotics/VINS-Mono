@@ -243,6 +243,7 @@ bool Estimator::initialStructure()
     Vector3d T[frame_count + 1];
     map<int, Vector3d> sfm_tracked_points;
     
+    //特征点对应的3D feature
     vector<SFMFeature> sfm_f;
     for (auto &it_per_id : f_manager.feature)
     {
@@ -279,6 +280,7 @@ bool Estimator::initialStructure()
     }
 
     //solve pnp for all frame
+    //对于非滑动窗口的所有帧，提供一个初始的R,T，然后solve pnp求解pose
     map<double, ImageFrame>::iterator frame_it;
     map<int, Vector3d>::iterator it;
     frame_it = all_image_frame.begin( );
@@ -348,6 +350,7 @@ bool Estimator::initialStructure()
         frame_it->second.R = R_pnp * RIC[0].transpose();
         frame_it->second.T = T_pnp;
     }
+    //camera与IMU对齐
     if (visualInitialAlign())
         return true;
     else
@@ -358,6 +361,9 @@ bool Estimator::initialStructure()
 
 }
 
+//Ps:世界坐标下的平移
+//Rs:世界坐标下的旋转
+//Vs:世界坐标下的速度
 bool Estimator::visualInitialAlign()
 {
     TicToc t_g;
@@ -474,6 +480,7 @@ void Estimator::solveOdometry()
     if (solver_flag == NON_LINEAR)
     {
         TicToc t_tri;
+        //Ps是唯一，tic和ric是相机到IMU的外参
         f_manager.triangulate(Ps, tic, ric);
         ROS_DEBUG("triangulation costs %f", t_tri.toc());
         optimization();
@@ -650,12 +657,14 @@ void Estimator::optimization()
     ceres::LossFunction *loss_function;
     //loss_function = new ceres::HuberLoss(1.0);
     loss_function = new ceres::CauchyLoss(1.0);
+    //添加sliding window frame的state，(pose,v,q,ba,bg),因为ceres用的是double数组，所以在下面用vector2double做类型装换，把原来的Ps Vs Bgs Bas转到para_Pose para_SpeedBias下
     for (int i = 0; i < WINDOW_SIZE + 1; i++)
     {
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
         problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization);
         problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS);
     }
+    //camera IMU的外参也添加到估计
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
@@ -672,6 +681,7 @@ void Estimator::optimization()
     TicToc t_whole, t_prepare;
     vector2double();
 
+    //添加margination的residual
     if (last_marginalization_info)
     {
         // construct new marginlization_factor
@@ -679,7 +689,9 @@ void Estimator::optimization()
         problem.AddResidualBlock(marginalization_factor, NULL,
                                  last_marginalization_parameter_blocks);
     }
-
+    
+    //这里IMU项和camera项之间是有一个系数，这个系数就是他们各自的协方差矩阵：IMU的协方差是预积分的协方差(IMUFactor::Evaluate，中添加IMU协方差，求解jacobian矩阵)，而camera的测量残差则是一个固定的系数（f/1.5）
+    //添加IMU的residual
     for (int i = 0; i < WINDOW_SIZE; i++)
     {
         int j = i + 1;
@@ -690,6 +702,7 @@ void Estimator::optimization()
     }
     int f_m_cnt = 0;
     int feature_index = -1;
+    //添加vision的residual
     for (auto &it_per_id : f_manager.feature)
     {
         it_per_id.used_num = it_per_id.feature_per_frame.size();
@@ -717,6 +730,7 @@ void Estimator::optimization()
     }
     relocalize = false;
     //loop close factor
+    //添加闭环的参数和residual
     if(LOOP_CLOSURE)
     {
         int loop_constraint_num = 0;
