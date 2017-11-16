@@ -198,8 +198,10 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
 
 bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs, Vector3d &g, VectorXd &x)
 {
+    //估测陀螺仪的Bias
     solveGyroscopeBias(all_image_frame, Bgs);
 
+    //求解V 重力向量g和 尺度s
     if(LinearAlignment(all_image_frame, g, x))
         return true;
     else 

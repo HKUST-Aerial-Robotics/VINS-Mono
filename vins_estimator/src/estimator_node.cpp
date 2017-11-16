@@ -61,7 +61,6 @@ std_msgs::Header cur_header;
 Eigen::Vector3d relocalize_t{Eigen::Vector3d(0, 0, 0)};
 Eigen::Matrix3d relocalize_r{Eigen::Matrix3d::Identity()};
 
-
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
@@ -112,6 +111,10 @@ void update()
 
 }
 
+/**
+ * @brief 对其imu和图像数据进行初步对其，使得一副图像对应多组imu数据，并确保相邻图像对应时间戳内的所有IMU数据
+ *
+ */
 std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>>
 getMeasurements()
 {
@@ -139,6 +142,8 @@ getMeasurements()
         feature_buf.pop();
 
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
+
+        //图像数据(img_msg)，对应多组在时间戳内的imu数据,然后塞入measurements
         while (imu_buf.front()->header.stamp <= img_msg->header.stamp)
         {
             IMUs.emplace_back(imu_buf.front());
@@ -450,9 +455,11 @@ void process()
 
         for (auto &measurement : measurements)
         {
+            //分别取出各段imu数据，进行预积分
             for (auto &imu_msg : measurement.first)
                 send_imu(imu_msg);
 
+            //对应这段的vision data
             auto img_msg = measurement.second;
             ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
@@ -585,8 +592,10 @@ int main(int argc, char **argv)
 #endif
     ROS_WARN("waiting for image and imu...");
 
+    //RViz相关话题
     registerPub(n);
 
+    //订阅IMU,feature,image的topic,然后在各自的回调里处理消息
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_raw_image = n.subscribe(IMAGE_TOPIC, 2000, raw_image_callback);

@@ -287,6 +287,12 @@ void MarginalizationInfo::marginalize()
     Eigen::VectorXd S_sqrt = S.cwiseSqrt();
     Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
 
+
+    //FEJ First Estimate Jacobians，以后计算关于先验的误差和Jacobian都在边缘化的这个线性点展开，有点费劲，参考资料：
+    //http://blog.csdn.net/heyijia0327/article/details/53707261 DSO 中的Windowed Optimization
+    //https://mp.weixin.qq.com/s?__biz=MzI5MTM1MTQwMw==&mid=2247486797&idx=1&sn=6ae98c0c52ce74ddb5cdc17f3e0113b7&chksm=ec10b349db673a5fdc7c9db385eb39efc0a9724519a8ece8ce5dbe504d33e4ba099dafbcc65f&mpshare=1&scene=24&srcid=1113T4dVqwLiyL4XDMDerW4Z#rd
+    //OKVIS理论推导（下） SLAM中的marginalization 和 Schur complement
+    //http://blog.csdn.net/heyijia0327/article/details/52822104
     linearized_jacobians = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
     linearized_residuals = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
     //std::cout << A << std::endl
