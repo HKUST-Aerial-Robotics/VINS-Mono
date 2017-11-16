@@ -151,6 +151,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Vector3d>>> &image,
             bool result = false;
             if( ESTIMATE_EXTRINSIC != 2 && (header.stamp.toSec() - initial_timestamp) > 0.1)
             {
+                //视觉的结构初始化
                result = initialStructure();
                initial_timestamp = header.stamp.toSec();
             }
@@ -364,6 +365,7 @@ bool Estimator::initialStructure()
 //Ps:世界坐标下的平移
 //Rs:世界坐标下的旋转
 //Vs:世界坐标下的速度
+//vision IMU数据对齐
 bool Estimator::visualInitialAlign()
 {
     TicToc t_g;
@@ -442,6 +444,7 @@ bool Estimator::visualInitialAlign()
     return true;
 }
 
+//判断两帧有足够视差
 bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
 {
     // find previous frame which contians enough correspondance and parallex with newest frame
@@ -487,6 +490,7 @@ void Estimator::solveOdometry()
     }
 }
 
+//数据转换，因为ceres使用数值数组
 void Estimator::vector2double()
 {
     for (int i = 0; i <= WINDOW_SIZE; i++)
@@ -529,6 +533,7 @@ void Estimator::vector2double()
         para_Feature[i][0] = dep(i);
 }
 
+//数据转换，因为ceres使用数值数组，vector2double的相反过程
 void Estimator::double2vector()
 {
     Vector3d origin_R0 = Utility::R2ypr(Rs[0]);
@@ -602,6 +607,7 @@ void Estimator::double2vector()
     }
 }
 
+//检测系统是否失败
 bool Estimator::failureDetection()
 {
     if (f_manager.last_track_num < 2)
@@ -681,7 +687,10 @@ void Estimator::optimization()
     TicToc t_whole, t_prepare;
     vector2double();
 
-    //添加margination的residual
+    //添加marginalization的residual，这个marginalization的结构是始终存在的，随着下面marginazation的结构更新，last_marginalization_parameter_blocks对应的是还在sliding window的变量
+    //关于这一部分的理解，请看heyijia大神的BLOG:http://blog.csdn.net/heyijia0327/article/details/53707261,可能是说的最清楚的一个了
+    //这里可以这样理解，下面会添加对IMU和视觉的残差，但是，这些对应的变量实际上跟之前被margin掉的变量是有约束的，这里的last_marginalization_parameter_blocks就是保存的这些变量，也就是heyijia博客中对应的Xb变量，
+    //last_marginalization_info中对应的是Xb对应的测量Zb，这里用先验来表示这个约束，整个margin部分实际上就是在维护这个结构：
     if (last_marginalization_info)
     {
         // construct new marginlization_factor
@@ -834,6 +843,13 @@ void Estimator::optimization()
     double2vector();
 
     TicToc t_whole_marginalization;
+    //margin部分，如果倒数第二帧是最新帧：
+    //1.把之前的存的残差部分加进来
+    //2.把与当前要margin掉帧所有相关的残差项都加进来，IMU,vision
+    //3.preMarginalize-> 调用Evaluate计算所有ResidualBlock的残差，parameter_block_data parameter_block_idx parameter_block_size是marinazation中存参数块的容器(unordered_map),key都是addr,
+    //分别对应这些参数的data，在稀疏矩阵A中的index(要被margin掉的参数会被移到前面)，A中的大小
+    //4.Marginalize->多线程构造Hx=b的结构，H是边缘化后的结果，First Esitimate Jacobian,在边缘化X0处线性化
+    //5.margin结束，调整参数块在下一次window中对应的位置（往前移一格），注意这里是指针，后面slideWindow中会赋新值，这里只是提前占座（知乎上有人问：https://www.zhihu.com/question/63754583/answer/259699612）
     if (marginalization_flag == MARGIN_OLD)
     {
         MarginalizationInfo *marginalization_info = new MarginalizationInfo();
@@ -925,6 +941,11 @@ void Estimator::optimization()
         last_marginalization_parameter_blocks = parameter_blocks;
         
     }
+    //如果倒数第二帧不是关键帧
+    //1.保留该帧的IMU测量，margin该帧的visual
+    //2.premargin
+    //3.marginalize
+    //4.滑动窗口移动（去掉倒数第二个）
     else
     {
         if (last_marginalization_info &&
@@ -993,6 +1014,7 @@ void Estimator::optimization()
     ROS_DEBUG("whole time for ceres: %f", t_whole.toc());
 }
 
+//实际滑动窗口的地方，如果第二最新帧是关键帧的话，那么这个关键帧就会留在滑动窗口中，时间最长的一帧和其测量值就会被边缘化掉如果第二最新帧不是关键帧的话，则把这帧的视觉测量舍弃掉而保留IMU测量值在滑动窗口中这样的策略会保证系统的稀疏性
 void Estimator::slideWindow()
 {
     TicToc t_margin;
@@ -1079,6 +1101,8 @@ void Estimator::slideWindow()
         }
     }
 }
+
+//根据margin滑动窗口结果处理特征点出现的帧号
 
 // real marginalization is removed in solve_ceres()
 void Estimator::slideWindowNew()
