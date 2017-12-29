@@ -79,7 +79,6 @@ Download [EuRoC MAV Dataset](http://projects.asl.ethz.ch/datasets/doku.php?id=km
 ```
     roslaunch vins_estimator euroc.launch 
     roslaunch vins_estimator vins_rviz.launch
-    roslaunch roslaunch pose_graph euroc.launch
     rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag 
 ```
 (If you fail to open vins_rviz.launch, just open an empty rviz, then load the config file: file -> Open Config-> YOUR_VINS_FOLDER/config/vins_rviz_config.rviz)
