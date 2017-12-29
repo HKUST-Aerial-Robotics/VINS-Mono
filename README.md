@@ -48,8 +48,8 @@ alt="Mobile platform" width="240" height="180" border="10" /></a>
 
 ## 1. Prerequisites
 1.1 **Ubuntu** and **ROS**
-Ubuntu 14.04 / 16.04.
-ROS Indigo / Kinetic. [ROS Installation](http://wiki.ros.org/indigo/Installation/Ubuntu)
+Ubuntu  16.04.
+ROS Kinetic. [ROS Installation](http://wiki.ros.org/ROS/Installation)
 additional ROS pacakge
 ```
     sudo apt-get install ros-YOUR_DISTRO-cv-bridge ros-YOUR_DISTRO-tf ros-YOUR_DISTRO-message-filters ros-YOUR_DISTRO-image-transport
