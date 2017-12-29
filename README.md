@@ -103,7 +103,7 @@ After playing MH_01 bag, you can continue playing MH_02 bag, MH_03 bag ... The s
 
 3.3.1 map save
 
-Set the **pose_graph_save_path** in the config file (YOUR_VINS_FOLEDER/config/euroc/euroc_config.yaml). After playing MH_01 bag, enter **s** in vins_estimator terminal. The current pose graph will be saved. 
+Set the **pose_graph_save_path** in the config file (YOUR_VINS_FOLEDER/config/euroc/euroc_config.yaml). After playing MH_01 bag, input **s** in vins_estimator terminal, then **enter**. The current pose graph will be saved. 
 
 3.3.2 map load
 

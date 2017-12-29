@@ -399,11 +399,13 @@ void command()
             m_process.unlock();
             printf("save pose graph finish\nyou can set 'load_previous_pose_graph' to 1 in the config file to reuse it next time\n");
             printf("program shutting down...\n");
-            //ROS_BREAK();
             ros::shutdown();
         }
         if (c == 'n')
             new_sequence();
+
+        std::chrono::milliseconds dura(5);
+        std::this_thread::sleep_for(dura);
     }
 }
 
