@@ -349,22 +349,22 @@ void draw_object(cv::Mat &AR_image)
     }
 }
 
-void callback(const ImageConstPtr& img_msg, const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
+void callback(const ImageConstPtr& img_msg, const nav_msgs::Odometry::ConstPtr pose_msg)
 {
     //throw the first few unstable pose
-    if(img_cnt < 20)
+    if(img_cnt < 50)
     {
         img_cnt ++;
         return;
     }
    //ROS_INFO("sync callback!");
-   Vector3d camera_p(pose_msg->pose.position.x,
-                     pose_msg->pose.position.y,
-                     pose_msg->pose.position.z);
-   Quaterniond camera_q(pose_msg->pose.orientation.w,
-                        pose_msg->pose.orientation.x,
-                        pose_msg->pose.orientation.y,
-                        pose_msg->pose.orientation.z);
+   Vector3d camera_p(pose_msg->pose.pose.position.x,
+                     pose_msg->pose.pose.position.y,
+                     pose_msg->pose.pose.position.z);
+   Quaterniond camera_q(pose_msg->pose.pose.orientation.w,
+                        pose_msg->pose.pose.orientation.x,
+                        pose_msg->pose.pose.orientation.y,
+                        pose_msg->pose.pose.orientation.z);
 
    //test plane
    Vector3d cam_z(0, 0, -1);
@@ -426,10 +426,10 @@ void point_callback(const sensor_msgs::PointCloudConstPtr &point_msg)
     }
     if (max_index == -1)
         return;
-    int neigh_num = height_range[max_index - 1] + height_range[max_index] + height_range[max_index + 1];
-    double neigh_height = (height_sum[max_index - 1] + height_sum[max_index] + height_sum[max_index + 1]) / neigh_num;
-    //ROS_WARN("detect ground plain, height %f", neigh_height);
-    if (neigh_num < (int)point_msg->points.size() / 2)
+    int tmp_num = height_range[max_index - 1] + height_range[max_index] + height_range[max_index + 1];
+    double new_height = (height_sum[max_index - 1] + height_sum[max_index] + height_sum[max_index + 1]) / tmp_num;
+    //ROS_WARN("detect ground plain, height %f", new_height);
+    if (tmp_num < (int)point_msg->points.size() / 2)
     {
         //ROS_INFO("points not enough");
         return;
@@ -437,7 +437,7 @@ void point_callback(const sensor_msgs::PointCloudConstPtr &point_msg)
     //update height
     for (int i = 0; i < cube_num; i++)
     {
-        Cube_center[i].z() = neigh_height + box_length / 2.0;
+        Cube_center[i].z() = new_height + box_length / 2.0;
     }
     add_object();
 
@@ -451,7 +451,7 @@ void img_callback(const ImageConstPtr& img_msg)
     else
         return;
 }
-void pose_callback(const geometry_msgs::PoseStamped::ConstPtr& pose_msg)
+void pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg)
 {
     if(!pose_init)
     {

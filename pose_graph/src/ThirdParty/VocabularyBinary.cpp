@@ -1,11 +1,3 @@
-//
-//  VocabularyBinary.cpp
-//  VINS_ios
-//
-//  Created by Yang Liu on 3/13/17.
-//  Copyright © 2017 栗大人. All rights reserved.
-//
-
 #include "VocabularyBinary.hpp"
 #include <opencv2/core/core.hpp>
 using namespace std;

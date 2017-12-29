@@ -15,18 +15,13 @@ double BIAS_GYR_THRESHOLD;
 double SOLVER_TIME;
 int NUM_ITERATIONS;
 int ESTIMATE_EXTRINSIC;
+int ESTIMATE_TD;
+int ROLLING_SHUTTER;
 std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
-int LOOP_CLOSURE = 0;
-int MIN_LOOP_NUM;
-std::string CAM_NAMES;
-std::string PATTERN_FILE;
-std::string VOC_FILE;
-std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;
-int IMAGE_ROW, IMAGE_COL;
-std::string VINS_FOLDER_PATH;
-int MAX_KEYFRAME_NUM;
+double ROW, COL;
+double TD, TR;
 
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
@@ -54,28 +49,28 @@ void readParameters(ros::NodeHandle &n)
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
 
-    VINS_FOLDER_PATH = readParam<std::string>(n, "vins_folder");
-    fsSettings["image_topic"] >> IMAGE_TOPIC;
     fsSettings["imu_topic"] >> IMU_TOPIC;
-
-    IMAGE_COL = fsSettings["image_width"];
-    IMAGE_ROW = fsSettings["image_height"];
 
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];
     MIN_PARALLAX = fsSettings["keyframe_parallax"];
     MIN_PARALLAX = MIN_PARALLAX / FOCAL_LENGTH;
 
-    fsSettings["output_path"] >> VINS_RESULT_PATH;
-    VINS_RESULT_PATH = VINS_FOLDER_PATH + VINS_RESULT_PATH;
-    std::ofstream foutC(VINS_RESULT_PATH, std::ios::out);
-    foutC.close();
+    std::string OUTPUT_PATH;
+    fsSettings["output_path"] >> OUTPUT_PATH;
+    VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop.csv";
+    std::cout << "result path " << VINS_RESULT_PATH << std::endl;
+    std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
+    fout.close();
 
     ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];
     GYR_N = fsSettings["gyr_n"];
     GYR_W = fsSettings["gyr_w"];
     G.z() = fsSettings["g_norm"];
+    ROW = fsSettings["image_height"];
+    COL = fsSettings["image_width"];
+    ROS_INFO("ROW: %f COL: %f ", ROW, COL);
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2)
@@ -83,8 +78,7 @@ void readParameters(ros::NodeHandle &n)
         ROS_WARN("have no prior about extrinsic param, calibrate extrinsic param");
         RIC.push_back(Eigen::Matrix3d::Identity());
         TIC.push_back(Eigen::Vector3d::Zero());
-        fsSettings["ex_calib_result_path"] >> EX_CALIB_RESULT_PATH;
-        EX_CALIB_RESULT_PATH = VINS_FOLDER_PATH + EX_CALIB_RESULT_PATH;
+        EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
 
     }
     else 
@@ -92,8 +86,7 @@ void readParameters(ros::NodeHandle &n)
         if ( ESTIMATE_EXTRINSIC == 1)
         {
             ROS_WARN(" Optimize extrinsic param around initial guess!");
-            fsSettings["ex_calib_result_path"] >> EX_CALIB_RESULT_PATH;
-            EX_CALIB_RESULT_PATH = VINS_FOLDER_PATH + EX_CALIB_RESULT_PATH;
+            EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
         }
         if (ESTIMATE_EXTRINSIC == 0)
             ROS_WARN(" fix extrinsic param ");
@@ -114,24 +107,28 @@ void readParameters(ros::NodeHandle &n)
         
     } 
 
-
-
-    LOOP_CLOSURE = fsSettings["loop_closure"];
-    if (LOOP_CLOSURE == 1)
-    {
-        fsSettings["voc_file"] >> VOC_FILE;;
-        fsSettings["pattern_file"] >> PATTERN_FILE;
-        VOC_FILE = VINS_FOLDER_PATH + VOC_FILE;
-        PATTERN_FILE = VINS_FOLDER_PATH + PATTERN_FILE;
-        MIN_LOOP_NUM = fsSettings["min_loop_num"];
-        CAM_NAMES = config_file;
-    }
-
-
     INIT_DEPTH = 5.0;
     BIAS_ACC_THRESHOLD = 0.1;
     BIAS_GYR_THRESHOLD = 0.1;
-    MAX_KEYFRAME_NUM = 1000;
+
+    TD = fsSettings["td"];
+    ESTIMATE_TD = fsSettings["estimate_td"];
+    if (ESTIMATE_TD)
+        ROS_INFO_STREAM("Unsynchronized sensors, online estimate time offset, initial td: " << TD);
+    else
+        ROS_INFO_STREAM("Synchronized sensors, fix time offset: " << TD);
+
+    ROLLING_SHUTTER = fsSettings["rolling_shutter"];
+    if (ROLLING_SHUTTER)
+    {
+        TR = fsSettings["rolling_shutter_tr, please set read out time according to the data sheet."];
+        ROS_INFO_STREAM("rolling shutter camera, whole read out time: " << TR);
+        ROS_INFO_STREAM("rolling shutter camera, read out time per line: " << TR / ROW);
+    }
+    else
+    {
+        TR = 0;
+    }
     
     fsSettings.release();
 }

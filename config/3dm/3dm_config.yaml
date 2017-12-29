@@ -3,7 +3,7 @@
 #common parameters
 imu_topic: "/imu_3dm_gx4/imu"
 image_topic: "/mv_25001498/image_raw"
-output_path: "/config/3dm/vins_result.csv"         # vins outputs will be wrttento vins_folder_path + output_path
+output_path: "/home/tony-ws1/output/"
 
 # MEI is better than PINHOLE for large FOV camera
 model_type: MEI
@@ -27,7 +27,6 @@ projection_parameters:
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning. 
-ex_calib_result_path: "/config/euroc/ex_calib_result.yaml"  # If you choose 1 or 2, the extrinsic calibration result will be written vins_folder_path + ex_calib_result_path.                        
 #If you choose 0 or 1, you should write down the following matrix.
 #Rotation from camera frame to imu frame, imu^R_cam
 extrinsicRotation: !!opencv-matrix
@@ -56,9 +55,9 @@ equalize: 0             # if image is too dark or light, trun on equalize to fin
 fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
 #optimization parameters
 
-max_solver_time: 0.035  # max solver itration time (ms), to guarantee real time
+max_solver_time: 0.035   # max solver itration time (ms), to guarantee real time
 max_num_iterations: 10   # max solver itrations, to guarantee real time
-keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+keyframe_parallax: 10.0  # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
 acc_n: 0.2          # accelerometer measurement noise standard deviation.
@@ -67,10 +66,20 @@ acc_w: 0.002        # accelerometer bias random work noise standard deviation.
 gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.
 g_norm: 9.805       #
 
-
 #loop closure parameters
-loop_closure: 0   #if you want to use loop closure to minimize the drift, set loop_closure true and give your brief pattern file path and vocabulary file path accordingly;
-                     #also give the camera calibration file same as feature_tracker node
-pattern_file: "/support_files/brief_pattern.yml"
-voc_file: "/support_files/brief_k10L6.bin"
-min_loop_num: 20
+loop_closure: 0                 # start loop closure
+load_previous_pose_graph: 0     # load and reuse previous pose graph; load from 'pose_graph_save_path'
+pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
+
+#unsynchronization parameters
+estimate_td: 0                      # online estimate time offset between camera and imu
+td: 0.000                           # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#rolling shutter parameters
+rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera
+rolling_shutter_tr: 0               # unit: s. rolling shutter read out time (from data sheet). tr / ROW : read out time of per line. 
+
+#visualization parameters
+save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
+visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
+visualize_camera_size: 0.4      # size of camera marker in RVIZ

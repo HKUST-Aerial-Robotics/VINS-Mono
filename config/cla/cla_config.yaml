@@ -6,23 +6,22 @@ image_topic: "/cam0/image_raw"
 output_path: "/home/tony-ws1/output/"
 
 #camera calibration 
-model_type: PINHOLE
+model_type: KANNALA_BRANDT
 camera_name: camera
 image_width: 752
 image_height: 480
-distortion_parameters:
-   k1: -2.917e-01
-   k2: 8.228e-02
-   p1: 5.333e-05
-   p2: -1.578e-04
 projection_parameters:
-   fx: 4.616e+02
-   fy: 4.603e+02
-   cx: 3.630e+02
-   cy: 2.481e+02
+   k2: -0.005740195474458931
+   k3: 0.02878252863739417
+   k4: -0.04010621197185408
+   k5: 0.02008469575876223
+   mu: 472.2863830700696
+   mv: 470.83759684346785
+   u0: 368.8316828103749
+   v0: 232.23688706965652
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.                        
 #If you choose 0 or 1, you should write down the following matrix.
@@ -31,15 +30,14 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [0, -1, 0, 
-           1, 0, 0, 
-           0, 0, 1]
-#Translation from camera frame to imu frame, imu^T_cam
+   data: [ 0.99992185, -0.01241689, -0.00145542,
+           0.01242827,  0.99989004,  0.00809021,
+           0.0013548,  -0.00810766,  0.99996621 ]
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [-0.02,-0.06, 0.01]
+   data: [ 0.03661314, -0.01027102, -0.00654466 ]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking
@@ -56,11 +54,12 @@ max_num_iterations: 8   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 0.2          # accelerometer measurement noise standard deviation. #0.2
-gyr_n: 0.02         # gyroscope measurement noise standard deviation.     #0.05
-acc_w: 0.0002         # accelerometer bias random work noise standard deviation.  #0.02
-gyr_w: 2.0e-5       # gyroscope bias random work noise standard deviation.     #4.0e-5
-g_norm: 9.81007     # gravity magnitude
+acc_n: 4e-2         # accelerometer measurement noise standard deviation. #0.2    4e-2 
+gyr_n: 1e-3         # gyroscope measurement noise standard deviation.     #0.05    1e-3
+acc_w: 1e-3         # accelerometer bias random work noise standard deviation.  #0.02  4e-2  4e-3 1e-2
+gyr_w: 1e-4         # gyroscope bias random work noise standard deviation.     #4.0e-5   1e-3  1e-4 1e-4
+g_norm: 9.81        # gravity magnitude
+
 
 #loop closure parameters
 loop_closure: 1                 # start loop closure

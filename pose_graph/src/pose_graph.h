@@ -1,49 +1,86 @@
 #pragma once
 
-#include <vector>
-#include <list>
-#include "keyframe.h"
-#include <assert.h>
+#include <thread>
+#include <mutex>
+#include <opencv2/opencv.hpp>
+#include <eigen3/Eigen/Dense>
+#include <string>
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
-#include "../utility/CameraPoseVisualization.h"
-#include "../utility/utility.h"
+#include <queue>
+#include <assert.h>
 #include <nav_msgs/Path.h>
-#include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PointStamped.h>
+#include <nav_msgs/Odometry.h>
+#include <stdio.h>
+#include <ros/ros.h>
+#include "keyframe.h"
+#include "utility/tic_toc.h"
+#include "utility/utility.h"
+#include "utility/CameraPoseVisualization.h"
+#include "utility/tic_toc.h"
+#include "ThirdParty/DBoW/DBoW2.h"
+#include "ThirdParty/DVision/DVision.h"
+#include "ThirdParty/DBoW/TemplatedDatabase.h"
+#include "ThirdParty/DBoW/TemplatedVocabulary.h"
 
-class KeyFrameDatabase
+
+#define SHOW_S_EDGE false
+#define SHOW_L_EDGE true
+#define SAVE_LOOP_PATH true
+
+using namespace DVision;
+using namespace DBoW2;
+
+class PoseGraph
 {
 public:
-	KeyFrameDatabase();
-	void add(KeyFrame* pKF);
-	void downsample(vector<int> &erase_index);
-	void erase(KeyFrame* pKF);
-	int size();
-	void optimize4DoFLoopPoseGraph(int cur_index, Eigen::Vector3d &loop_correct_t, Eigen::Matrix3d &loop_correct_r);
-	KeyFrame* getKeyframe(int index);
-	KeyFrame* getLastKeyframe();
-	KeyFrame* getLastKeyframe(int last_index);
-	void getKeyframeIndexList(vector<int> &keyframe_index_list);
-	void updateVisualization();
-	void addLoop(int loop_index);
-	nav_msgs::Path getPath();
-	CameraPoseVisualization* getPosegraphVisualization();
-	
-private:
-	list<KeyFrame*> keyFrameList;
-	std::mutex mMutexkeyFrameList;
-	std::mutex mOptimiazationPosegraph;
-	std::mutex mPath;
-	std::mutex mPosegraphVisualization;
-	int earliest_loop_index;
+	PoseGraph();
+	~PoseGraph();
+	void registerPub(ros::NodeHandle &n);
+	void addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop);
+	void loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop);
+	void loadVocabulary(std::string voc_path);
+	KeyFrame* getKeyFrame(int index);
+	nav_msgs::Path path[10];
+	nav_msgs::Path base_path;
+	CameraPoseVisualization* posegraph_visualization;
+	void savePoseGraph();
+	void loadPoseGraph();
+	void publish();
 	Vector3d t_drift;
 	double yaw_drift;
 	Matrix3d r_drift;
-	double total_length;
-	Vector3d last_P;
-	nav_msgs::Path refine_path;
-	CameraPoseVisualization* posegraph_visualization;
+	Vector3d w_t_vio;
+	Matrix3d w_r_vio;
+
+
+private:
+	int detectLoop(KeyFrame* keyframe, int frame_index);
+	void addKeyFrameIntoVoc(KeyFrame* keyframe);
+	void optimize4DoF();
+	void updatePath();
+	list<KeyFrame*> keyframelist;
+	std::mutex m_keyframelist;
+	std::mutex m_optimize_buf;
+	std::mutex m_path;
+	std::thread t_optimization;
+	std::queue<int> optimize_buf;
+
+	int global_index;
+	int sequence_cnt;
+	vector<bool> sequence_loop;
+	map<int, cv::Mat> image_pool;
+	int earliest_loop_index;
+	int base_sequence;
+
+	BriefDatabase db;
+	BriefVocabulary* voc;
+
+	ros::Publisher pub_pg_path;
+	ros::Publisher pub_base_path;
+	ros::Publisher pub_pose_graph;
+	ros::Publisher pub_path[10];
 };
 
 template <typename T>
@@ -72,143 +109,6 @@ class AngleLocalParameterization {
     return (new ceres::AutoDiffLocalParameterization<AngleLocalParameterization,
                                                      1, 1>);
   }
-};
-
-template <typename T> inline
-void QuaternionInverse(const T q[4], T q_inverse[4])
-{
-	q_inverse[0] = q[0];
-	q_inverse[1] = -q[1];
-	q_inverse[2] = -q[2];
-	q_inverse[3] = -q[3];
-};
-
-struct RelativeTError
-{
-	RelativeTError(double t_x, double t_y, double t_z)
-				  :t_x(t_x), t_y(t_y), t_z(t_z){}
-
-	template <typename T>
-	bool operator()(const T* const w_q_i, const T* ti, const T* tj, T* residuals) const
-	{
-		T t_w_ij[3];
-		t_w_ij[0] = tj[0] - ti[0];
-		t_w_ij[1] = tj[1] - ti[1];
-		t_w_ij[2] = tj[2] - ti[2];
-
-		T i_q_w[4];
-		QuaternionInverse(w_q_i, i_q_w);
-
-		T t_i_ij[3];
-		ceres::QuaternionRotatePoint(i_q_w, t_w_ij, t_i_ij);
-
-		residuals[0] = t_i_ij[0] - T(t_x);
-		residuals[1] = t_i_ij[1] - T(t_y);
-		residuals[2] = t_i_ij[2] - T(t_z);
-
-		return true;
-	}
-
-	static ceres::CostFunction* Create(const double t_x, const double t_y, const double t_z) 
-	{
-	  return (new ceres::AutoDiffCostFunction<
-	          RelativeTError, 3, 4, 3, 3>(
-	          	new RelativeTError(t_x, t_y, t_z)));
-	}
-
-	double t_x, t_y, t_z;
-
-};
-
-
-struct TError
-{
-	TError(double t_x, double t_y, double t_z)
-				  :t_x(t_x), t_y(t_y), t_z(t_z){}
-
-	template <typename T>
-	bool operator()(const T* tj, T* residuals) const
-	{
-		residuals[0] = tj[0] - T(t_x);
-		residuals[1] = tj[1] - T(t_y);
-		residuals[2] = tj[2] - T(t_z);
-
-		return true;
-	}
-
-	static ceres::CostFunction* Create(const double t_x, const double t_y, const double t_z) 
-	{
-	  return (new ceres::AutoDiffCostFunction<
-	          TError, 3, 3>(
-	          	new TError(t_x, t_y, t_z)));
-	}
-
-	double t_x, t_y, t_z;
-
-};
-
-struct RelativeRTError
-{
-	RelativeRTError(double t_x, double t_y, double t_z, double q_w, double q_x, double q_y, double q_z)
-				  :t_x(t_x), t_y(t_y), t_z(t_z), q_w(q_w), q_x(q_x), q_y(q_y), q_z(q_z)
-				  {
-				  	t_norm = sqrt(t_x * t_x + t_y * t_y + t_z * t_z);
-				  }
-
-	template <typename T>
-	bool operator()(const T* const w_q_i, const T* ti, const T* w_q_j, const T* tj, T* residuals) const
-	{
-		T t_w_ij[3];
-		t_w_ij[0] = tj[0] - ti[0];
-		t_w_ij[1] = tj[1] - ti[1];
-		t_w_ij[2] = tj[2] - ti[2];
-
-		T i_q_w[4];
-		QuaternionInverse(w_q_i, i_q_w);
-
-		T t_i_ij[3];
-		ceres::QuaternionRotatePoint(i_q_w, t_w_ij, t_i_ij);
-
-		//residuals[0] = (t_i_ij[0] - T(t_x)) / T(t_norm);
-		//residuals[1] = (t_i_ij[1] - T(t_y)) / T(t_norm);
-		//residuals[2] = (t_i_ij[2] - T(t_z)) / T(t_norm);
-		residuals[0] = (t_i_ij[0] - T(t_x));
-		residuals[1] = (t_i_ij[1] - T(t_y));
-		residuals[2] = (t_i_ij[2] - T(t_z));
-
-		T relative_q[4];
-		relative_q[0] = T(q_w);
-		relative_q[1] = T(q_x);
-		relative_q[2] = T(q_y);
-		relative_q[3] = T(q_z);
-
-		T q_i_j[4];
-		ceres::QuaternionProduct(i_q_w, w_q_j, q_i_j);
-
-		T relative_q_inv[4];
-		QuaternionInverse(relative_q, relative_q_inv);
-
-		T error_q[4];
-		ceres::QuaternionProduct(relative_q_inv, q_i_j, error_q); 
-
-		residuals[3] = T(2) * error_q[1];
-		residuals[4] = T(2) * error_q[2];
-		residuals[5] = T(2) * error_q[3];
-
-		return true;
-	}
-
-	static ceres::CostFunction* Create(const double t_x, const double t_y, const double t_z,
-									   const double q_w, const double q_x, const double q_y, const double q_z) 
-	{
-	  return (new ceres::AutoDiffCostFunction<
-	          RelativeRTError, 6, 4, 3, 4, 3>(
-	          	new RelativeRTError(t_x, t_y, t_z, q_w, q_x, q_y, q_z)));
-	}
-
-	double t_x, t_y, t_z, t_norm;
-	double q_w, q_x, q_y, q_z;
-
 };
 
 template <typename T> 
@@ -279,7 +179,7 @@ struct FourDOFError
 		residuals[0] = (t_i_ij[0] - T(t_x));
 		residuals[1] = (t_i_ij[1] - T(t_y));
 		residuals[2] = (t_i_ij[2] - T(t_z));
-		residuals[3] = NormalizeAngle(yaw_j[0] - yaw_i[0] - T(relative_yaw)) / T(10.0);
+		residuals[3] = NormalizeAngle(yaw_j[0] - yaw_i[0] - T(relative_yaw));
 
 		return true;
 	}
@@ -301,7 +201,7 @@ struct FourDOFWeightError
 {
 	FourDOFWeightError(double t_x, double t_y, double t_z, double relative_yaw, double pitch_i, double roll_i)
 				  :t_x(t_x), t_y(t_y), t_z(t_z), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i){
-				  	weight = 5;
+				  	weight = 1;
 				  }
 
 	template <typename T>

@@ -3,7 +3,7 @@
 #common parameters
 imu_topic: "/djiros/imu"
 image_topic: "/djiros/image"
-output_path: "/config/A3/vins_result.csv"         # vins outputs will be wrttento vins_folder_path + output_path
+output_path: "/home/urop/output/"         # vins outputs will be wrttento vins_folder_path + output_path
 
 #camera calibration 
 model_type: MEI
@@ -11,45 +11,45 @@ camera_name: camera
 image_width: 752
 image_height: 480
 mirror_parameters:
-   xi: 2.5826025650890592e+00
+   xi: 2.2134257311108083e+00
 distortion_parameters:
-   k1: 3.9389417936108251e-01
-   k2: 2.2073276594959599e+00
-   p1: -1.9253757033376501e-03
-   p2: -6.1503758445210599e-04
+   k1: 1.4213768437132895e-01
+   k2: 9.1226950620748259e-01
+   p1: 1.2056297779277966e-03
+   p2: 2.0300076091651340e-03
 projection_parameters:
-   gamma1: 1.3068921176079280e+03
-   gamma2: 1.3065892394640514e+03
-   u0: 3.6959543908262725e+02
-   v0: 2.1891731132428231e+02
+   gamma1: 1.1659242643040975e+03
+   gamma2: 1.1656143723709608e+03
+   u0: 3.9238492754088008e+02
+   v0: 2.4392485271819217e+02
 
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning. 
-ex_calib_result_path: "/config/A3/ex_calib_result.yaml"  # If you choose 1 or 2, the extrinsic calibration result will be written vins_folder_path + ex_calib_result_path.                        
 #If you choose 0 or 1, you should write down the following matrix.
 #Rotation from camera frame to imu frame, imu^R_cam
 extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [ 0, -1, 0,
-           1, 0, 0, 
-           0, 0, 1]
-
-#Translation from camera frame to imu frame, imu^T_cam
+   data: [ 3.5547377966504534e-02, -9.9819308302994181e-01,
+       -4.8445360055281682e-02, 9.9855985185796758e-01,
+       3.3527772724371241e-02, 4.1882104932016398e-02,
+       -4.0182162424389177e-02, -4.9864390574059170e-02,
+       9.9794736152543517e-01 ]
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ 0, 0.05, 0]
+   data: [ 6.5272135116678912e-02, -6.8544177447541876e-02,
+       3.7304589197375740e-02 ]
 
 
 #feature traker paprameters
 
-max_cnt: 250            # max feature number in feature tracking
+max_cnt: 120           # max feature number in feature tracking
 min_dist: 30            # min distance between two features 
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
@@ -69,10 +69,20 @@ acc_w: 0.002        # accelerometer bias random work noise standard deviation.
 gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.
 g_norm: 9.805         #
 
-
 #loop closure parameters
-loop_closure: 1   #if you want to use loop closure to minimize the drift, set loop_closure true and give your brief pattern file path and vocabulary file path accordingly;
-                     #also give the camera calibration file same as feature_tracker node
-pattern_file: "/support_files/brief_pattern.yml"
-voc_file: "/support_files/brief_k10L6.bin"
-min_loop_num: 30
+loop_closure: 1                 # start loop closure
+load_previous_pose_graph: 0     # load and reuse previous pose graph; load from 'pose_graph_save_path'
+pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
+
+#unsynchronization parameters
+estimate_td: 1                      # online estimate time offset between camera and imu
+td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#rolling shutter parameters
+rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera
+rolling_shutter_tr: 0               # unit: s. rolling shutter read out time (from data sheet). tr / ROW : read out time of per line. 
+
+#visualization parameters
+save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
+visualize_imu_forward: 1        # output imu forward propogation to achieve low latency and high frequence results
+visualize_camera_size: 0.4      # size of camera marker in RVIZ

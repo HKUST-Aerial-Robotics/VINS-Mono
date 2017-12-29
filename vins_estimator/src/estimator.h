@@ -15,29 +15,13 @@
 #include "factor/imu_factor.h"
 #include "factor/pose_local_parameterization.h"
 #include "factor/projection_factor.h"
+#include "factor/projection_td_factor.h"
 #include "factor/marginalization_factor.h"
 
 #include <unordered_map>
 #include <queue>
 #include <opencv2/core/eigen.hpp>
 
-struct RetriveData
-{
-    /* data */
-    int old_index;
-    int cur_index;
-    double header;
-    Vector3d P_old;
-    Matrix3d R_old;
-    vector<cv::Point2f> measurements;
-    vector<int> features_ids; 
-    bool relocalized;
-    bool relative_pose;
-    Vector3d relative_t;
-    Quaterniond relative_q;
-    double relative_yaw;
-    double loop_pose[7];
-};
 
 class Estimator
 {
@@ -48,7 +32,7 @@ class Estimator
 
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
-    void processImage(const map<int, vector<pair<int, Vector3d>>> &image, const std_msgs::Header &header);
+    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
 
     // internal
     void clearState();
@@ -91,6 +75,7 @@ class Estimator
     Matrix3d Rs[(WINDOW_SIZE + 1)];
     Vector3d Bas[(WINDOW_SIZE + 1)];
     Vector3d Bgs[(WINDOW_SIZE + 1)];
+    double td;
 
     Matrix3d back_R0, last_R, last_R0;
     Vector3d back_P0, last_P, last_P0;
@@ -125,13 +110,10 @@ class Estimator
     double para_Feature[NUM_OF_F][SIZE_FEATURE];
     double para_Ex_Pose[NUM_OF_CAM][SIZE_POSE];
     double para_Retrive_Pose[SIZE_POSE];
+    double para_Td[1][1];
+    double para_Tr[1][1];
 
-    RetriveData retrive_pose_data, front_pose;
-    vector<RetriveData> retrive_data_vector;
     int loop_window_index;
-    bool relocalize;
-    Vector3d relocalize_t;
-    Matrix3d relocalize_r;
 
     MarginalizationInfo *last_marginalization_info;
     vector<double *> last_marginalization_parameter_blocks;

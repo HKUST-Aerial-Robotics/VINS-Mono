@@ -676,7 +676,7 @@ void TemplatedDatabase<TDescriptor, F>::queryL1(const BowVector &vec,
       const EntryId entry_id = rit->entry_id;
       const WordValue& dvalue = rit->word_weight;
       
-      if((int)entry_id < max_id || max_id == -1)
+      if((int)entry_id < max_id || max_id == -1 || (int)entry_id == m_nentries - 1)
       {
         double value = fabs(qvalue - dvalue) - fabs(qvalue) - fabs(dvalue);
         

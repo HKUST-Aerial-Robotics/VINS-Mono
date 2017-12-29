@@ -12,10 +12,7 @@ const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
-const double LOOP_INFO_VALUE = 50.0;
-//#define DEPTH_PRIOR
-//#define GT
-#define UNIT_SPHERE_ERROR
+//#define UNIT_SPHERE_ERROR
 
 extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
@@ -34,16 +31,13 @@ extern double SOLVER_TIME;
 extern int NUM_ITERATIONS;
 extern std::string EX_CALIB_RESULT_PATH;
 extern std::string VINS_RESULT_PATH;
-extern std::string VINS_FOLDER_PATH;
-
-extern int LOOP_CLOSURE;
-extern int MIN_LOOP_NUM;
-extern int MAX_KEYFRAME_NUM;
-extern std::string PATTERN_FILE;
-extern std::string VOC_FILE;
-extern std::string CAM_NAMES;
-extern std::string IMAGE_TOPIC;
 extern std::string IMU_TOPIC;
+extern double TD;
+extern double TR;
+extern int ESTIMATE_TD;
+extern int ROLLING_SHUTTER;
+extern double ROW, COL;
+
 
 void readParameters(ros::NodeHandle &n);
 
