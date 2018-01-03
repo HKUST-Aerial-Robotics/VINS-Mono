@@ -48,8 +48,8 @@ bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *resid
     double td = parameters[4][0];
 
     Eigen::Vector3d pts_i_td, pts_j_td;
-    pts_i_td = pts_i - (td - td_i + TR / ROW * row_i) * velocity_i;
-    pts_j_td = pts_j - (td - td_j + TR / ROW * row_j) * velocity_j;
+    pts_i_td = pts_i - (td - td_i + TR * row_i) * velocity_i;
+    pts_j_td = pts_j - (td - td_j + TR * row_j) * velocity_j;
     Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
     Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
     Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
@@ -179,8 +179,8 @@ void ProjectionTdFactor::check(double **parameters)
     double td = parameters[4][0];
 
     Eigen::Vector3d pts_i_td, pts_j_td;
-    pts_i_td = pts_i - (td - td_i + TR / ROW * row_i) * velocity_i;
-    pts_j_td = pts_j - (td - td_j + TR / ROW * row_j) * velocity_j;
+    pts_i_td = pts_i - (td - td_i + TR * row_i) * velocity_i;
+    pts_j_td = pts_j - (td - td_j + TR * row_j) * velocity_j;
     Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
     Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
     Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
@@ -236,8 +236,8 @@ void ProjectionTdFactor::check(double **parameters)
             td += delta.y();
 
         Eigen::Vector3d pts_i_td, pts_j_td;
-        pts_i_td = pts_i - (td - td_i + TR / ROW * row_i) * velocity_i;
-        pts_j_td = pts_j - (td - td_j + TR / ROW * row_j) * velocity_j;
+        pts_i_td = pts_i - (td - td_i + TR * row_i) * velocity_i;
+        pts_j_td = pts_j - (td - td_j + TR * row_j) * velocity_j;
         Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
         Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
         Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;

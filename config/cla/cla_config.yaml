@@ -72,7 +72,7 @@ td: 0.0                             # initial value of time offset. unit: s. rea
 
 #rolling shutter parameters
 rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera
-rolling_shutter_tr: 0               # unit: s. rolling shutter read out time (from data sheet). tr / ROW : read out time of per line. 
+rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per line (from data sheet). 
 
 #visualization parameters
 save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
