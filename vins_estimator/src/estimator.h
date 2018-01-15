@@ -33,6 +33,7 @@ class Estimator
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
+    void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
 
     // internal
     void clearState();
@@ -121,4 +122,18 @@ class Estimator
     map<double, ImageFrame> all_image_frame;
     IntegrationBase *tmp_pre_integration;
 
+    //relocalization variable
+    bool relocalization_info;
+    double relo_frame_stamp;
+    double relo_frame_index;
+    int relo_frame_local_index;
+    vector<Vector3d> match_points;
+    double relo_Pose[SIZE_POSE];
+    Matrix3d drift_correct_r;
+    Vector3d drift_correct_t;
+    Vector3d prev_relo_t;
+    Matrix3d prev_relo_r;
+    Vector3d relo_relative_t;
+    Quaterniond relo_relative_q;
+    double relo_relative_yaw;
 };

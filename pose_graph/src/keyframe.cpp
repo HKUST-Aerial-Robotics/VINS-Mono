@@ -12,8 +12,8 @@ static void reduceVector(vector<Derived> &v, vector<uchar> status)
 
 // create keyframe online
 KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i, cv::Mat &_image,
-		           vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
-		           int _sequence)
+		           vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_norm,
+		           vector<double> &_point_id, int _sequence)
 {
 	time_stamp = _time_stamp;
 	index = _index;
@@ -27,7 +27,8 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
 	cv::resize(image, thumbnail, cv::Size(80, 60));
 	point_3d = _point_3d;
 	point_2d_uv = _point_2d_uv;
-	point_2d_normal = _point_2d_normal;
+	point_2d_norm = _point_2d_norm;
+	point_id = _point_id;
 	has_loop = false;
 	loop_index = -1;
 	has_fast_point = false;
@@ -42,7 +43,7 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
 // load previous keyframe
 KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i, Vector3d &_T_w_i, Matrix3d &_R_w_i,
 					cv::Mat &_image, int _loop_index, Eigen::Matrix<double, 8, 1 > &_loop_info,
-					vector<cv::KeyPoint> &_keypoints, vector<BRIEF::bitset> &_brief_descriptors)
+					vector<cv::KeyPoint> &_keypoints, vector<cv::KeyPoint> &_keypoints_norm, vector<BRIEF::bitset> &_brief_descriptors)
 {
 	time_stamp = _time_stamp;
 	index = _index;
@@ -66,6 +67,7 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
 	has_fast_point = false;
 	sequence = 0;
 	keypoints = _keypoints;
+	keypoints_norm = _keypoints_norm;
 	brief_descriptors = _brief_descriptors;
 }
 
@@ -100,6 +102,14 @@ void KeyFrame::computeBRIEFPoint()
 		}
 	}
 	extractor(image, keypoints, brief_descriptors);
+	for (int i = 0; i < (int)keypoints.size(); i++)
+	{
+		Eigen::Vector3d tmp_p;
+		m_camera->liftProjective(Eigen::Vector2d(keypoints[i].pt.x, keypoints[i].pt.y), tmp_p);
+		cv::KeyPoint tmp_norm;
+		tmp_norm.pt = cv::Point2f(tmp_p.x()/tmp_p.z(), tmp_p.y()/tmp_p.z());
+		keypoints_norm.push_back(tmp_norm);
+	}
 }
 
 void BriefExtractor::operator() (const cv::Mat &im, vector<cv::KeyPoint> &keys, vector<BRIEF::bitset> &descriptors) const
@@ -111,7 +121,9 @@ void BriefExtractor::operator() (const cv::Mat &im, vector<cv::KeyPoint> &keys, 
 bool KeyFrame::searchInAera(const BRIEF::bitset window_descriptor,
                             const std::vector<BRIEF::bitset> &descriptors_old,
                             const std::vector<cv::KeyPoint> &keypoints_old,
-                            cv::Point2f &best_match)
+                            const std::vector<cv::KeyPoint> &keypoints_old_norm,
+                            cv::Point2f &best_match,
+                            cv::Point2f &best_match_norm)
 {
     cv::Point2f best_pt;
     int bestDist = 128;
@@ -130,81 +142,64 @@ bool KeyFrame::searchInAera(const BRIEF::bitset window_descriptor,
     if (bestIndex != -1 && bestDist < 80)
     {
       best_match = keypoints_old[bestIndex].pt;
+      best_match_norm = keypoints_old_norm[bestIndex].pt;
       return true;
     }
     else
       return false;
 }
 
-void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_cur,
-						   std::vector<cv::Point2f> &matched_2d_old,
-                           std::vector<cv::Point3f> &matched_3d,
-                           const std::vector<BRIEF::bitset> &descriptors_old,
-                           const std::vector<cv::KeyPoint> &keypoints_old)
+void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
+								std::vector<cv::Point2f> &matched_2d_old_norm,
+                                std::vector<uchar> &status,
+                                const std::vector<BRIEF::bitset> &descriptors_old,
+                                const std::vector<cv::KeyPoint> &keypoints_old,
+                                const std::vector<cv::KeyPoint> &keypoints_old_norm)
 {
-    std::vector<uchar> status;
     for(int i = 0; i < (int)window_brief_descriptors.size(); i++)
     {
         cv::Point2f pt(0.f, 0.f);
-        if (searchInAera(window_brief_descriptors[i], descriptors_old, keypoints_old, pt))
+        cv::Point2f pt_norm(0.f, 0.f);
+        if (searchInAera(window_brief_descriptors[i], descriptors_old, keypoints_old, keypoints_old_norm, pt, pt_norm))
           status.push_back(1);
         else
           status.push_back(0);
         matched_2d_old.push_back(pt);
+        matched_2d_old_norm.push_back(pt_norm);
     }
-
-    matched_3d = point_3d;
-    matched_2d_cur = point_2d_uv;
-
-    reduceVector(matched_2d_old, status);
-    reduceVector(matched_2d_cur, status);
-    reduceVector(matched_3d, status);
 
 }
 
 
-void KeyFrame::FundmantalMatrixRANSAC(std::vector<cv::Point2f> &matched_2d_cur,
-                                      std::vector<cv::Point2f> &matched_2d_old,
-                                      std::vector<cv::Point2f> &matched_2d_cur_norm,
-                                      std::vector<cv::Point2f> &matched_2d_old_norm,
-                                      std::vector<cv::Point3f> &matched_3d)
+void KeyFrame::FundmantalMatrixRANSAC(const std::vector<cv::Point2f> &matched_2d_cur_norm,
+                                      const std::vector<cv::Point2f> &matched_2d_old_norm,
+                                      vector<uchar> &status)
 {
-    if (matched_2d_old.size() >= 8)
+	int n = (int)matched_2d_cur_norm.size();
+	for (int i = 0; i < n; i++)
+		status.push_back(0);
+    if (n >= 8)
     {
-        vector<cv::Point2f> un_matched_2d_cur(matched_2d_old.size()), un_mathched_2d_old(matched_2d_old.size());
-        for (int i = 0; i < (int)matched_2d_old.size(); i++)
+        vector<cv::Point2f> tmp_cur(n), tmp_old(n);
+        for (int i = 0; i < (int)matched_2d_cur_norm.size(); i++)
         {
             double FOCAL_LENGTH = 460.0;
-            Eigen::Vector3d tmp_p;
-            m_camera->liftProjective(Eigen::Vector2d(matched_2d_cur[i].x, matched_2d_cur[i].y), tmp_p);
-            matched_2d_cur_norm.push_back(cv::Point2f(tmp_p.x()/tmp_p.z(), tmp_p.y()/tmp_p.z()));
-            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
-            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
-            un_matched_2d_cur[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
+            double tmp_x, tmp_y;
+            tmp_x = FOCAL_LENGTH * matched_2d_cur_norm[i].x + COL / 2.0;
+            tmp_y = FOCAL_LENGTH * matched_2d_cur_norm[i].y + ROW / 2.0;
+            tmp_cur[i] = cv::Point2f(tmp_x, tmp_y);
 
-            m_camera->liftProjective(Eigen::Vector2d(matched_2d_old[i].x, matched_2d_old[i].y), tmp_p);
-            matched_2d_old_norm.push_back(cv::Point2f(tmp_p.x()/tmp_p.z(), tmp_p.y()/tmp_p.z()));
-            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
-            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
-            un_mathched_2d_old[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
+            tmp_x = FOCAL_LENGTH * matched_2d_old_norm[i].x + COL / 2.0;
+            tmp_y = FOCAL_LENGTH * matched_2d_old_norm[i].y + ROW / 2.0;
+            tmp_old[i] = cv::Point2f(tmp_x, tmp_y);
         }
-
-        vector<uchar> status;
-        cv::findFundamentalMat(un_matched_2d_cur, un_mathched_2d_old, cv::FM_RANSAC, 3.0, 0.9, status);
-        reduceVector(matched_2d_old, status);
-        reduceVector(matched_2d_old_norm, status);
-        reduceVector(matched_2d_cur, status);
-        reduceVector(matched_2d_cur_norm, status);
-        reduceVector(matched_3d, status);
-
+        cv::findFundamentalMat(tmp_cur, tmp_old, cv::FM_RANSAC, 3.0, 0.9, status);
     }
 }
 
-void KeyFrame::PnPRANSAC(vector<cv::Point2f> &matched_2d_cur,
-                         vector<cv::Point2f> &matched_2d_old,
-                         vector<cv::Point2f> &matched_2d_cur_norm,
-                         vector<cv::Point2f> &matched_2d_old_norm,
-                         std::vector<cv::Point3f> &matched_3d,
+void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
+                         const std::vector<cv::Point3f> &matched_3d,
+                         std::vector<uchar> &status,
                          Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old)
 {
 	//for (int i = 0; i < matched_3d.size(); i++)
@@ -238,7 +233,6 @@ void KeyFrame::PnPRANSAC(vector<cv::Point2f> &matched_2d_cur,
 
     }
 
-    std::vector<uchar> status;
     for (int i = 0; i < (int)matched_2d_old_norm.size(); i++)
         status.push_back(0);
 
@@ -259,29 +253,23 @@ void KeyFrame::PnPRANSAC(vector<cv::Point2f> &matched_2d_cur,
     PnP_R_old = R_w_c_old * qic.transpose();
     PnP_T_old = T_w_c_old - PnP_R_old * tic;
 
-    reduceVector(matched_2d_old, status);
-    reduceVector(matched_2d_old_norm, status);
-    reduceVector(matched_2d_cur, status);
-    reduceVector(matched_2d_cur_norm, status);
-    reduceVector(matched_3d, status);
-
 }
 
 
 bool KeyFrame::findConnection(KeyFrame* old_kf)
 {
 	TicToc tmp_t;
-
 	//printf("find Connection\n");
+	vector<cv::Point2f> matched_2d_cur, matched_2d_old;
+	vector<cv::Point2f> matched_2d_cur_norm, matched_2d_old_norm;
+	vector<cv::Point3f> matched_3d;
+	vector<double> matched_id;
+	vector<uchar> status;
 
-	std::vector<cv::Point2f> matched_2d_cur, matched_2d_old;
-	std::vector<cv::Point2f> matched_2d_cur_norm, matched_2d_old_norm;
-	std::vector<cv::Point3f> matched_3d;
-	Eigen::Vector3d PnP_T_old;
-	Eigen::Matrix3d PnP_R_old;
-	Eigen::Vector3d relative_t;
-	Quaterniond relative_q;
-	double relative_yaw;
+	matched_3d = point_3d;
+	matched_2d_cur = point_2d_uv;
+	matched_2d_cur_norm = point_2d_norm;
+	matched_id = point_id;
 
 	TicToc t_match;
 	#if 0
@@ -310,8 +298,13 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	    }
 	#endif
 	//printf("search by des\n");
-
-	searchByBRIEFDes(matched_2d_cur, matched_2d_old, matched_3d, old_kf->brief_descriptors, old_kf->keypoints);
+	searchByBRIEFDes(matched_2d_old, matched_2d_old_norm, status, old_kf->brief_descriptors, old_kf->keypoints, old_kf->keypoints_norm);
+	reduceVector(matched_2d_cur, status);
+	reduceVector(matched_2d_old, status);
+	reduceVector(matched_2d_cur_norm, status);
+	reduceVector(matched_2d_old_norm, status);
+	reduceVector(matched_3d, status);
+	reduceVector(matched_id, status);
 	//printf("search by des finish\n");
 
 	#if 0 
@@ -360,7 +353,14 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	        
 	    }
 	#endif
-	FundmantalMatrixRANSAC(matched_2d_cur, matched_2d_old, matched_2d_cur_norm, matched_2d_old_norm, matched_3d);
+	status.clear();
+	FundmantalMatrixRANSAC(matched_2d_cur_norm, matched_2d_old_norm, status);
+	reduceVector(matched_2d_cur, status);
+	reduceVector(matched_2d_old, status);
+	reduceVector(matched_2d_cur_norm, status);
+	reduceVector(matched_2d_old_norm, status);
+	reduceVector(matched_3d, status);
+	reduceVector(matched_id, status);
 	#if 0
 		if (DEBUG_IMAGE)
 	    {
@@ -396,9 +396,21 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	        cv::imwrite( path.str().c_str(), loop_match_img);
 	    }
 	#endif
+	Eigen::Vector3d PnP_T_old;
+	Eigen::Matrix3d PnP_R_old;
+	Eigen::Vector3d relative_t;
+	Quaterniond relative_q;
+	double relative_yaw;
 	if ((int)matched_2d_cur.size() > MIN_LOOP_NUM)
 	{
-	    PnPRANSAC(matched_2d_cur, matched_2d_old, matched_2d_cur_norm, matched_2d_old_norm, matched_3d, PnP_T_old, PnP_R_old);
+		status.clear();
+	    PnPRANSAC(matched_2d_old_norm, matched_3d, status, PnP_T_old, PnP_R_old);
+	    reduceVector(matched_2d_cur, status);
+	    reduceVector(matched_2d_old, status);
+	    reduceVector(matched_2d_cur_norm, status);
+	    reduceVector(matched_2d_old_norm, status);
+	    reduceVector(matched_3d, status);
+	    reduceVector(matched_id, status);
 	    #if 1
 	    	if (DEBUG_IMAGE)
 	        {
@@ -460,16 +472,44 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	    relative_t = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
 	    relative_q = PnP_R_old.transpose() * origin_vio_R;
 	    relative_yaw = Utility::normalizeAngle(Utility::R2ypr(origin_vio_R).x() - Utility::R2ypr(PnP_R_old).x());
-	    //printf("PNP relative");
+	    //printf("PNP relative\n");
 	    //cout << "pnp relative_t " << relative_t.transpose() << endl;
 	    //cout << "pnp relative_yaw " << relative_yaw << endl;
 	    if (abs(relative_yaw) < 30.0 && relative_t.norm() < 20.0)
 	    {
+
 	    	has_loop = true;
 	    	loop_index = old_kf->index;
 	    	loop_info << relative_t.x(), relative_t.y(), relative_t.z(),
 	    	             relative_q.w(), relative_q.x(), relative_q.y(), relative_q.z(),
 	    	             relative_yaw;
+	    	if(FAST_RELOCALIZATION)
+	    	{
+			    sensor_msgs::PointCloud msg_match_points;
+			    msg_match_points.header.stamp = ros::Time(time_stamp);
+			    for (int i = 0; i < (int)matched_2d_old_norm.size(); i++)
+			    {
+		            geometry_msgs::Point32 p;
+		            p.x = matched_2d_old_norm[i].x;
+		            p.y = matched_2d_old_norm[i].y;
+		            p.z = matched_id[i];
+		            msg_match_points.points.push_back(p);
+			    }
+			    Eigen::Vector3d T = old_kf->T_w_i; 
+			    Eigen::Matrix3d R = old_kf->R_w_i;
+			    Quaterniond Q(R);
+			    sensor_msgs::ChannelFloat32 t_q_index;
+			    t_q_index.values.push_back(T.x());
+			    t_q_index.values.push_back(T.y());
+			    t_q_index.values.push_back(T.z());
+			    t_q_index.values.push_back(Q.w());
+			    t_q_index.values.push_back(Q.x());
+			    t_q_index.values.push_back(Q.y());
+			    t_q_index.values.push_back(Q.z());
+			    t_q_index.values.push_back(index);
+			    msg_match_points.channels.push_back(t_q_index);
+			    pub_match_points.publish(msg_match_points);
+	    	}
 	        return true;
 	    }
 	}
@@ -526,6 +566,15 @@ double KeyFrame::getLoopRelativeYaw()
     return loop_info(7);
 }
 
+void KeyFrame::updateLoop(Eigen::Matrix<double, 8, 1 > &_loop_info)
+{
+	if (abs(_loop_info(7)) < 30.0 && Vector3d(_loop_info(0), _loop_info(1), _loop_info(2)).norm() < 20.0)
+	{
+		//printf("update loop info\n");
+		loop_info = _loop_info;
+	}
+}
+
 BriefExtractor::BriefExtractor(const std::string &pattern_file)
 {
   // The DVision::BRIEF extractor computes a random pattern by default when
@@ -545,4 +594,5 @@ BriefExtractor::BriefExtractor(const std::string &pattern_file)
 
   m_brief.importPairs(x1, y1, x2, y2);
 }
+
 

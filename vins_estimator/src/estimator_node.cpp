@@ -19,6 +19,7 @@ std::condition_variable con;
 double current_time = -1;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
+queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 int sum_of_wait = 0;
 
 std::mutex m_buf;
@@ -98,7 +99,7 @@ getMeasurements()
 
         if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td))
         {
-            ROS_WARN("wait for imu, only should happen at the beginning");
+            //ROS_WARN("wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
@@ -178,6 +179,13 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
     return;
 }
 
+void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
+{
+    //printf("relocalization callback! \n");
+    m_buf.lock();
+    relo_buf.push(points_msg);
+    m_buf.unlock();
+}
 // thread: visual-inertial odometry
 void process()
 {
@@ -236,6 +244,32 @@ void process()
                     //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
                 }
             }
+            // set relocalization frame
+            sensor_msgs::PointCloudConstPtr relo_msg = NULL;
+            while (!relo_buf.empty())
+            {
+                relo_msg = relo_buf.front();
+                relo_buf.pop();
+            }
+            if (relo_msg != NULL)
+            {
+                vector<Vector3d> match_points;
+                double frame_stamp = relo_msg->header.stamp.toSec();
+                for (unsigned int i = 0; i < relo_msg->points.size(); i++)
+                {
+                    Vector3d u_v_id;
+                    u_v_id.x() = relo_msg->points[i].x;
+                    u_v_id.y() = relo_msg->points[i].y;
+                    u_v_id.z() = relo_msg->points[i].z;
+                    match_points.push_back(u_v_id);
+                }
+                Vector3d relo_t(relo_msg->channels[0].values[0], relo_msg->channels[0].values[1], relo_msg->channels[0].values[2]);
+                Quaterniond relo_q(relo_msg->channels[0].values[3], relo_msg->channels[0].values[4], relo_msg->channels[0].values[5], relo_msg->channels[0].values[6]);
+                Matrix3d relo_r = relo_q.toRotationMatrix();
+                int frame_index;
+                frame_index = relo_msg->channels[0].values[7];
+                estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);
+            }
 
             ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
@@ -271,6 +305,8 @@ void process()
             pubPointCloud(estimator, header);
             pubTF(estimator, header);
             pubKeyframe(estimator);
+            if (relo_msg != NULL)
+                pubRelocalization(estimator);
             //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.toSec(), ros::Time::now().toSec());
         }
         m_estimator.unlock();
@@ -300,6 +336,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
+    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
     std::thread measurement_process{process};
     ros::spin();

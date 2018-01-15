@@ -47,11 +47,13 @@ int COL;
 int DEBUG_IMAGE;
 int VISUALIZE_IMU_FORWARD;
 int LOOP_CLOSURE;
+int FAST_RELOCALIZATION;
 
 camodocal::CameraPtr m_camera;
 Eigen::Vector3d tic;
 Eigen::Matrix3d qic;
 ros::Publisher pub_match_img;
+ros::Publisher pub_match_points;
 ros::Publisher pub_camera_pose_visual;
 ros::Publisher pub_key_odometrys;
 ros::Publisher pub_vio_path;
@@ -174,6 +176,26 @@ void imu_forward_callback(const nav_msgs::Odometry::ConstPtr &forward_msg)
         cameraposevisual.add_pose(vio_t_cam, vio_q_cam);
         cameraposevisual.publish_by(pub_camera_pose_visual, forward_msg->header);
     }
+}
+void relo_relative_pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg)
+{
+    Vector3d relative_t = Vector3d(pose_msg->pose.pose.position.x,
+                                   pose_msg->pose.pose.position.y,
+                                   pose_msg->pose.pose.position.z);
+    Quaterniond relative_q;
+    relative_q.w() = pose_msg->pose.pose.orientation.w;
+    relative_q.x() = pose_msg->pose.pose.orientation.x;
+    relative_q.y() = pose_msg->pose.pose.orientation.y;
+    relative_q.z() = pose_msg->pose.pose.orientation.z;
+    double relative_yaw = pose_msg->twist.twist.linear.x;
+    int index = pose_msg->twist.twist.linear.y;
+    //printf("receive index %d \n", index );
+    Eigen::Matrix<double, 8, 1 > loop_info;
+    loop_info << relative_t.x(), relative_t.y(), relative_t.z(),
+                 relative_q.w(), relative_q.x(), relative_q.y(), relative_q.z(),
+                 relative_yaw;
+    posegraph.updateKeyFrameLoop(index, loop_info);
+
 }
 
 void vio_callback(const nav_msgs::Odometry::ConstPtr &pose_msg)
@@ -350,6 +372,7 @@ void process()
                 vector<cv::Point3f> point_3d; 
                 vector<cv::Point2f> point_2d_uv; 
                 vector<cv::Point2f> point_2d_normal;
+                vector<double> point_id;
 
                 for (unsigned int i = 0; i < point_msg->points.size(); i++)
                 {
@@ -360,17 +383,21 @@ void process()
                     point_3d.push_back(p_3d);
 
                     cv::Point2f p_2d_uv, p_2d_normal;
+                    double p_id;
                     p_2d_normal.x = point_msg->channels[i].values[0];
                     p_2d_normal.y = point_msg->channels[i].values[1];
                     p_2d_uv.x = point_msg->channels[i].values[2];
                     p_2d_uv.y = point_msg->channels[i].values[3];
+                    p_id = point_msg->channels[i].values[4];
                     point_2d_normal.push_back(p_2d_normal);
                     point_2d_uv.push_back(p_2d_uv);
+                    point_id.push_back(p_id);
+
                     //printf("u %f, v %f \n", p_2d_uv.x, p_2d_uv.y);
                 }
 
                 KeyFrame* keyframe = new KeyFrame(pose_msg->header.stamp.toSec(), frame_index, T, R, image,
-                                   point_3d, point_2d_uv, point_2d_normal, sequence);   
+                                   point_3d, point_2d_uv, point_2d_normal, point_id, sequence);   
                 m_process.lock();
                 start_flag = 1;
                 posegraph.addKeyFrame(keyframe, 1);
@@ -455,6 +482,7 @@ int main(int argc, char **argv)
         fsSettings["save_image"] >> DEBUG_IMAGE;
         VISUALIZE_IMU_FORWARD = fsSettings["visualize_imu_forward"];
         LOAD_PREVIOUS_POSE_GRAPH = fsSettings["load_previous_pose_graph"];
+        FAST_RELOCALIZATION = fsSettings["fast_relocalization"];
         VINS_RESULT_PATH = VINS_RESULT_PATH + "/vins_result_loop.csv";
         std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
         fout.close();
@@ -484,10 +512,13 @@ int main(int argc, char **argv)
     ros::Subscriber sub_pose = n.subscribe("/vins_estimator/keyframe_pose", 2000, pose_callback);
     ros::Subscriber sub_extrinsic = n.subscribe("/vins_estimator/extrinsic", 2000, extrinsic_callback);
     ros::Subscriber sub_point = n.subscribe("/vins_estimator/keyframe_point", 2000, point_callback);
-    pub_match_img = n.advertise<sensor_msgs::Image>("match_image",1000);
+    ros::Subscriber sub_relo_relative_pose = n.subscribe("/vins_estimator/relo_relative_pose", 2000, relo_relative_pose_callback);
+
+    pub_match_img = n.advertise<sensor_msgs::Image>("match_image", 1000);
     pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>("camera_pose_visual", 1000);
     pub_key_odometrys = n.advertise<visualization_msgs::Marker>("key_odometrys", 1000);
     pub_vio_path = n.advertise<nav_msgs::Path>("no_loop_path", 1000);
+    pub_match_points = n.advertise<sensor_msgs::PointCloud>("match_points", 100);
 
     std::thread measurement_process;
     std::thread keyboard_command_process;

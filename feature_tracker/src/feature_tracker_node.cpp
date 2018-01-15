@@ -229,3 +229,4 @@ int main(int argc, char **argv)
 
 
 // new points velocity is 0, pub or not?
+// track cnt > 1 pub?

@@ -731,7 +731,8 @@ void PoseGraph::savePoseGraph()
         for (int i = 0; i < (int)(*it)->keypoints.size(); i++)
         {
             brief_file << (*it)->brief_descriptors[i] << endl;
-            fprintf(keypoints_file, "%f %f\n", (*it)->keypoints[i].pt.x, (*it)->keypoints[i].pt.y);
+            fprintf(keypoints_file, "%f %f %f %f\n", (*it)->keypoints[i].pt.x, (*it)->keypoints[i].pt.y, 
+                                                     (*it)->keypoints_norm[i].pt.x, (*it)->keypoints_norm[i].pt.y);
         }
         brief_file.close();
         fclose(keypoints_file);
@@ -826,6 +827,7 @@ void PoseGraph::loadPoseGraph()
         FILE *keypoints_file;
         keypoints_file = fopen(keypoints_path.c_str(), "r");
         vector<cv::KeyPoint> keypoints;
+        vector<cv::KeyPoint> keypoints_norm;
         vector<BRIEF::bitset> brief_descriptors;
         for (int i = 0; i < keypoints_num; i++)
         {
@@ -833,17 +835,21 @@ void PoseGraph::loadPoseGraph()
             brief_file >> tmp_des;
             brief_descriptors.push_back(tmp_des);
             cv::KeyPoint tmp_keypoint;
-            double p_x, p_y;
-            if(!fscanf(keypoints_file,"%lf %lf", &p_x, &p_y))
+            cv::KeyPoint tmp_keypoint_norm;
+            double p_x, p_y, p_x_norm, p_y_norm;
+            if(!fscanf(keypoints_file,"%lf %lf %lf %lf", &p_x, &p_y, &p_x_norm, &p_y_norm))
                 printf(" fail to load pose graph \n");
             tmp_keypoint.pt.x = p_x;
             tmp_keypoint.pt.y = p_y;
+            tmp_keypoint_norm.pt.x = p_x_norm;
+            tmp_keypoint_norm.pt.y = p_y_norm;
             keypoints.push_back(tmp_keypoint);
+            keypoints_norm.push_back(tmp_keypoint_norm);
         }
         brief_file.close();
         fclose(keypoints_file);
 
-        KeyFrame* keyframe = new KeyFrame(time_stamp, index, VIO_T, VIO_R, PG_T, PG_R, image, loop_index, loop_info, keypoints, brief_descriptors);
+        KeyFrame* keyframe = new KeyFrame(time_stamp, index, VIO_T, VIO_R, PG_T, PG_R, image, loop_index, loop_info, keypoints, keypoints_norm, brief_descriptors);
         loadKeyFrame(keyframe, 0);
         if (cnt % 20 == 0)
         {
@@ -870,4 +876,10 @@ void PoseGraph::publish()
     }
     pub_base_path.publish(base_path);
     //posegraph_visualization->publish_by(pub_pose_graph, path[sequence_cnt].header);
+}
+
+void PoseGraph::updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1 > &_loop_info)
+{
+    KeyFrame* kf = getKeyFrame(index);
+    kf->updateLoop(_loop_info);
 }

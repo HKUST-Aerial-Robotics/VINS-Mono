@@ -51,6 +51,7 @@ g_norm: 9.81007     # gravity magnitude
 #loop closure parameters
 loop_closure: 1                 # start loop closure
 load_previous_pose_graph: 0     # load and reuse previous pose graph; load from 'pose_graph_save_path'
+fast_relocalization: 0          # useful in real-time and large project
 pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
@@ -59,7 +60,7 @@ td: 0.0                             # initial value of time offset. unit: s. rea
 
 #rolling shutter parameters
 rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera
-rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per line (from data sheet). 
+rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per frame (from data sheet). 
 
 #visualization parameters
 save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
