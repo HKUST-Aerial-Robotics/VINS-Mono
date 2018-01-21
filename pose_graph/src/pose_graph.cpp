@@ -50,8 +50,10 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
         sequence_loop.push_back(0);
         w_t_vio = Eigen::Vector3d(0, 0, 0);
         w_r_vio = Eigen::Matrix3d::Identity();
+        m_drift.lock();
         t_drift = Eigen::Vector3d(0, 0, 0);
         r_drift = Eigen::Matrix3d::Identity();
+        m_drift.unlock();
     }
     
     cur_kf->getVioPose(vio_P_cur, vio_R_cur);
@@ -80,24 +82,28 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
             if (earliest_loop_index > loop_index || earliest_loop_index == -1)
                 earliest_loop_index = loop_index;
 
-            // shift vio pose of whole sequence
-            if (old_kf->sequence != cur_kf->sequence && sequence_loop[cur_kf->sequence] == 0)
-            {
-                Vector3d w_P_old, w_P_cur, vio_P_cur;
-                Matrix3d w_R_old, w_R_cur, vio_R_cur;
-                old_kf->getVioPose(w_P_old, w_R_old);
-                cur_kf->getVioPose(vio_P_cur, vio_R_cur);
+            Vector3d w_P_old, w_P_cur, vio_P_cur;
+            Matrix3d w_R_old, w_R_cur, vio_R_cur;
+            old_kf->getVioPose(w_P_old, w_R_old);
+            cur_kf->getVioPose(vio_P_cur, vio_R_cur);
 
-                Vector3d relative_t;
-                Quaterniond relative_q;
-                relative_t = cur_kf->getLoopRelativeT();
-                relative_q = (cur_kf->getLoopRelativeQ()).toRotationMatrix();
-                w_P_cur = w_R_old * relative_t + w_P_old;
-                w_R_cur = w_R_old * relative_q;
-                double w_yaw_vio;
-                w_yaw_vio = Utility::R2ypr(w_R_cur).x() - Utility::R2ypr(vio_R_cur).x();
-                w_r_vio = Utility::ypr2R(Vector3d(w_yaw_vio, 0, 0));
-                w_t_vio = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;   
+            Vector3d relative_t;
+            Quaterniond relative_q;
+            relative_t = cur_kf->getLoopRelativeT();
+            relative_q = (cur_kf->getLoopRelativeQ()).toRotationMatrix();
+            w_P_cur = w_R_old * relative_t + w_P_old;
+            w_R_cur = w_R_old * relative_q;
+            double shift_yaw;
+            Matrix3d shift_r;
+            Vector3d shift_t; 
+            shift_yaw = Utility::R2ypr(w_R_cur).x() - Utility::R2ypr(vio_R_cur).x();
+            shift_r = Utility::ypr2R(Vector3d(shift_yaw, 0, 0));
+            shift_t = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur; 
+            // shift vio pose of whole sequence to the world frame
+            if (old_kf->sequence != cur_kf->sequence && sequence_loop[cur_kf->sequence] == 0)
+            {  
+                w_r_vio = shift_r;
+                w_t_vio = shift_t;
                 vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
                 vio_R_cur = w_r_vio *  vio_R_cur;
                 cur_kf->updateVioPose(vio_P_cur, vio_R_cur);
@@ -114,8 +120,19 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
                         (*it)->updateVioPose(vio_P_cur, vio_R_cur);
                     }
                 }
-
                 sequence_loop[cur_kf->sequence] = 1;
+            }
+            // fast update drift 
+            else
+            {
+                if (FAST_RELOCALIZATION)
+                {
+                    m_drift.lock();
+                    yaw_drift = shift_yaw;
+                    r_drift = shift_r;
+                    t_drift = shift_t;
+                    m_drift.unlock();
+                }
             }
             m_optimize_buf.lock();
             optimize_buf.push(cur_kf->index);
@@ -545,9 +562,11 @@ void PoseGraph::optimize4DoF()
             Matrix3d cur_r, vio_r;
             cur_kf->getPose(cur_t, cur_r);
             cur_kf->getVioPose(vio_t, vio_r);
+            m_drift.lock();
             yaw_drift = Utility::R2ypr(cur_r).x() - Utility::R2ypr(vio_r).x();
             r_drift = Utility::ypr2R(Vector3d(yaw_drift, 0, 0));
             t_drift = cur_t - r_drift * vio_t;
+            m_drift.unlock();
             //cout << "t_drift " << t_drift.transpose() << endl;
             //cout << "r_drift " << Utility::R2ypr(r_drift).transpose() << endl;
             //cout << "yaw drift " << yaw_drift << endl;

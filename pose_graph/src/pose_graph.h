@@ -52,6 +52,7 @@ public:
 	Vector3d t_drift;
 	double yaw_drift;
 	Matrix3d r_drift;
+	// world frame( base sequence or first sequence)<----> cur sequence frame  
 	Vector3d w_t_vio;
 	Matrix3d w_r_vio;
 
@@ -65,6 +66,7 @@ private:
 	std::mutex m_keyframelist;
 	std::mutex m_optimize_buf;
 	std::mutex m_path;
+	std::mutex m_drift;
 	std::thread t_optimization;
 	std::queue<int> optimize_buf;
 
