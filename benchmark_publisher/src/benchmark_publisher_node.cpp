@@ -34,13 +34,15 @@ struct Data
 {
     Data(FILE *f)
     {
-        fscanf(f, " %lf,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", &t,
+        if (fscanf(f, " %lf,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f", &t,
                &px, &py, &pz,
                &qw, &qx, &qy, &qz,
                &vx, &vy, &vz,
                &wx, &wy, &wz,
-               &ax, &ay, &az);
-        t /= 1e9;
+               &ax, &ay, &az) != EOF)
+        {
+            t /= 1e9;
+        }
     }
     double t;
     float px, py, pz;
@@ -138,7 +140,10 @@ int main(int argc, char **argv)
       return 0;
     }
     char tmp[10000];
-    fgets(tmp, 10000, f);
+    if (fgets(tmp, 10000, f) == NULL)
+    {
+        ROS_WARN("can't load ground truth; no data available");
+    }
     while (!feof(f))
         benchmark.emplace_back(f);
     fclose(f);
