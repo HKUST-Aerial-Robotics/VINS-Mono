@@ -36,10 +36,17 @@ Eigen::Vector3d tmp_Bg;
 Eigen::Vector3d acc_0;
 Eigen::Vector3d gyr_0;
 bool init_feature = 0;
+bool init_imu = 1;
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
+    if (init_imu)
+    {
+        latest_time = t;
+        init_imu = 0;
+        return;
+    }
     double dt = t - latest_time;
     latest_time = t;
 
