@@ -122,18 +122,6 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
                 }
                 sequence_loop[cur_kf->sequence] = 1;
             }
-            // fast update drift 
-            else
-            {
-                if (FAST_RELOCALIZATION)
-                {
-                    m_drift.lock();
-                    yaw_drift = shift_yaw;
-                    r_drift = shift_r;
-                    t_drift = shift_t;
-                    m_drift.unlock();
-                }
-            }
             m_optimize_buf.lock();
             optimize_buf.push(cur_kf->index);
             m_optimize_buf.unlock();
@@ -901,4 +889,34 @@ void PoseGraph::updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1 > &_loo
 {
     KeyFrame* kf = getKeyFrame(index);
     kf->updateLoop(_loop_info);
+    if (abs(_loop_info(7)) < 30.0 && Vector3d(_loop_info(0), _loop_info(1), _loop_info(2)).norm() < 20.0)
+    {
+        if (FAST_RELOCALIZATION)
+        {
+            KeyFrame* old_kf = getKeyFrame(kf->loop_index);
+            Vector3d w_P_old, w_P_cur, vio_P_cur;
+            Matrix3d w_R_old, w_R_cur, vio_R_cur;
+            old_kf->getVioPose(w_P_old, w_R_old);
+            kf->getVioPose(vio_P_cur, vio_R_cur);
+
+            Vector3d relative_t;
+            Quaterniond relative_q;
+            relative_t = kf->getLoopRelativeT();
+            relative_q = (kf->getLoopRelativeQ()).toRotationMatrix();
+            w_P_cur = w_R_old * relative_t + w_P_old;
+            w_R_cur = w_R_old * relative_q;
+            double shift_yaw;
+            Matrix3d shift_r;
+            Vector3d shift_t; 
+            shift_yaw = Utility::R2ypr(w_R_cur).x() - Utility::R2ypr(vio_R_cur).x();
+            shift_r = Utility::ypr2R(Vector3d(shift_yaw, 0, 0));
+            shift_t = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur; 
+
+            m_drift.lock();
+            yaw_drift = shift_yaw;
+            r_drift = shift_r;
+            t_drift = shift_t;
+            m_drift.unlock();
+        }
+    }
 }

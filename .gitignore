@@ -7,3 +7,7 @@ simulation/
 data_generator/
 iphone.launch
 iphone/
+A3_rs/
+A3_rs.launch
+realsense/
+realsense.launch

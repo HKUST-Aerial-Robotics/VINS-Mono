@@ -186,6 +186,7 @@ void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
     relo_buf.push(points_msg);
     m_buf.unlock();
 }
+
 // thread: visual-inertial odometry
 void process()
 {

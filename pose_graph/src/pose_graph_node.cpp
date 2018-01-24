@@ -357,7 +357,21 @@ void process()
                 skip_cnt = 0;
             }
 
-            cv_bridge::CvImageConstPtr ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::MONO8);
+            cv_bridge::CvImageConstPtr ptr;
+            if (image_msg->encoding == "8UC1")
+            {
+                sensor_msgs::Image img;
+                img.header = image_msg->header;
+                img.height = image_msg->height;
+                img.width = image_msg->width;
+                img.is_bigendian = image_msg->is_bigendian;
+                img.step = image_msg->step;
+                img.data = image_msg->data;
+                img.encoding = "mono8";
+                ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
+            }
+            ptr = cv_bridge::toCvCopy(image_msg, sensor_msgs::image_encodings::MONO8);
+            
             cv::Mat image = ptr->image;
             // build keyframe
             Vector3d T = Vector3d(pose_msg->pose.pose.position.x,
