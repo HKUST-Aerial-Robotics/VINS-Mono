@@ -37,6 +37,7 @@ Eigen::Vector3d acc_0;
 Eigen::Vector3d gyr_0;
 bool init_feature = 0;
 bool init_imu = 1;
+double last_imu_t = 0;
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -136,10 +137,19 @@ getMeasurements()
 
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
+    if (imu_msg->header.stamp.toSec() <= last_imu_t)
+    {
+        ROS_WARN("imu message in disorder!");
+        return;
+    }
+    last_imu_t = imu_msg->header.stamp.toSec();
+
     m_buf.lock();
     imu_buf.push(imu_msg);
     m_buf.unlock();
     con.notify_one();
+
+    last_imu_t = imu_msg->header.stamp.toSec();
 
     {
         std::lock_guard<std::mutex> lg(m_state);

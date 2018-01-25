@@ -354,6 +354,7 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	    }
 	#endif
 	status.clear();
+	/*
 	FundmantalMatrixRANSAC(matched_2d_cur_norm, matched_2d_old_norm, status);
 	reduceVector(matched_2d_cur, status);
 	reduceVector(matched_2d_old, status);
@@ -361,6 +362,7 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	reduceVector(matched_2d_old_norm, status);
 	reduceVector(matched_3d, status);
 	reduceVector(matched_id, status);
+	*/
 	#if 0
 		if (DEBUG_IMAGE)
 	    {

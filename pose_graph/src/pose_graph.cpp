@@ -896,7 +896,7 @@ void PoseGraph::updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1 > &_loo
             KeyFrame* old_kf = getKeyFrame(kf->loop_index);
             Vector3d w_P_old, w_P_cur, vio_P_cur;
             Matrix3d w_R_old, w_R_cur, vio_R_cur;
-            old_kf->getVioPose(w_P_old, w_R_old);
+            old_kf->getPose(w_P_old, w_R_old);
             kf->getVioPose(vio_P_cur, vio_R_cur);
 
             Vector3d relative_t;
