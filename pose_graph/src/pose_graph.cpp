@@ -437,7 +437,7 @@ void PoseGraph::optimize4DoF()
             options.max_num_iterations = 5;
             ceres::Solver::Summary summary;
             ceres::LossFunction *loss_function;
-            loss_function = new ceres::HuberLoss(1.0);
+            loss_function = new ceres::HuberLoss(0.1);
             //loss_function = new ceres::CauchyLoss(1.0);
             ceres::LocalParameterization* angle_local_parameterization =
                 AngleLocalParameterization::Create();
