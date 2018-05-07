@@ -654,7 +654,7 @@ bool Estimator::failureDetection()
     if (delta_angle > 50)
     {
         ROS_INFO(" big delta_angle ");
-        return true;
+        //return true;
     }
     return false;
 }
