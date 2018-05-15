@@ -204,7 +204,7 @@ struct FourDOFWeightError
 {
 	FourDOFWeightError(double t_x, double t_y, double t_z, double relative_yaw, double pitch_i, double roll_i)
 				  :t_x(t_x), t_y(t_y), t_z(t_z), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i){
-				  	weight = 0.1;
+				  	weight = 1;
 				  }
 
 	template <typename T>

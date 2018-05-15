@@ -192,6 +192,7 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
         estimator.setParameter();
         m_estimator.unlock();
         current_time = -1;
+        last_imu_t = 0;
     }
     return;
 }
