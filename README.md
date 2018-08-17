@@ -36,19 +36,13 @@ alt="Mobile platform" width="240" height="180" border="10" /></a>
 @article{qin2017vins,
   title={VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator},
   author={Qin, Tong and Li, Peiliang and Shen, Shaojie},
-  journal={arXiv preprint arXiv:1708.03852},
-  year={2017}
-}
+  journal={IEEE Transactions on Robotics}, 
+  year={2018},
+  volume={34}, 
+  number={4}, 
+  pages={1004-1020}}
 ```
-```
-@article{Lin17,
-  Author = {Y. Lin and F. Gao and T. Qin and W. Gao and T. Liu and W. Wu and Z. Yang and S. Shen},
-  Journal = jfr,
-  Title = {Autonomous Aerial Navigation Using Monocular Visual-Inertial Fusion},  
-  Volume = {00},
-  Pages = {1-29},
-  Year = {2017}} 
-```
+
 *If you use VINS-Mono for your academic research, please cite at least one of our related papers.*
 
 ## 1. Prerequisites
