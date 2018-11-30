@@ -44,6 +44,15 @@ void Estimator::clearState()
         tic[i] = Vector3d::Zero();
         ric[i] = Matrix3d::Identity();
     }
+    
+    for (auto &it : all_image_frame)
+    {
+        if (it.second.pre_integration != NULL)
+        {
+            delete it.second.pre_integration;
+            it.second.pre_integration = NULL;
+        }
+    }
 
     solver_flag = INITIAL;
     first_imu = false,
@@ -1040,6 +1049,11 @@ void Estimator::slideWindow()
                 map<double, ImageFrame>::iterator it_0;
                 it_0 = all_image_frame.find(t_0);
                 delete it_0->second.pre_integration;
+                for (map<double, ImageFrame>::iterator it = all_image_frame.begin(); it != it_0; ++it)
+                {
+                    delete it->second.pre_integration;
+                    it->second.pre_integration = NULL;
+                }
                 all_image_frame.erase(all_image_frame.begin(), it_0);
 
             }
