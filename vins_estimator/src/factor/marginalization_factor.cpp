@@ -73,7 +73,7 @@ MarginalizationInfo::~MarginalizationInfo()
     //ROS_WARN("release marginlizationinfo");
     
     for (auto it = parameter_block_data.begin(); it != parameter_block_data.end(); ++it)
-        delete it->second;
+        delete[] it->second;
 
     for (int i = 0; i < (int)factors.size(); i++)
     {
