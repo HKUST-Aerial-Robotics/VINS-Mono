@@ -25,6 +25,8 @@
 #include <queue>
 #include <cmath>
 #include <algorithm> 
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
 
 using namespace std;
 using namespace Eigen;
@@ -380,9 +382,25 @@ void callback(const ImageConstPtr& img_msg, const nav_msgs::Odometry::ConstPtr p
 
    project_object(camera_p, camera_q);
 
-   cv_bridge::CvImagePtr bridge_ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+   cv_bridge::CvImageConstPtr ptr;
+   if (img_msg->encoding == "8UC1")
+   {
+       sensor_msgs::Image img;
+       img.header = img_msg->header;
+       img.height = img_msg->height;
+       img.width = img_msg->width;
+       img.is_bigendian = img_msg->is_bigendian;
+       img.step = img_msg->step;
+       img.data = img_msg->data;
+       img.encoding = "mono8";
+       ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
+   }
+   else
+       ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+
+   //cv_bridge::CvImagePtr bridge_ptr = cv_bridge::toCvCopy(ptr, sensor_msgs::image_encodings::MONO8);
    cv::Mat AR_image;
-   AR_image = bridge_ptr->image.clone();
+   AR_image = ptr->image.clone();
    cv::cvtColor(AR_image, AR_image, cv::COLOR_GRAY2RGB);
    draw_object(AR_image);
 
@@ -501,14 +519,14 @@ int main( int argc, char** argv )
         sub_img = n.subscribe("image_raw", 100, img_callback);
     }
 
-    Axis[0] = Vector3d(0, 2, -1.2);
+    Axis[0] = Vector3d(0, 1.5, -1.2);
     Axis[1]= Vector3d(-10, 5, 0);
     Axis[2] = Vector3d(3, 3, 3);
     Axis[3] = Vector3d(-2, 2, 0);
     Axis[4]= Vector3d(5, 10, -5);
     Axis[5] = Vector3d(0, 10, -1);
 
-    Cube_center[0] = Vector3d(-2, 0, -1.2 + box_length / 2.0);
+    Cube_center[0] = Vector3d(0, 1.5, -1.2 + box_length / 2.0);
     //Cube_center[0] = Vector3d(0, 3, -1.2 + box_length / 2.0);
     Cube_center[1] = Vector3d(4, -2, -1.2 + box_length / 2.0);
     Cube_center[2] = Vector3d(0, -2, -1.2 + box_length / 2.0);
