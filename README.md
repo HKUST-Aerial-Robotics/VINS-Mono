@@ -1,7 +1,7 @@
 # VINS-Mono
 ## A Robust and Versatile Monocular Visual-Inertial State Estimator
 
-**11 Jan 2019**: An extension of **VINS**, which supports stereo cameras, is published at [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion)
+**11 Jan 2019**: An extension of **VINS**, which supports stereo cameras / stereo cameras + IMU / mono camera + IMU, is published at [VINS-Fusion](https://github.com/HKUST-Aerial-Robotics/VINS-Fusion)
 
 **29 Dec 2017**: New features: Add map merge, pose graph reuse, online temporal calibration function, and support rolling shutter camera. Map reuse videos: 
 
@@ -33,20 +33,12 @@ alt="Mobile platform" width="240" height="180" border="10" /></a>
  MAV application;               Mobile implementation (Video link for mainland China friends: [Video1](http://www.bilibili.com/video/av10813254/) [Video2](http://www.bilibili.com/video/av10813205/) [Video3](http://www.bilibili.com/video/av10813089/) [Video4](http://www.bilibili.com/video/av10813325/) [Video5](http://www.bilibili.com/video/av10813030/))
 
 **Related Papers**
+
+* **Online Temporal Calibration for Monocular Visual-Inertial Systems**, Tong Qin, Shaojie Shen, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS, 2018), **best student paper award** [pdf](https://ieeexplore.ieee.org/abstract/document/8593603)
+
 * **VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator**, Tong Qin, Peiliang Li, Zhenfei Yang, Shaojie Shen, IEEE Transactions on Robotics[pdf](https://ieeexplore.ieee.org/document/8421746/?arnumber=8421746&source=authoralert) 
 
-```
-@article{qin2017vins,
-  title={VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator},
-  author={Qin, Tong and Li, Peiliang and Shen, Shaojie},
-  journal={IEEE Transactions on Robotics}, 
-  year={2018},
-  volume={34}, 
-  number={4}, 
-  pages={1004-1020}}
-```
-
-*If you use VINS-Mono for your academic research, please cite at least one of our related papers.*
+*If you use VINS-Mono for your academic research, please cite at least one of our related papers.*[bib](https://github.com/HKUST-Aerial-Robotics/VINS-Mono/blob/master/support_files/paper_bib.txt)
 
 ## 1. Prerequisites
 1.1 **Ubuntu** and **ROS**
