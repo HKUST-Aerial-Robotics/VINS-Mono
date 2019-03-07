@@ -440,8 +440,8 @@ void command()
             posegraph.savePoseGraph();
             m_process.unlock();
             printf("save pose graph finish\nyou can set 'load_previous_pose_graph' to 1 in the config file to reuse it next time\n");
-            printf("program shutting down...\n");
-            ros::shutdown();
+            // printf("program shutting down...\n");
+            // ros::shutdown();
         }
         if (c == 'n')
             new_sequence();
@@ -495,6 +495,11 @@ int main(int argc, char **argv)
         fsSettings["pose_graph_save_path"] >> POSE_GRAPH_SAVE_PATH;
         fsSettings["output_path"] >> VINS_RESULT_PATH;
         fsSettings["save_image"] >> DEBUG_IMAGE;
+
+        // create folder if not exists
+        FileSystemHelper::createDirectoryIfNotExists(POSE_GRAPH_SAVE_PATH.c_str());
+        FileSystemHelper::createDirectoryIfNotExists(VINS_RESULT_PATH.c_str());
+
         VISUALIZE_IMU_FORWARD = fsSettings["visualize_imu_forward"];
         LOAD_PREVIOUS_POSE_GRAPH = fsSettings["load_previous_pose_graph"];
         FAST_RELOCALIZATION = fsSettings["fast_relocalization"];
