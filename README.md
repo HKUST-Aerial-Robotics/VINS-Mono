@@ -148,7 +148,7 @@ cd ~/catkin_ws/src/VINS-Mono/docker
 make build
 ./run.sh LAUNCH_FILE_NAME   # ./run.sh euroc.launch
 ```
-Note that the docker building process may take a while depends on your network and machine. After VINS-Mono successfully started, open another terminal and play your bag file, then you should be able to see the result.
+Note that the docker building process may take a while depends on your network and machine. After VINS-Mono successfully started, open another terminal and play your bag file, then you should be able to see the result. If you need modify the code, simply run `./run.sh LAUNCH_FILE_NAME` after your changes.
 
 
 ## 7. Acknowledgements
