@@ -881,6 +881,7 @@ void PoseGraph::publish()
             posegraph_visualization->publish_by(pub_pose_graph, path[sequence_cnt].header);
         }
     }
+    base_path.header.frame_id = "world";
     pub_base_path.publish(base_path);
     //posegraph_visualization->publish_by(pub_pose_graph, path[sequence_cnt].header);
 }

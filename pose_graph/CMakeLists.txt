@@ -44,4 +44,4 @@ add_executable(pose_graph
     )
 
 target_link_libraries(pose_graph ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
-message("catkin_lib  ${catkin_LIBRARIES}")
+# message("catkin_lib  ${catkin_LIBRARIES}")
