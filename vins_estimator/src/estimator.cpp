@@ -781,20 +781,27 @@ void Estimator::optimization()
             ++feature_index;
             int start = it_per_id.start_frame;
             if(start <= relo_frame_local_index)
-            {   
-                while((int)match_points[retrive_feature_index].z() < it_per_id.feature_id)
+            {
+                for (; retrive_feature_index < match_points.size(); retrive_feature_index++)
                 {
-                    retrive_feature_index++;
+                    if ((int)match_points[retrive_feature_index].z() > it_per_id.feature_id)
+                        break;
+
+                    if((int)match_points[retrive_feature_index].z() == it_per_id.feature_id)
+                    {
+                        Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(), match_points[retrive_feature_index].y(), 1.0);
+                        Vector3d pts_i = it_per_id.feature_per_frame[0].point;
+
+                        ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
+                        problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0], para_Feature[feature_index]);
+
+                        retrive_feature_index++;
+                        break;
+                    }
                 }
-                if((int)match_points[retrive_feature_index].z() == it_per_id.feature_id)
-                {
-                    Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(), match_points[retrive_feature_index].y(), 1.0);
-                    Vector3d pts_i = it_per_id.feature_per_frame[0].point;
-                    
-                    ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
-                    problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0], para_Feature[feature_index]);
-                    retrive_feature_index++;
-                }     
+
+                if (retrive_feature_index >= (match_points.size() -1))
+                    break;
             }
         }
 
