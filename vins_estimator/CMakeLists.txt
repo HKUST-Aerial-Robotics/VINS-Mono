@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
     nav_msgs
     tf
     cv_bridge
+    camera_model
+    roslib
     )
 
 find_package(OpenCV REQUIRED)
@@ -28,6 +30,7 @@ find_package(Eigen3)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+  ${CERES_INCLUDE_DIRS}
 )
 
 catkin_package()
@@ -48,6 +51,7 @@ add_executable(vins_estimator
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp
     src/initial/initial_ex_rotation.cpp
+    src/feature_tracker/feature_tracker.cpp
     )
 
 

@@ -7,6 +7,7 @@ double GYR_N, GYR_W;
 
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
+std::vector<std::string> CAM_NAMES;
 
 Eigen::Vector3d G{0.0, 0.0, 9.8};
 
@@ -17,9 +18,38 @@ int NUM_ITERATIONS;
 int ESTIMATE_EXTRINSIC;
 int ESTIMATE_TD;
 int ROLLING_SHUTTER;
+int MAX_CNT;
+int MIN_DIST;
+int FREQ;
+double F_THRESHOLD;
+int SHOW_TRACK;
+int EQUALIZE;
+int FISHEYE;
+int WINDOW_SIZE_CAM;
+int STEREO_TRACK;
+int FOCAL_LENGTH;
+bool PUB_THIS_FRAME;
+//pose graph variables
+int VISUALIZATION_SHIFT_X;
+int VISUALIZATION_SHIFT_Y;
+int DEBUG_IMAGE;
+int VISUALIZE_IMU_FORWARD;
+int LOOP_CLOSURE;
+int FAST_RELOCALIZATION;
+int SKIP_CNT;
+int SKIP_DIS;
+double CAMERA_VISUAL_SIZE;
+std::string POSE_GRAPH_SAVE_PATH;
+int LOAD_PREVIOUS_POSE_GRAPH;
+std::string VOCABULARY_FILE;
+std::string BRIEF_PATTERN_FILE;
+camodocal::CameraPtr m_camera;
+
+
 std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
 std::string IMU_TOPIC;
+std::string IMAGE_TOPIC;
 double ROW, COL;
 double TD, TR;
 
@@ -49,7 +79,55 @@ void readParameters(ros::NodeHandle &n)
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
 
+    //camera params
     fsSettings["imu_topic"] >> IMU_TOPIC;
+    fsSettings["image_topic"] >> IMAGE_TOPIC;
+    MAX_CNT = fsSettings["max_cnt"];
+    MIN_DIST = fsSettings["min_dist"];
+    FREQ = fsSettings["freq"];
+    F_THRESHOLD = fsSettings["F_threshold"];
+    SHOW_TRACK = fsSettings["show_track"];
+    EQUALIZE = fsSettings["equalize"];
+    FISHEYE = fsSettings["fisheye"];
+
+    CAM_NAMES.push_back(config_file);
+
+    WINDOW_SIZE_CAM = 20;
+    STEREO_TRACK = false;
+    FOCAL_LENGTH = 460;
+    PUB_THIS_FRAME = false;
+
+    if (FREQ == 0)
+        FREQ = 100;
+
+
+    //pose_grap params
+    // read param
+    n.getParam("visualization_shift_x", VISUALIZATION_SHIFT_X);
+    n.getParam("visualization_shift_y", VISUALIZATION_SHIFT_Y);
+    n.getParam("skip_cnt", SKIP_CNT);
+    n.getParam("skip_dis", SKIP_DIS);
+
+    CAMERA_VISUAL_SIZE = fsSettings["visualize_camera_size"];
+    LOOP_CLOSURE = fsSettings["loop_closure"];
+    if (LOOP_CLOSURE)
+    {
+        std::string pkg_path = ros::package::getPath("vins_estimator");
+        std::string VOCABULARY_FILE = pkg_path + "/../support_files/brief_k10L6.bin";
+	std::cout << "VOCABULARY_FILE" << VOCABULARY_FILE << std::endl;
+	std::string BRIEF_PATTERN_FILE = pkg_path + "/../support_files/brief_pattern.yml";
+	std::cout << "BRIEF_PATTERN_FILE" << BRIEF_PATTERN_FILE << std::endl;
+	m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file.c_str());
+
+	fsSettings["pose_graph_save_path"] >> POSE_GRAPH_SAVE_PATH;
+	fsSettings["save_image"] >> DEBUG_IMAGE;
+	FileSystemHelper::createDirectoryIfNotExists(POSE_GRAPH_SAVE_PATH.c_str());
+        VISUALIZE_IMU_FORWARD = fsSettings["visualize_imu_forward"];
+        LOAD_PREVIOUS_POSE_GRAPH = fsSettings["load_previous_pose_graph"];
+        FAST_RELOCALIZATION = fsSettings["fast_relocalization"];
+
+    }
+
 
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];
@@ -83,9 +161,8 @@ void readParameters(ros::NodeHandle &n)
         RIC.push_back(Eigen::Matrix3d::Identity());
         TIC.push_back(Eigen::Vector3d::Zero());
         EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
-
     }
-    else 
+    else
     {
         if ( ESTIMATE_EXTRINSIC == 1)
         {
@@ -96,7 +173,7 @@ void readParameters(ros::NodeHandle &n)
             ROS_WARN(" fix extrinsic param ");
 
         cv::Mat cv_R, cv_T;
-        fsSettings["extrinsicRotation"] >> cv_R;
+        				fsSettings["extrinsicRotation"] >> cv_R;
         fsSettings["extrinsicTranslation"] >> cv_T;
         Eigen::Matrix3d eigen_R;
         Eigen::Vector3d eigen_T;
@@ -108,8 +185,8 @@ void readParameters(ros::NodeHandle &n)
         TIC.push_back(eigen_T);
         ROS_INFO_STREAM("Extrinsic_R : " << std::endl << RIC[0]);
         ROS_INFO_STREAM("Extrinsic_T : " << std::endl << TIC[0].transpose());
-        
-    } 
+
+    }
 
     INIT_DEPTH = 5.0;
     BIAS_ACC_THRESHOLD = 0.1;
@@ -132,6 +209,6 @@ void readParameters(ros::NodeHandle &n)
     {
         TR = 0;
     }
-    
+
     fsSettings.release();
 }

@@ -11,14 +11,17 @@
 #include "estimator.h"
 #include "parameters.h"
 #include "utility/visualization.h"
-
+#include "feature_tracker/feature_tracker.h"
 
 Estimator estimator;
+FeatureTracker trackerData[NUM_OF_CAM];
+
+ros::Publisher pub_match;
 
 std::condition_variable con;
 double current_time = -1;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
-queue<sensor_msgs::PointCloudConstPtr> feature_buf;
+queue<std::pair<std_msgs::Header, Feature_storage>> feature_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 int sum_of_wait = 0;
 
@@ -38,6 +41,12 @@ Eigen::Vector3d gyr_0;
 bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
+
+double first_image_time;
+int pub_count = 1;
+bool first_image_flag = true;
+double last_image_time = 0;
+bool init_pub = 0;
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -95,34 +104,34 @@ void update()
 
 }
 
-std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>>
+std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, std::pair<std_msgs::Header, Feature_storage>>>
 getMeasurements()
 {
-    std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
+    std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, std::pair<std_msgs::Header, Feature_storage>>> measurements;
 
     while (true)
     {
         if (imu_buf.empty() || feature_buf.empty())
             return measurements;
 
-        if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td))
+        if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front().first.stamp.toSec() + estimator.td))
         {
             //ROS_WARN("wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
-        if (!(imu_buf.front()->header.stamp.toSec() < feature_buf.front()->header.stamp.toSec() + estimator.td))
+        if (!(imu_buf.front()->header.stamp.toSec() < feature_buf.front().first.stamp.toSec() + estimator.td))
         {
             ROS_WARN("throw img, only should happen at the beginning");
             feature_buf.pop();
             continue;
         }
-        sensor_msgs::PointCloudConstPtr img_msg = feature_buf.front();
+        std::pair<std_msgs::Header, Feature_storage> img_msg = feature_buf.front();
         feature_buf.pop();
 
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
-        while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
+        while (imu_buf.front()->header.stamp.toSec() < img_msg.first.stamp.toSec() + estimator.td)
         {
             IMUs.emplace_back(imu_buf.front());
             imu_buf.pop();
@@ -130,6 +139,7 @@ getMeasurements()
         IMUs.emplace_back(imu_buf.front());
         if (IMUs.empty())
             ROS_WARN("no imu between two image");
+	
         measurements.emplace_back(IMUs, img_msg);
     }
     return measurements;
@@ -161,24 +171,9 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     }
 }
 
-
-void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
+void restart(const bool restart_flag)
 {
-    if (!init_feature)
-    {
-        //skip the first detected feature, which doesn't contain optical flow speed
-        init_feature = 1;
-        return;
-    }
-    m_buf.lock();
-    feature_buf.push(feature_msg);
-    m_buf.unlock();
-    con.notify_one();
-}
-
-void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
-{
-    if (restart_msg->data == true)
+    if (restart_flag == true)
     {
         ROS_WARN("restart the estimator!");
         m_buf.lock();
@@ -196,7 +191,7 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
     }
     return;
 }
-
+/*
 void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
 {
     //printf("relocalization callback! \n");
@@ -204,13 +199,13 @@ void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
     relo_buf.push(points_msg);
     m_buf.unlock();
 }
-
+*/
 // thread: visual-inertial odometry
 void process()
 {
     while (true)
     {
-        std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
+        std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, std::pair<std_msgs::Header, Feature_storage>>> measurements;
         std::unique_lock<std::mutex> lk(m_buf);
         con.wait(lk, [&]
                  {
@@ -225,9 +220,9 @@ void process()
             for (auto &imu_msg : measurement.first)
             {
                 double t = imu_msg->header.stamp.toSec();
-                double img_t = img_msg->header.stamp.toSec() + estimator.td;
+                double img_t = img_msg.first.stamp.toSec() + estimator.td;
                 if (t <= img_t)
-                { 
+                {
                     if (current_time < 0)
                         current_time = t;
                     double dt = t - current_time;
@@ -290,32 +285,18 @@ void process()
                 estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);
             }
 
-            ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
+            ROS_DEBUG("processing vision data with stamp %f \n", img_msg.first.stamp.toSec());
 
             TicToc t_s;
-            map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
-            for (unsigned int i = 0; i < img_msg->points.size(); i++)
-            {
-                int v = img_msg->channels[0].values[i] + 0.5;
-                int feature_id = v / NUM_OF_CAM;
-                int camera_id = v % NUM_OF_CAM;
-                double x = img_msg->points[i].x;
-                double y = img_msg->points[i].y;
-                double z = img_msg->points[i].z;
-                double p_u = img_msg->channels[1].values[i];
-                double p_v = img_msg->channels[2].values[i];
-                double velocity_x = img_msg->channels[3].values[i];
-                double velocity_y = img_msg->channels[4].values[i];
-                ROS_ASSERT(z == 1);
-                Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
-                xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
-                image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-            }
-            estimator.processImage(image, img_msg->header);
+            std_msgs::Header image_header;
+	    image_header = img_msg.first;
+            estimator.processImage(img_msg.second, image_header);
 
             double whole_t = t_s.toc();
-            printStatistics(estimator, whole_t);
-            std_msgs::Header header = img_msg->header;
+            //printStatistics(estimator, whole_t);
+	    if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
+		ROS_INFO("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
+            std_msgs::Header header = image_header;
             header.frame_id = "world";
 
             pubOdometry(estimator, header);
@@ -338,6 +319,151 @@ void process()
     }
 }
 
+void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
+{
+   if(first_image_flag)
+    {
+        first_image_flag = false;
+        first_image_time = img_msg->header.stamp.toSec();
+        last_image_time = img_msg->header.stamp.toSec();
+        return;
+    }
+    // detect unstable camera stream
+    if (img_msg->header.stamp.toSec() - last_image_time > 1.0 || img_msg->header.stamp.toSec() < last_image_time)
+    {
+        ROS_WARN("image discontinue! reset the feature tracker!");
+        first_image_flag = true; 
+        last_image_time = 0;
+        pub_count = 1;
+        bool restart_flag = true;
+	restart(restart_flag);
+        return;
+    }
+    last_image_time = img_msg->header.stamp.toSec();
+    // frequency control
+     if (round(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time)) <= FREQ)
+    {
+        PUB_THIS_FRAME = true;
+        // reset the frequency control
+        if (abs(1.0 * pub_count / (img_msg->header.stamp.toSec() - first_image_time) - FREQ) < 0.01 * FREQ)
+        {
+            first_image_time = img_msg->header.stamp.toSec();
+            pub_count = 0;
+        }
+    }
+    else
+        PUB_THIS_FRAME = false;
+
+    cv_bridge::CvImageConstPtr ptr;
+    if (img_msg->encoding == "8UC1")
+    {
+        sensor_msgs::Image img;
+        img.header = img_msg->header;
+        img.height = img_msg->height;
+        img.width = img_msg->width;
+        img.is_bigendian = img_msg->is_bigendian;
+        img.step = img_msg->step;
+        img.data = img_msg->data;
+        img.encoding = "mono8";
+        ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
+    }
+    else
+        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+
+    cv::Mat show_img = ptr->image;
+    TicToc t_r;
+    for (int i = 0; i < NUM_OF_CAM; i++)
+    {
+        ROS_DEBUG("processing camera %d", i);
+        if (i != 1 || !STEREO_TRACK)
+            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
+        else
+        {
+            if (EQUALIZE)
+            {
+                cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+                clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i].cur_img);
+            }
+            else
+                trackerData[i].cur_img = ptr->image.rowRange(ROW * i, ROW * (i + 1));
+        }
+
+#if SHOW_UNDISTORTION
+        trackerData[i].showUndistortion("undistrotion_" + std::to_string(i));
+#endif
+    }
+
+    for (unsigned int i = 0;; i++)
+    {
+        bool completed = false;
+        for (int j = 0; j < NUM_OF_CAM; j++)
+            if (j != 1 || !STEREO_TRACK)
+                completed |= trackerData[j].updateID(i);
+        if (!completed)
+            break;
+    }
+    if (PUB_THIS_FRAME)
+    {
+        Feature_storage feature_storage_;
+        vector<set<int>> hash_ids(NUM_OF_CAM);
+        for (int i = 0; i < NUM_OF_CAM; i++)
+        {
+            auto &un_pts = trackerData[i].cur_un_pts;
+            auto &cur_pts = trackerData[i].cur_pts;
+            auto &ids = trackerData[i].ids;
+            auto &pts_velocity = trackerData[i].pts_velocity;
+            for (unsigned int j = 0; j < ids.size(); j++)
+            {
+                if (trackerData[i].track_cnt[j] > 1)
+                {
+                    int p_id = ids[j];
+                    hash_ids[i].insert(p_id);
+		    int v = p_id * NUM_OF_CAM + i + 0.5;
+		    int feature_id = v / NUM_OF_CAM;
+		    int camera_id = v % NUM_OF_CAM;
+		    double x = un_pts[j].x;
+		    double y = un_pts[j].y;
+		    double z = 1;
+		    double p_u = cur_pts[j].x;
+		    double p_v = cur_pts[j].y;
+		    double velocity_x = pts_velocity[j].x;
+		    double velocity_y = pts_velocity[j].y;
+		    ROS_ASSERT(z == 1);
+		    Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
+		    xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
+		    feature_storage_[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
+                }
+            }
+        }
+        if (!init_pub)
+        {
+            init_pub = 1;
+        }
+        else
+	    feature_buf.emplace(img_msg->header, feature_storage_);
+
+        if (SHOW_TRACK)
+        {
+            ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
+            //cv::Mat stereo_img(ROW * NUM_OF_CAM, COL, CV_8UC3);
+            cv::Mat stereo_img = ptr->image;
+
+            for (int i = 0; i < NUM_OF_CAM; i++)
+            {
+                cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
+                cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
+
+                for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
+                {
+                    double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE_CAM);
+                    cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
+                }
+            }
+            pub_match.publish(ptr->toImageMsg());
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
@@ -352,11 +478,13 @@ int main(int argc, char **argv)
 
     registerPub(n);
 
+    for (int i = 0; i < NUM_OF_CAM; i++) trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
+    
+    ros::Subscriber sub_img = n.subscribe(IMAGE_TOPIC, 100, img_callback);
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
-    ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
-
+    //ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
+    pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
+	
     std::thread measurement_process{process};
     ros::spin();
 

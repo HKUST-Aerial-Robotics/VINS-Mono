@@ -556,7 +556,7 @@ CameraCalibration::readData(std::ifstream& ifs, T& data) const
 
     data = *(reinterpret_cast<T*>(buffer));
 
-    delete[] buffer;
+    delete buffer;
 }
 
 template<typename T>

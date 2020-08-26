@@ -1,14 +1,18 @@
 #pragma once
 
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include "utility/utility.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <fstream>
+#include "camodocal/camera_models/CameraFactory.h"
+#include "camodocal/camera_models/CataCamera.h"
+#include "camodocal/camera_models/PinholeCamera.h"
 
-const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000;
@@ -32,12 +36,45 @@ extern int NUM_ITERATIONS;
 extern std::string EX_CALIB_RESULT_PATH;
 extern std::string VINS_RESULT_PATH;
 extern std::string IMU_TOPIC;
+extern std::string IMAGE_TOPIC;
+extern std::string FISHEYE_MASK;
+extern std::vector<std::string> CAM_NAMES;
+extern int MAX_CNT;
+extern int MIN_DIST;
+extern int WINDOW_SIZE_CAM;
+
+extern int FREQ;
+extern double F_THRESHOLD;
+extern int SHOW_TRACK;
+extern int STEREO_TRACK;
+extern int EQUALIZE;
+extern int FISHEYE;
+extern bool PUB_THIS_FRAME;
+
 extern double TD;
 extern double TR;
 extern int ESTIMATE_TD;
 extern int ROLLING_SHUTTER;
 extern double ROW, COL;
+extern int FOCAL_LENGTH;
 
+//pose_graph params
+extern camodocal::CameraPtr m_camera;
+extern Eigen::Vector3d tic;
+extern Eigen::Matrix3d qic;
+extern int VISUALIZATION_SHIFT_X;
+extern int VISUALIZATION_SHIFT_Y;
+extern std::string BRIEF_PATTERN_FILE;
+extern std::string POSE_GRAPH_SAVE_PATH;
+extern int DEBUG_IMAGE;
+extern int VISUALIZE_IMU_FORWARD;
+extern int FAST_RELOCALIZATION;
+extern int LOOP_CLOSURE;
+extern int SKIP_CNT;
+extern int SKIP_DIS;
+extern double CAMERA_VISUAL_SIZE;
+extern int LOAD_PREVIOUS_POSE_GRAPH;
+extern std::string VOCABULARY_FILE;
 
 void readParameters(ros::NodeHandle &n);
 
