@@ -38,7 +38,7 @@ include_directories(
 
 include_directories("include")
 
-add_executable(vins_estimator
+add_library(vins_estimator STATIC
     src/estimator_node.cpp
     src/parameters.cpp
     src/estimator.cpp
