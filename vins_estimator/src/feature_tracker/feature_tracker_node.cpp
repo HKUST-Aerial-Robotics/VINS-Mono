@@ -7,7 +7,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <message_filters/subscriber.h>
 
-#include "feature_tracker.h"
+#include "vins_estimator/feature_tracker.h"
 
 #define SHOW_UNDISTORTION 0
 

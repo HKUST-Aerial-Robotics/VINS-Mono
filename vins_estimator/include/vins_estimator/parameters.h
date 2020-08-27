@@ -4,11 +4,11 @@
 #include <ros/package.h>
 #include <vector>
 #include <eigen3/Eigen/Dense>
-#include "utility/utility.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <fstream>
+#include "vins_estimator/utility/utility.h"
 #include "camodocal/camera_models/CameraFactory.h"
 #include "camodocal/camera_models/CataCamera.h"
 #include "camodocal/camera_models/PinholeCamera.h"

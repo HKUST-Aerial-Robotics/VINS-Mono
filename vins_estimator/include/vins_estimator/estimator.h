@@ -1,22 +1,22 @@
 #pragma once
 
-#include "parameters.h"
-#include "feature_manager.h"
-#include "utility/utility.h"
-#include "utility/tic_toc.h"
-#include "initial/solve_5pts.h"
-#include "initial/initial_sfm.h"
-#include "initial/initial_alignment.h"
-#include "initial/initial_ex_rotation.h"
+#include "vins_estimator/parameters.h"
+#include "vins_estimator/feature_manager.h"
+#include "vins_estimator/utility/utility.h"
+#include "vins_estimator/utility/tic_toc.h"
+#include "vins_estimator/initial/solve_5pts.h"
+#include "vins_estimator/initial/initial_sfm.h"
+#include "vins_estimator/initial/initial_alignment.h"
+#include "vins_estimator/initial/initial_ex_rotation.h"
 #include <std_msgs/Header.h>
 #include <std_msgs/Float32.h>
 
 #include <ceres/ceres.h>
-#include "factor/imu_factor.h"
-#include "factor/pose_local_parameterization.h"
-#include "factor/projection_factor.h"
-#include "factor/projection_td_factor.h"
-#include "factor/marginalization_factor.h"
+#include "vins_estimator/factor/imu_factor.h"
+#include "vins_estimator/factor/pose_local_parameterization.h"
+#include "vins_estimator/factor/projection_factor.h"
+#include "vins_estimator/factor/projection_td_factor.h"
+#include "vins_estimator/factor/marginalization_factor.h"
 
 #include <unordered_map>
 #include <queue>

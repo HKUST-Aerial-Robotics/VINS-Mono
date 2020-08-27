@@ -8,10 +8,10 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 
-#include "estimator.h"
-#include "parameters.h"
-#include "utility/visualization.h"
-#include "feature_tracker/feature_tracker.h"
+#include "vins_estimator/estimator.h"
+#include "vins_estimator/parameters.h"
+#include "vins_estimator/utility/visualization.h"
+#include "vins_estimator/feature_tracker.h"
 
 Estimator estimator;
 FeatureTracker trackerData[NUM_OF_CAM];
