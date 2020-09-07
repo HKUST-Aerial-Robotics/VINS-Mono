@@ -1,4 +1,4 @@
-#include "projection_factor.h"
+#include "vins_estimator/factor/projection_factor.h"
 
 Eigen::Matrix2d ProjectionFactor::sqrt_info;
 double ProjectionFactor::sum_t;

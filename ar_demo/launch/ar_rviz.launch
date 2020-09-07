@@ -1,3 +1,0 @@
-<launch>
-    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find ar_demo)/../config/AR_demo.rviz" />
-</launch>

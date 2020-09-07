@@ -1,4 +1,4 @@
-#include "pose_local_parameterization.h"
+#include "vins_estimator/factor/pose_local_parameterization.h"
 
 bool PoseLocalParameterization::Plus(const double *x, const double *delta, double *x_plus_delta) const
 {

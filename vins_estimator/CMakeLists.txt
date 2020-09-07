@@ -13,13 +13,18 @@ find_package(catkin REQUIRED COMPONENTS
     nav_msgs
     tf
     cv_bridge
-    )
+    camera_model
+    roslib
+)
 
 find_package(OpenCV REQUIRED)
-
-# message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
-
 find_package(Ceres REQUIRED)
+
+catkin_package(
+    INCLUDE_DIRS include
+    LIBRARIES ${PROJECT_NAME}
+    CATKIN_DEPENDS roscpp std_msgs geometry_msgs nav_msgs tf cv_bridge camera_model roslib
+)
 
 include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
 
@@ -28,11 +33,12 @@ find_package(Eigen3)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+  ${CERES_INCLUDE_DIRS}
 )
 
-catkin_package()
+include_directories("include")
 
-add_executable(vins_estimator
+add_library(vins_estimator STATIC
     src/estimator_node.cpp
     src/parameters.cpp
     src/estimator.cpp
@@ -48,9 +54,8 @@ add_executable(vins_estimator
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp
     src/initial/initial_ex_rotation.cpp
+    src/feature_tracker/feature_tracker.cpp
     )
 
-
 target_link_libraries(vins_estimator ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
-
 

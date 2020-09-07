@@ -1,4 +1,4 @@
-#include "initial_ex_rotation.h"
+#include "vins_estimator/initial/initial_ex_rotation.h"
 
 InitialEXRotation::InitialEXRotation(){
     frame_count = 0;
