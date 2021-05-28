@@ -17,13 +17,13 @@ Chessboard::Chessboard(cv::Size boardSize, cv::Mat& image)
 {
     if (image.channels() == 1)
     {
-        cv::cvtColor(image, mSketch, CV_GRAY2BGR);
+        cv::cvtColor(image, mSketch, cv::COLOR_GRAY2BGR);
         image.copyTo(mImage);
     }
     else
     {
         image.copyTo(mSketch);
-        cv::cvtColor(image, mImage, CV_BGR2GRAY);
+        cv::cvtColor(image, mImage, cv::COLOR_BGR2GRAY);
     }
 }
 
@@ -31,10 +31,10 @@ void
 Chessboard::findCorners(bool useOpenCV)
 {
     mCornersFound = findChessboardCorners(mImage, mBoardSize, mCorners,
-                                          CV_CALIB_CB_ADAPTIVE_THRESH +
-                                          CV_CALIB_CB_NORMALIZE_IMAGE +
-                                          CV_CALIB_CB_FILTER_QUADS +
-                                          CV_CALIB_CB_FAST_CHECK,
+                                          cv::CALIB_CB_ADAPTIVE_THRESH +
+                                          cv::CALIB_CB_NORMALIZE_IMAGE +
+                                          cv::CALIB_CB_FILTER_QUADS +
+                                          cv::CALIB_CB_FAST_CHECK,
                                           useOpenCV);
 
     if (mCornersFound)
@@ -141,24 +141,24 @@ Chessboard::findChessboardCornersImproved(const cv::Mat& image,
     // Image histogram normalization and
     // BGR to Grayscale image conversion (if applicable)
     // MARTIN: Set to "false"
-    if (image.channels() != 1 || (flags & CV_CALIB_CB_NORMALIZE_IMAGE))
+    if (image.channels() != 1 || (flags & cv::CALIB_CB_NORMALIZE_IMAGE))
     {
         cv::Mat norm_img(image.rows, image.cols, CV_8UC1);
 
         if (image.channels() != 1)
         {
-            cv::cvtColor(image, norm_img, CV_BGR2GRAY);
+            cv::cvtColor(image, norm_img, cv::COLOR_BGR2GRAY);
             img = norm_img;
         }
 
-        if (flags & CV_CALIB_CB_NORMALIZE_IMAGE)
+        if (flags & cv::CALIB_CB_NORMALIZE_IMAGE)
         {
             cv::equalizeHist(image, norm_img);
             img = norm_img;
         }
     }
 
-    if (flags & CV_CALIB_CB_FAST_CHECK)
+    if (flags & cv::CALIB_CB_FAST_CHECK)
     {
         if (!checkChessboard(img, patternSize))
         {
@@ -189,13 +189,13 @@ Chessboard::findChessboardCornersImproved(const cv::Mat& image,
             cv::Mat thresh_img;
 
             // convert the input grayscale image to binary (black-n-white)
-            if (flags & CV_CALIB_CB_ADAPTIVE_THRESH)
+            if (flags & cv::CALIB_CB_ADAPTIVE_THRESH)
             {
                 int blockSize = lround(prevSqrSize == 0 ?
                     std::min(img.cols,img.rows)*(k%2 == 0 ? 0.2 : 0.1): prevSqrSize*2)|1;
 
                 // convert to binary
-                cv::adaptiveThreshold(img, thresh_img, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, blockSize, (k/2)*5);
+                cv::adaptiveThreshold(img, thresh_img, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY, blockSize, (k/2)*5);
             }
             else
             {
@@ -204,7 +204,7 @@ Chessboard::findChessboardCornersImproved(const cv::Mat& image,
                 int thresh_level = lround(mean - 10);
                 thresh_level = std::max(thresh_level, 10);
 
-                cv::threshold(img, thresh_img, thresh_level, 255, CV_THRESH_BINARY);
+                cv::threshold(img, thresh_img, thresh_level, 255, cv::THRESH_BINARY);
             }
 
             // MARTIN's Code
@@ -212,8 +212,8 @@ Chessboard::findChessboardCornersImproved(const cv::Mat& image,
             // homogeneous dilation is performed, which is crucial for small,
             // distorted checkers. Use the CROSS kernel first, since its action
             // on the image is more subtle
-            cv::Mat kernel1 = cv::getStructuringElement(CV_SHAPE_CROSS, cv::Size(3,3), cv::Point(1,1));
-            cv::Mat kernel2 = cv::getStructuringElement(CV_SHAPE_RECT, cv::Size(3,3), cv::Point(1,1));
+            cv::Mat kernel1 = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3,3), cv::Point(1,1));
+            cv::Mat kernel2 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3,3), cv::Point(1,1));
 
             if (dilations >= 1)
                 cv::dilate(thresh_img, thresh_img, kernel1);
@@ -317,7 +317,7 @@ Chessboard::findChessboardCornersImproved(const cv::Mat& image,
         }
 
         cv::cornerSubPix(image, corners, cv::Size(11, 11), cv::Size(-1,-1),
-                         cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+                         cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.1));
 
         return true;
     }
@@ -1172,7 +1172,7 @@ Chessboard::generateQuads(std::vector<ChessboardQuadPtr>& quads,
     std::vector<cv::Vec4i> hierarchy;
 
     // Initialize contour retrieving routine
-    cv::findContours(image, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
+    cv::findContours(image, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
 
     std::vector< std::vector<cv::Point> > quadContours;
 
@@ -1238,7 +1238,7 @@ Chessboard::generateQuads(std::vector<ChessboardQuadPtr>& quads,
             dp = pt[1] - pt[2];
             double d4 = sqrt(dp.dot(dp));
 
-            if (!(flags & CV_CALIB_CB_FILTER_QUADS) ||
+            if (!(flags & cv::CALIB_CB_FILTER_QUADS) ||
                 (d3*4 > d4 && d4*4 > d3 && d3*d4 < area*1.5 && area > minSize &&
                 d1 >= 0.15 * p && d2 >= 0.15 * p))
             {
@@ -1583,20 +1583,20 @@ Chessboard::checkChessboard(const cv::Mat& image, cv::Size patternSize) const
     bool result = false;
     for (float threshLevel = blackLevel; threshLevel < whiteLevel && !result; threshLevel += 20.0f)
     {
-        cv::threshold(white, thresh, threshLevel + blackWhiteGap, 255, CV_THRESH_BINARY);
+        cv::threshold(white, thresh, threshLevel + blackWhiteGap, 255, cv::THRESH_BINARY);
 
         std::vector< std::vector<cv::Point> > contours;
         std::vector<cv::Vec4i> hierarchy;
 
         // Initialize contour retrieving routine
-        cv::findContours(thresh, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
+        cv::findContours(thresh, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
 
         std::vector<std::pair<float, int> > quads;
         getQuadrangleHypotheses(contours, quads, 1);
 
-        cv::threshold(black, thresh, threshLevel, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(black, thresh, threshLevel, 255, cv::THRESH_BINARY_INV);
 
-        cv::findContours(thresh, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);
+        cv::findContours(thresh, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
         getQuadrangleHypotheses(contours, quads, 0);
 
         const size_t min_quads_count = patternSize.width * patternSize.height / 2;
