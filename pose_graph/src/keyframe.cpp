@@ -21,7 +21,7 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
 	vio_R_w_i = _vio_R_w_i;
 	T_w_i = vio_T_w_i;
 	R_w_i = vio_R_w_i;
-	origin_vio_T = vio_T_w_i;		
+	origin_vio_T = vio_T_w_i;
 	origin_vio_R = vio_R_w_i;
 	image = _image.clone();
 	cv::resize(image, thumbnail, cv::Size(80, 60));
@@ -273,7 +273,7 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 
 	TicToc t_match;
 	#if 0
-		if (DEBUG_IMAGE)    
+		if (DEBUG_IMAGE)
 	    {
 	        cv::Mat gray_img, loop_match_img;
 	        cv::Mat old_img = old_kf->image;
@@ -307,7 +307,7 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	reduceVector(matched_id, status);
 	//printf("search by des finish\n");
 
-	#if 0 
+	#if 0
 		if (DEBUG_IMAGE)
 	    {
 			int gap = 10;
@@ -348,9 +348,9 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	        path2 <<  "/home/tony-ws1/raw_data/loop_image/"
 	                << index << "-"
 	                << old_kf->index << "-" << "1descriptor_match_2.jpg";
-	        cv::imwrite( path2.str().c_str(), old_img);	        
+	        cv::imwrite( path2.str().c_str(), old_img);
 	        */
-	        
+
 	    }
 	#endif
 	status.clear();
@@ -441,9 +441,9 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	                cv::line(loop_match_img, matched_2d_cur[i], old_pt, cv::Scalar(0, 255, 0), 2, 8, 0);
 	            }
 	            cv::Mat notation(50, COL + gap + COL, CV_8UC3, cv::Scalar(255, 255, 255));
-	            putText(notation, "current frame: " + to_string(index) + "  sequence: " + to_string(sequence), cv::Point2f(20, 30), CV_FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
+	            putText(notation, "current frame: " + to_string(index) + "  sequence: " + to_string(sequence), cv::Point2f(20, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
 
-	            putText(notation, "previous frame: " + to_string(old_kf->index) + "  sequence: " + to_string(old_kf->sequence), cv::Point2f(20 + COL + gap, 30), CV_FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
+	            putText(notation, "previous frame: " + to_string(old_kf->index) + "  sequence: " + to_string(old_kf->sequence), cv::Point2f(20 + COL + gap, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
 	            cv::vconcat(notation, loop_match_img, loop_match_img);
 
 	            /*
@@ -456,8 +456,8 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	            if ((int)matched_2d_cur.size() > MIN_LOOP_NUM)
 	            {
 	            	/*
-	            	cv::imshow("loop connection",loop_match_img);  
-	            	cv::waitKey(10);  
+	            	cv::imshow("loop connection",loop_match_img);
+	            	cv::waitKey(10);
 	            	*/
 	            	cv::Mat thumbimage;
 	            	cv::resize(loop_match_img, thumbimage, cv::Size(loop_match_img.cols / 2, loop_match_img.rows / 2));
@@ -497,7 +497,7 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 		            p.z = matched_id[i];
 		            msg_match_points.points.push_back(p);
 			    }
-			    Eigen::Vector3d T = old_kf->T_w_i; 
+			    Eigen::Vector3d T = old_kf->T_w_i;
 			    Eigen::Matrix3d R = old_kf->R_w_i;
 			    Quaterniond Q(R);
 			    sensor_msgs::ChannelFloat32 t_q_index;
@@ -596,5 +596,3 @@ BriefExtractor::BriefExtractor(const std::string &pattern_file)
 
   m_brief.importPairs(x1, y1, x2, y2);
 }
-
-
