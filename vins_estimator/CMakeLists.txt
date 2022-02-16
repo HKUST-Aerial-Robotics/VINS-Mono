@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(vins_estimator)
 
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_FLAGS "-std=c++14")
 #-DEIGEN_USE_MKL_ALL")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
@@ -15,9 +15,9 @@ find_package(catkin REQUIRED COMPONENTS
     cv_bridge
     )
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED PATHS "/home/jagatpreet/software/opencv//build_3.3.1/")
 
-# message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
+message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
 
 find_package(Ceres REQUIRED)
 
