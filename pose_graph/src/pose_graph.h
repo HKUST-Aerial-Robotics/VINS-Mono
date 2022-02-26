@@ -23,7 +23,7 @@
 #include "ThirdParty/DVision/DVision.h"
 #include "ThirdParty/DBoW/TemplatedDatabase.h"
 #include "ThirdParty/DBoW/TemplatedVocabulary.h"
-
+#include <opencv2/highgui/highgui_c.h>
 
 #define SHOW_S_EDGE false
 #define SHOW_L_EDGE true

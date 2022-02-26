@@ -19,7 +19,7 @@ CameraPoseVisualization cameraposevisual(0, 1, 0, 1);
 CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
-
+bool write_to_file_start = false;
 void registerPub(ros::NodeHandle &n)
 {
     pub_latest_odometry = n.advertise<nav_msgs::Odometry>("imu_propagate", 1000);
@@ -99,8 +99,8 @@ void printStatistics(const Estimator &estimator, double t)
     sum_of_path += (estimator.Ps[WINDOW_SIZE] - last_path).norm();
     last_path = estimator.Ps[WINDOW_SIZE];
     ROS_DEBUG("sum of path %f", sum_of_path);
-    if (ESTIMATE_TD)
-        ROS_INFO("td %f", estimator.td);
+    //if (ESTIMATE_TD)
+        //ROS_INFO("td %f", estimator.td);
 }
 
 void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
@@ -157,19 +157,40 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         ofstream foutC(VINS_RESULT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(0);
-        foutC << header.stamp.toSec() * 1e9 << ",";
-        foutC.precision(5);
-        foutC << estimator.Ps[WINDOW_SIZE].x() << ","
-              << estimator.Ps[WINDOW_SIZE].y() << ","
-              << estimator.Ps[WINDOW_SIZE].z() << ","
-              << tmp_Q.w() << ","
-              << tmp_Q.x() << ","
-              << tmp_Q.y() << ","
-              << tmp_Q.z() << ","
-              << estimator.Vs[WINDOW_SIZE].x() << ","
-              << estimator.Vs[WINDOW_SIZE].y() << ","
-              << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
-        foutC.close();
+        if (!write_to_file_start){
+            write_to_file_start = true;
+            foutC << "#timestamp(ns),px(m),py(m),pz(m)," <<
+                     "qx,qy,qz,qw," <<
+                     "vx,vy,vz,"
+                     "bax,bay,baz," <<
+                     "bgx,bgy,bgz," <<
+                     "g_x,g_y,g_z" << endl;
+            foutC.close();
+        }
+        else {
+            foutC << header.stamp.toSec() * 1e9 << ",";
+            foutC.precision(5);
+            foutC << estimator.Ps[WINDOW_SIZE].x() << ","
+                  << estimator.Ps[WINDOW_SIZE].y() << ","
+                  << estimator.Ps[WINDOW_SIZE].z() << ","
+                  << tmp_Q.w() << ","
+                  << tmp_Q.x() << ","
+                  << tmp_Q.y() << ","
+                  << tmp_Q.z() << ","
+                  << estimator.Vs[WINDOW_SIZE].x() << ","
+                  << estimator.Vs[WINDOW_SIZE].y() << ","
+                  << estimator.Vs[WINDOW_SIZE].z() << ","
+                  << estimator.Bas[WINDOW_SIZE].x() << ","
+                  << estimator.Bas[WINDOW_SIZE].y() << ","
+                  << estimator.Bas[WINDOW_SIZE].z() << ","
+                  << estimator.Bgs[WINDOW_SIZE].x() << ","
+                  << estimator.Bgs[WINDOW_SIZE].y() << ","
+                  << estimator.Bgs[WINDOW_SIZE].z() << ","
+                  << estimator.g.x() << ","
+                  << estimator.g.y() << ","
+                  << estimator.g.z() << endl;
+            foutC.close();
+        }
     }
 }
 

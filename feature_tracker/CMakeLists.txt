@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
     camera_model
     )
 
-find_package(OpenCV REQUIRED PATHS "/home/jagatpreet/software/opencv/build_3.3.1/")
+find_package(OpenCV REQUIRED)
 
 catkin_package()
 

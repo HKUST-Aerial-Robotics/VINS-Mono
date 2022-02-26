@@ -18,7 +18,6 @@
 #include "../estimator.h"
 #include "../parameters.h"
 #include <fstream>
-
 extern ros::Publisher pub_odometry;
 extern ros::Publisher pub_path, pub_pose;
 extern ros::Publisher pub_cloud, pub_map;

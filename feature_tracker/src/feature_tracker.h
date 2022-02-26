@@ -15,6 +15,7 @@
 
 #include "parameters.h"
 #include "tic_toc.h"
+#include <opencv2/highgui/highgui_c.h>
 
 using namespace std;
 using namespace camodocal;

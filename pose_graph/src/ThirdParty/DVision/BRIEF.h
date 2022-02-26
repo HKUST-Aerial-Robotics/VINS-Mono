@@ -32,7 +32,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
-
+#include <opencv2/highgui/highgui_c.h>
 namespace DVision {
 
 /// BRIEF descriptor

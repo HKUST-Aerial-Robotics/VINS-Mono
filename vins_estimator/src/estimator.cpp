@@ -433,8 +433,13 @@ bool Estimator::visualInitialAlign()
         Rs[i] = rot_diff * Rs[i];
         Vs[i] = rot_diff * Vs[i];
     }
-    ROS_DEBUG_STREAM("g0     " << g.transpose());
-    ROS_DEBUG_STREAM("my R0  " << Utility::R2ypr(Rs[0]).transpose()); 
+    ROS_INFO_STREAM("Initial rotation:"<<Rs[0]<<"\n");
+    ROS_INFO_STREAM("Initial position:"<<Ps[0]<<"\n");
+    //ROS_INFO_STREAM("x:"<<x<<"\n");
+    ROS_INFO("Estimated scale: %f",s);
+    ROS_INFO_STREAM(" g transpose    " << g.transpose()<<"\n");
+
+    ROS_INFO_STREAM("my R0 in ypr \n" << Utility::R2ypr(Rs[0]).transpose());
 
     return true;
 }

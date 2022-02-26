@@ -9,7 +9,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs nav_msgs camera_model
                                         cv_bridge roslib)
 
-find_package(OpenCV PATHS "/home/jagatpreet/software/opencv/build_3.3.1/")
+find_package(OpenCV)
 
 find_package(Ceres REQUIRED)
 
