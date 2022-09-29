@@ -417,68 +417,6 @@ private:
     Eigen::Vector2d m_observed_p_r;
 };
 
-template <class CameraT>
-class ComprehensionError {
-  public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    ComprehensionError(const Eigen::Vector3d& observed_P, const Eigen::Vector2d& observed_p)
-        : m_observed_P(observed_P),
-          m_observed_p(observed_p),
-          m_sqrtPrecisionMat(Eigen::Matrix2d::Identity()) {
-    }
-
-    template <typename T>
-    bool operator()(const T* const intrinsic_params, const T* const q, const T* const t,
-                    T* residuals) const {
-        {
-            Eigen::Matrix<T, 2, 1> p = m_observed_p.cast<T>();
-        
-            Eigen::Matrix<T, 3, 1> predicted_img_P;
-            CameraT::LiftToSphere(intrinsic_params, p, predicted_img_P);
-                
-            Eigen::Matrix<T, 2, 1> predicted_p;
-            CameraT::SphereToPlane(intrinsic_params, predicted_img_P, predicted_p);
-
-            Eigen::Matrix<T, 2, 1> e = predicted_p - m_observed_p.cast<T>();
-
-            Eigen::Matrix<T, 2, 1> e_weighted = m_sqrtPrecisionMat.cast<T>() * e;
-
-            residuals[0] = e_weighted(0);
-            residuals[1] = e_weighted(1);
-        }
-
-        {
-            Eigen::Matrix<T, 3, 1> P = m_observed_P.cast<T>();
-
-            Eigen::Matrix<T, 2, 1> predicted_p;
-            CameraT::spaceToPlane(intrinsic_params, q, t, P, predicted_p);
-
-            Eigen::Matrix<T, 2, 1> e = predicted_p - m_observed_p.cast<T>();
-
-            Eigen::Matrix<T, 2, 1> e_weighted = m_sqrtPrecisionMat.cast<T>() * e;
-
-            residuals[2] = e_weighted(0);
-            residuals[3] = e_weighted(1);
-        }
-
-        return true;
-    }
-
-    // private:
-    // camera intrinsics
-    // std::vector<double> m_intrinsic_params;
-
-    // observed 3D point
-    Eigen::Vector3d m_observed_P;
-
-    // observed 2D point
-    Eigen::Vector2d m_observed_p;
-
-    // square root of precision matrix
-    Eigen::Matrix2d m_sqrtPrecisionMat;
-};
-
 boost::shared_ptr<CostFunctionFactory> CostFunctionFactory::m_instance;
 
 CostFunctionFactory::CostFunctionFactory()
@@ -530,10 +468,8 @@ CostFunctionFactory::generateCostFunction(const CameraConstPtr& camera,
             break;
         case Camera::SCARAMUZZA:
             costFunction =
-                new ceres::AutoDiffCostFunction<ComprehensionError<OCAMCamera>, 4, SCARAMUZZA_CAMERA_NUM_PARAMS, 4, 3>(
-                new ComprehensionError<OCAMCamera>(observed_P, observed_p));
-                // new ceres::AutoDiffCostFunction<ReprojectionError1<OCAMCamera>, 2, SCARAMUZZA_CAMERA_NUM_PARAMS, 4, 3>(
-                // new ReprojectionError1<OCAMCamera>(observed_P, observed_p));
+                new ceres::AutoDiffCostFunction<ReprojectionError1<OCAMCamera>, 2, SCARAMUZZA_CAMERA_NUM_PARAMS, 4, 3>(
+                new ReprojectionError1<OCAMCamera>(observed_P, observed_p));
             break;
         }
         break;

@@ -1,4 +1,4 @@
-#include "marginalization_factor.h"
+#include "vins_estimator/factor/marginalization_factor.h"
 
 void ResidualBlockInfo::Evaluate()
 {

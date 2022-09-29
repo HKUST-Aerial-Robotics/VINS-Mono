@@ -3,7 +3,6 @@
 #include <boost/program_options.hpp>
 #include <iomanip>
 #include <iostream>
-#include <algorithm>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -145,8 +144,6 @@ int main(int argc, char** argv)
     {
         std::cerr << "# INFO: # images: " << imageFilenames.size() << std::endl;
     }
-
-    std::sort(imageFilenames.begin(), imageFilenames.end());
 
     cv::Mat image = cv::imread(imageFilenames.front(), -1);
     const cv::Size frameSize = image.size();

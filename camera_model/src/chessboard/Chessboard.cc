@@ -115,7 +115,7 @@ Chessboard::findChessboardCornersImproved(const cv::Mat& image,
 
     \************************************************************************************/
 
-    //int bestDilation        = -1;
+    int bestDilation        = -1;
     const int minDilations    =  0;
     const int maxDilations    =  7;
 
@@ -286,7 +286,7 @@ Chessboard::findChessboardCornersImproved(const cv::Mat& image,
                 float sumDist = 0;
                 int total = 0;
 
-                for (int i = 0; i < (int)outputCorners.size(); ++i)
+                for (int i = 0; i < outputCorners.size(); ++i)
                 {
                     int ni = 0;
                     float avgi = outputCorners.at(i)->meanDist(ni);
@@ -340,7 +340,7 @@ Chessboard::cleanFoundConnectedQuads(std::vector<ChessboardQuadPtr>& quadGroup,
     // If we have more quadrangles than we should, try to eliminate duplicates
     // or ones which don't belong to the pattern rectangle. Else go to the end
     // of the function
-    if ((int)quadGroup.size() <= count)
+    if (quadGroup.size() <= count)
     {
         return;
     }
@@ -376,7 +376,7 @@ Chessboard::cleanFoundConnectedQuads(std::vector<ChessboardQuadPtr>& quadGroup,
     // (since we want the rectangle to be as small as possible) remove the
     // quadrange that causes the biggest reduction in pattern size until we
     // have the correct number
-    while ((int)quadGroup.size() > count)
+    while (quadGroup.size() > count)
     {
         double minBoxArea = DBL_MAX;
         int minBoxAreaIndex = -1;
@@ -624,7 +624,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
     int min_column    =  127;
     int max_column    = -127;
 
-    for (int i = 0; i < (int)quadGroup.size(); ++i)
+    for (int i = 0; i < quadGroup.size(); ++i)
     {
         ChessboardQuadPtr& q = quadGroup.at(i);
 
@@ -666,7 +666,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
             int cornerID;
             int quadID;
 
-            for (int k = 0; k < (int)quadGroup.size(); ++k)
+            for (int k = 0; k < quadGroup.size(); ++k)
             {
                 ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -716,7 +716,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
             int cornerID;
             int quadID;
 
-            for (int k = 0; k < (int)quadGroup.size(); ++k)
+            for (int k = 0; k < quadGroup.size(); ++k)
             {
                 ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -780,7 +780,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
         // We found out that in the column direction the target pattern size is reached
         // Therefore border column corners do not need a neighbor anymore
         // Go through all corners
-        for (int k = 0; k < (int)quadGroup.size(); ++k)
+        for (int k = 0; k < quadGroup.size(); ++k)
         {
             ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -803,7 +803,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
         // We found out that in the column direction the target pattern size is reached
         // Therefore border column corners do not need a neighbor anymore
         // Go through all corners
-        for (int k = 0; k < (int)quadGroup.size(); ++k)
+        for (int k = 0; k < quadGroup.size(); ++k)
         {
             ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -835,7 +835,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
         // pattern size is reached in column direction
         if ((smallerDimPattern + 1) == max_column - min_column)
         {
-            for (int k = 0; k < (int)quadGroup.size(); ++k)
+            for (int k = 0; k < quadGroup.size(); ++k)
             {
                 ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -859,7 +859,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
         // pattern size is reached in row direction
         if ((smallerDimPattern + 1) == max_row - min_row)
         {
-            for (int k = 0; k < (int)quadGroup.size(); ++k)
+            for (int k = 0; k < quadGroup.size(); ++k)
             {
                 ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -883,7 +883,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
         // pattern size is reached in row direction
         if ((smallerDimPattern + 1) == max_row - min_row)
         {
-            for (int k = 0; k < (int)quadGroup.size(); ++k)
+            for (int k = 0; k < quadGroup.size(); ++k)
             {
                 ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -907,7 +907,7 @@ Chessboard::labelQuadGroup(std::vector<ChessboardQuadPtr>& quadGroup,
         // pattern size is reached in column direction
         if ((smallerDimPattern + 1) == max_column - min_column)
         {
-            for (int k = 0; k < (int)quadGroup.size(); ++k)
+            for (int k = 0; k < quadGroup.size(); ++k)
             {
                 ChessboardQuadPtr& q = quadGroup.at(k);
 
@@ -1399,7 +1399,7 @@ Chessboard::checkQuadGroup(std::vector<ChessboardQuadPtr>& quads,
             // Reset the iterator
             int iter = 1;
 
-            for (int k = 0; k < (int)quads.size(); ++k)
+            for (int k = 0; k < quads.size(); ++k)
             {
                 ChessboardQuadPtr& quad = quads.at(k);
 
@@ -1443,7 +1443,7 @@ Chessboard::checkQuadGroup(std::vector<ChessboardQuadPtr>& quads,
         }
     }
 
-    if ((int)corners.size() != patternSize.width * patternSize.height ||
+    if (corners.size() != patternSize.width * patternSize.height ||
         linkedBorderCorners < (patternSize.width * 2 + patternSize.height * 2 - 2) * 0.75f)
     {
         return false;
@@ -1451,7 +1451,7 @@ Chessboard::checkQuadGroup(std::vector<ChessboardQuadPtr>& quads,
 
     // check that no corners lie at image boundary
     float border = 5.0f;
-    for (int i = 0; i < (int)corners.size(); ++i)
+    for (int i = 0; i < corners.size(); ++i)
     {
         ChessboardCornerPtr& c = corners.at(i);
 
