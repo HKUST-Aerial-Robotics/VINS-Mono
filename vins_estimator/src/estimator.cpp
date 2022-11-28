@@ -83,15 +83,18 @@ void Estimator::clearState()
 
 void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
 {
+    // After state is cleared, acc and ang_vel is assigned.
     if (!first_imu)
     {
         first_imu = true;
         acc_0 = linear_acceleration;
         gyr_0 = angular_velocity;
     }
-
+    // After state is cleared, preintegrations are calculated.
     if (!pre_integrations[frame_count])
     {
+    // The class IntegrationBase holds Jacobian and Covariance Matrices Integrates IMU data and updates covariance and Jacobian
+
         pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
     }
     if (frame_count != 0)
@@ -110,6 +113,9 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         Rs[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
         Vector3d un_acc_1 = Rs[j] * (linear_acceleration - Bas[j]) - g;
         Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
+
+        //Update position and velocity
+        
         Ps[j] += dt * Vs[j] + 0.5 * dt * dt * un_acc;
         Vs[j] += dt * un_acc;
     }
@@ -1144,4 +1150,3 @@ void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vecto
         }
     }
 }
-

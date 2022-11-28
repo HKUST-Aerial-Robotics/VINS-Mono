@@ -124,6 +124,8 @@ bool KeyFrame::searchInAera(const BRIEF::bitset window_descriptor,
                             const std::vector<cv::KeyPoint> &keypoints_old_norm,
                             cv::Point2f &best_match,
                             cv::Point2f &best_match_norm)
+
+// Calculate the best distance on two brief descriptors if the distance between them is below 80, accept it as a candidate.
 {
     cv::Point2f best_pt;
     int bestDist = 128;
@@ -149,6 +151,8 @@ bool KeyFrame::searchInAera(const BRIEF::bitset window_descriptor,
       return false;
 }
 
+// SearchS an find a match using this and above function
+
 void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
 								std::vector<cv::Point2f> &matched_2d_old_norm,
                                 std::vector<uchar> &status,
@@ -156,6 +160,8 @@ void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
                                 const std::vector<cv::KeyPoint> &keypoints_old,
                                 const std::vector<cv::KeyPoint> &keypoints_old_norm)
 {
+	// *IMPORTANT* All sliding window keyframes and old keypoints are matched here. 
+	// What we should do is replace this part. 
     for(int i = 0; i < (int)window_brief_descriptors.size(); i++)
     {
         cv::Point2f pt(0.f, 0.f);
@@ -170,6 +176,7 @@ void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
 
 }
 
+// 2D-2D fundamental matrix test
 
 void KeyFrame::FundmantalMatrixRANSAC(const std::vector<cv::Point2f> &matched_2d_cur_norm,
                                       const std::vector<cv::Point2f> &matched_2d_old_norm,
@@ -197,8 +204,10 @@ void KeyFrame::FundmantalMatrixRANSAC(const std::vector<cv::Point2f> &matched_2d
     }
 }
 
+//3D-2D PnP test
+
 void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
-                         const std::vector<cv::Point3f> &matched_3d,
+                	    const std::vector<cv::Point3f> &matched_3d,
                          std::vector<uchar> &status,
                          Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old)
 {
@@ -307,7 +316,7 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	reduceVector(matched_id, status);
 	//printf("search by des finish\n");
 
-	#if 0 
+	#if 0
 		if (DEBUG_IMAGE)
 	    {
 			int gap = 10;
@@ -471,20 +480,19 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 
 	if ((int)matched_2d_cur.size() > MIN_LOOP_NUM)
 	{
+		// get relative pose from PnP 
 	    relative_t = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
 	    relative_q = PnP_R_old.transpose() * origin_vio_R;
 	    relative_yaw = Utility::normalizeAngle(Utility::R2ypr(origin_vio_R).x() - Utility::R2ypr(PnP_R_old).x());
-	    //printf("PNP relative\n");
-	    //cout << "pnp relative_t " << relative_t.transpose() << endl;
-	    //cout << "pnp relative_yaw " << relative_yaw << endl;
 	    if (abs(relative_yaw) < 30.0 && relative_t.norm() < 20.0)
 	    {
-
+			// 
 	    	has_loop = true;
 	    	loop_index = old_kf->index;
 	    	loop_info << relative_t.x(), relative_t.y(), relative_t.z(),
 	    	             relative_q.w(), relative_q.x(), relative_q.y(), relative_q.z(),
 	    	             relative_yaw;
+
 	    	if(FAST_RELOCALIZATION)
 	    	{
 			    sensor_msgs::PointCloud msg_match_points;
@@ -515,7 +523,6 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	        return true;
 	    }
 	}
-	//printf("loop final use num %d %lf--------------- \n", (int)matched_2d_cur.size(), t_match.toc());
 	return false;
 }
 
