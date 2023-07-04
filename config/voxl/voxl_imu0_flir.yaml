@@ -2,37 +2,25 @@
 
 #common parameters
 imu_topic: "/imu0"
-image_topic: "/tracking/image_raw"
-output_path: "/home/jagatpreet/datasets/voxl_m500_logs/vio_results/flight14"
+image_topic: "/uvc/image_raw"
+output_path: "/home/jagatpreet/datasets/voxl_logs/vio_results"
 
 #camera calibration 
-model_type: KANNALA_BRANDT
+model_type: PINHOLE
 camera_name: camera
 image_width: 640
-image_height: 480
+image_height: 512
+distortion_parameters:
+   k1: -0.4368
+   k2: 0.1914
+   p1: -0.0027
+   p2: -0.0011
 projection_parameters:
-   #voxl
-#   k2: 4.2275520243472333e-03
-#   k3: -2.3143746003944345e-02
-#   k4: 1.7736603417817902e-02
-#   k5: -3.0543777993236208e-03
-#   mu: 2.8654181277217833e+02
-#   mv: 2.8548532715141653e+02
-#   u0: 2.9584754116543320e+02
-#   v0: 2.2799907043832093e+02
+   fx: 508.2736
+   fy: 508.2341
+   cx: 319.7219
+   cy: 268.1211
    
-   #kalibr
-   k2: -0.008221111515250484
-   k3: 0.006475702764102505
-   k4: -0.001938614693718985
-   k5: 0.00017955893521407563
-   mu: 278.8344289078585
-   mv: 279.6412937687911
-   u0: 299.55625117933215
-   v0: 229.55282490205747
-   
-   
-
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
@@ -87,7 +75,7 @@ g_norm: 9.81007     # gravity magnitude
 loop_closure: 0                    # start loop closure
 load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
 fast_relocalization: 0             # useful in real-time and large project
-pose_graph_save_path: "/home/jagatpreet/datasets/voxl_logs?vio_results" # save and load path
+pose_graph_save_path: "/home/jagatpreet/datasets/voxl_logs/vio_results" # save and load path
 
 #unsynchronization parameters
 estimate_td: 1                      # online estimate time offset between camera and imu

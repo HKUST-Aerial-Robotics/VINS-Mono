@@ -1,0 +1,99 @@
+%YAML:1.0
+
+#common parameters
+imu_topic: "/imu/imu"
+image_topic: "/camera_array/cam0/image_raw"
+output_path: "/home/jagatpreet/datasets/"
+
+#camera calibration 
+model_type: PINHOLE
+camera_name: cam0
+image_width: 1280
+image_height: 1024
+distortion_parameters:
+# B/W CAMERA PARAMETERS - 1.3 MP
+   k1: -0.17838722778013236
+   k2: 0.09145511609897854
+   p1: -0.001193370439142836
+   p2: 0.00029218944455939173
+
+
+
+# COLOR CAMERA PARAMETERS - 1.6 MP
+#   k1: -2.100e-01
+#   k2: 1.399e-01
+#   p1: 1.852e-04
+#   p2: 9.860e-04
+projection_parameters:
+
+# B/W CAMERA PARAMETERS
+   fx: 1239.953168446694
+   fy: 1237.6044642344214
+   cx: 628.9873248638245
+   cy: 507.5805080344233
+
+# COLOR CAMERA PARAMETERS
+#   fx: 1.779e+03
+#   fy: 1.774e+03
+#   cx: 7.345e+02
+#   cy: 5.720e+02
+
+# Extrinsic parameter between IMU and Camera.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+                        # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.                        
+#If you choose 0 or 1, you should write down the following matrix.
+#Rotation from camera frame to imu frame, imu^R_cam
+extrinsicRotation: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [-0.00167475, -0.00609281,  0.99998004,
+           0.99996556,  0.00811869, 0.00172419, 
+           -0.00812904,  0.99994848,  0.006079]
+#Translation from camera frame to imu frame, imu^T_cam
+extrinsicTranslation: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [0.012, -0.013, 0.056]
+
+#feature tracker paprameters
+max_cnt: 150            # max feature number in feature tracking
+min_dist: 30            # min distance between two features 
+freq: 0                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
+F_threshold: 1.0        # ransac threshold (pixel)
+show_track: 1           # publish tracking image as topic
+equalize: 1             # if image is too dark or light, trun on equalize to find enough features
+fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
+
+#optimization parameters
+max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time
+max_num_iterations: 8   # max solver itrations, to guarantee real time
+keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+
+#imu parameters       The more accurate parameters you provide, the better performance
+acc_n: 0.78576         # accelerometer measurement noise standard deviation. #0.2   0.04
+gyr_n: 0.28064    # gyroscope measurement noise standard deviation.     #0.05  0.004
+acc_w: 0.00010153         # accelerometer bias random work noise standard deviation.  #3.00e-3
+gyr_w: 0.00000396       # gyroscope bias random work noise standard deviation.     #4.0e-5
+g_norm: 9.81007     # gravity magnitude
+
+#loop closure parameters
+loop_closure: 0                    # start loop closure
+load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
+fast_relocalization: 0             # useful in real-time and large project
+pose_graph_save_path: "/home/auv/test/output/pose_graph/" # save and load path
+
+#unsynchronization parameters
+estimate_td: 1                      # online estimate time offset between camera and imu
+td: 0.003                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#rolling shutter parameters
+rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera
+rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per frame (from data sheet). 
+
+#visualization parameters
+save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
+visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
+visualize_camera_size: 0.4      # size of camera marker in RVIZ

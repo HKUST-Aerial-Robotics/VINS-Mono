@@ -99,8 +99,8 @@ void printStatistics(const Estimator &estimator, double t)
     sum_of_path += (estimator.Ps[WINDOW_SIZE] - last_path).norm();
     last_path = estimator.Ps[WINDOW_SIZE];
     ROS_DEBUG("sum of path %f", sum_of_path);
-    //if (ESTIMATE_TD)
-        //ROS_INFO("td %f", estimator.td);
+    if (ESTIMATE_TD)
+        ROS_INFO("td %f", estimator.td);
 }
 
 void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
@@ -160,8 +160,8 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         if (!write_to_file_start){
             write_to_file_start = true;
             foutC << "#timestamp(ns),px(m),py(m),pz(m)," <<
-                     "qx,qy,qz,qw," <<
-                     "vx,vy,vz,"
+                     "qw,qx,qy,qz," <<
+                     "vx,vy,vz," <<
                      "bax,bay,baz," <<
                      "bgx,bgy,bgz," <<
                      "g_x,g_y,g_z" << endl;

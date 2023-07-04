@@ -1,40 +1,29 @@
 %YAML:1.0
 
 #common parameters
-imu_topic: "/imu0"
-image_topic: "/tracking/image_raw"
-output_path: "/home/jagatpreet/datasets/voxl_m500_logs/vio_results/flight14"
+imu_topic: "/vectornav/IMU_modified_time"
+image_topic: "/uvc/image_raw"
+output_path: "/home/jagatpreet/datasets/voxl_logs/vio_results/"
 
 #camera calibration 
-model_type: KANNALA_BRANDT
+
+model_type: PINHOLE
 camera_name: camera
 image_width: 640
-image_height: 480
+image_height: 512
+distortion_parameters:
+   k1: -0.4368
+   k2: 0.1914
+   p1: -0.0027
+   p2: -0.0011
 projection_parameters:
-   #voxl
-#   k2: 4.2275520243472333e-03
-#   k3: -2.3143746003944345e-02
-#   k4: 1.7736603417817902e-02
-#   k5: -3.0543777993236208e-03
-#   mu: 2.8654181277217833e+02
-#   mv: 2.8548532715141653e+02
-#   u0: 2.9584754116543320e+02
-#   v0: 2.2799907043832093e+02
-   
-   #kalibr
-   k2: -0.008221111515250484
-   k3: 0.006475702764102505
-   k4: -0.001938614693718985
-   k5: 0.00017955893521407563
-   mu: 278.8344289078585
-   mv: 279.6412937687911
-   u0: 299.55625117933215
-   v0: 229.55282490205747
-   
-   
+   fx: 508.2736
+   fy: 508.2341
+   cx: 319.7219
+   cy: 268.1211
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.                        
 #If you choose 0 or 1, you should write down the following matrix.
@@ -43,25 +32,18 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [0, -0.707, 0.707,
-           1, 0, 0, 
-          0, 0.707, 0.707]
-#[-0.01159856, -0.75275325,  0.65820059,
-#   0.99986325, -0.01649051, -0.00124021,
-#    0.01178764,  0.65809619,  0.75284158] # from kalibr
-#[0, -0.707, 0.707,
- # 1, 0, 0, 
- # 0, 0.707, 0.707]
+   data: [0, 0,  1, 
+            1, 1,  0,   
+            0,  0,  0] 
+           
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [0.065,-0.014, 0.013] 
-   #[0.06946358,-0.01765449,0.03537859] #kalibr-setup4
-   # [0.065,-0.014, 0.013] # imu 0
+   data: [0.07095216,0.00260041, -0.03047335] # vectornav-vn100 - setup 4 - vn100 near the CG of drone on the modem
    #data: [0.017,-0.015, 0.013] # imu 1
-
+   #data:[.165,-0.005,-0.026] (vn100 measured)
 #feature tracker paprameters
 max_cnt: 300            # max feature number in feature tracking
 min_dist: 20           # min distance between two features in pixels
@@ -74,24 +56,24 @@ fisheye: 0             # if using fisheye, trun on it. A circle mask will be loa
 #optimization parameters
 max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time
 max_num_iterations: 8   # max solver itrations, to guarantee real time
-keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+keyframe_parallax: 10.0 # 10 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 1.5100748 #1.5100001454353333 # > 0.51600001454353333 worked  0.06748 - 70x the allan dev curve paramter accelerometer measurement noise standard deviation. #0.2   0.04
-gyr_n: 0.594774 #0.5994774   # from allan d in z: 0.000242          #0.00999999977648258     # gyroscope measurement noise standard deviation.     #0.05  
-acc_w: 0.02 # not provided  ad-k 0.000682     # accelerometer bias random work noise standard deviation.  Here we have written twice the values estimated from AD
-gyr_w: 0.22 # not provided ad-k  - 0.000022       # gyroscope bias random work noise standard deviation. Here we have written 20x the value from allan deviation.
-g_norm: 9.81007     # gravity magnitude
+acc_n: 0.078576         # accelerometer measurement noise standard deviation. #0.2   0.04
+gyr_n: 0.028064    # gyroscope measurement noise standard deviation.     #0.05  0.004
+acc_w: 0.00010153         # accelerometer bias random work noise standard deviation.  #3.00e-3
+gyr_w: 0.00000396       # gyroscope bias random work noise standard deviation.     #1.93e-5
+g_norm: 9.8099     # gravity magnitude
 
 #loop closure parameters
 loop_closure: 0                    # start loop closure
 load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
 fast_relocalization: 0             # useful in real-time and large project
-pose_graph_save_path: "/home/jagatpreet/datasets/voxl_logs?vio_results" # save and load path
+pose_graph_save_path: "/home/jagatpreet/datasets/voxl_logs/vio_results" # save and load path
 
 #unsynchronization parameters
 estimate_td: 1                      # online estimate time offset between camera and imu
-td: 0.00228526955139                           # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+td: -0.105779198723                 # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #rolling shutter parameters
 rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera
