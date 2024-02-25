@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
     nav_msgs
     tf
     cv_bridge
+    visualization_msgs
     )
 
 find_package(OpenCV REQUIRED)
