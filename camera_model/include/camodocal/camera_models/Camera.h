@@ -4,6 +4,9 @@
 #include <boost/shared_ptr.hpp>
 #include <eigen3/Eigen/Dense>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgcodecs/legacy/constants_c.h>
+#include <opencv2/imgproc/types_c.h>
+#include <opencv2/imgproc/imgproc_c.h>
 #include <vector>
 
 namespace camodocal
