@@ -51,8 +51,7 @@ additional ROS pacakge
 
 
 1.2. **Ceres Solver**
-Follow [Ceres Installation](http://ceres-solver.org/installation.html), use version 1.14.0 and remember to **make install**.
-(Our testing environment: Ubuntu 16.04, ROS Kinetic, OpenCV 3.3.1, Eigen 3.3.3) 
+Follow [Ceres Installation](http://ceres-solver.org/installation.html), use **version 1.14.0** and remember to **sudo make install**. (There are compilation issues in Ceres versions 2.0.0 and above.)
 
 ## 2. Build VINS-Mono on ROS
 Clone the repository and catkin_make:
