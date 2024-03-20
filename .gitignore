@@ -13,3 +13,6 @@ test/
 test.launch
 .vscode/
 log/**
+build/**
+log/**
+install/**
