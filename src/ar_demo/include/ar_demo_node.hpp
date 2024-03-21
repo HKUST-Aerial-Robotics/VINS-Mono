@@ -34,8 +34,9 @@
 
 
 using markerArrayMsg = visualization_msgs::msg::MarkerArray;
-using imageConstPtr = sensor_msgs::msg::Image::SharedPtr;
-using odometryConstPtr = nav_msgs::msg::Odometry::SharedPtr;
+using pointCloudMsg = sensor_msgs::msg::PointCloud;
+using odometryMsg = nav_msgs::msg::Odometry;
+using imageMsg = sensor_msgs::msg::Image;
 
 class ArDemo: public rclcpp::Node{
 public:
@@ -46,10 +47,13 @@ public:
     void addObject();
     void projectObject(Eigen::Vector3d camera_p, Eigen::Quaterniond camera_q);
     void drawObject(cv::Mat &AR_image);
-    void callback(const imageConstPtr& img_msg, const odometryConstPtr pose_msg);
-    void pointCallback(const sensor_msgs::msg::PointCloud::SharedPtr &point_msg);
-    void imgCallback(const imageConstPtr& img_msg);
-    void poseCallback(const odometryConstPtr &pose_msg);
+    void callback(const imageMsg::SharedPtr img_msg, const odometryMsg::SharedPtr pose_msg);
+    void pointCallback(const pointCloudMsg::SharedPtr point_msg);
+    void imgCallback(const imageMsg::SharedPtr img_msg);
+    void poseCallback(const odometryMsg::SharedPtr pose_msg);
+    void setup();
+    void getParam();
+    void initTopic();
 private:
     int row;
     int column;
@@ -57,6 +61,7 @@ private:
 
     const int axis_num = 0;
     const int cube_num = 1;
+    std::string calib_file;
 
     int img_cnt = 0;
     bool use_undistored_img = false;
@@ -71,7 +76,7 @@ private:
     std::vector<Eigen::Vector3d> output_cube[3];
     std::vector<double> output_corner_dis[3];
     double cube_center_depth[3];
-    std::queue<imageConstPtr> img_buf;
+    std::queue< imageMsg::SharedPtr> img_buf;
     bool look_ground = 0;
     std_msgs::msg::ColorRGBA line_color_r;
     std_msgs::msg::ColorRGBA line_color_g;
@@ -79,7 +84,9 @@ private:
 
     rclcpp::Publisher<markerArrayMsg>::SharedPtr object_pub;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_ARimage;
-
+    rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_point_cloud;        
+    rclcpp::Subscription<odometryMsg>::SharedPtr sub_pose_img;
+    rclcpp::Subscription<imageMsg>::SharedPtr sub_img;
 };
 
 #endif

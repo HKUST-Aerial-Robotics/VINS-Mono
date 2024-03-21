@@ -1,9 +1,12 @@
 #include "ar_demo_node.hpp"
 
+using namespace std::placeholders;
+
 ArDemo::ArDemo():Node("ar_demo"){
-    object_pub = this->create_publisher<markerArrayMsg>("object", 10);
-    pub_ARimage = this->create_publisher<sensor_msgs::msg::Image>("AR_image_topic", 10);
+    getParam();
+    initTopic();
     // std::cout << now().nanoseconds() << std::endl;
+    setup();
 }
 
 ArDemo::~ArDemo(){
@@ -276,7 +279,7 @@ void ArDemo::drawObject(cv::Mat &AR_image){
     }
 }
 
-void ArDemo::callback(const imageConstPtr& img_msg, const odometryConstPtr pose_msg){
+void ArDemo::callback(const imageMsg::SharedPtr img_msg, const odometryMsg::SharedPtr pose_msg){
    if(img_cnt < 50)  {
         img_cnt ++;
         return;
@@ -328,7 +331,7 @@ void ArDemo::callback(const imageConstPtr& img_msg, const odometryConstPtr pose_
    pub_ARimage->publish(*AR_msg);
 }
 
-void ArDemo::pointCallback(const sensor_msgs::msg::PointCloud::SharedPtr &point_msg){
+void ArDemo::pointCallback(const sensor_msgs::msg::PointCloud::SharedPtr point_msg){
     if (!look_ground)
         return;
     int height_range[30];
@@ -375,7 +378,7 @@ void ArDemo::pointCallback(const sensor_msgs::msg::PointCloud::SharedPtr &point_
 
 }
 
-void ArDemo::imgCallback(const imageConstPtr& img_msg){
+void ArDemo::imgCallback(const imageMsg::SharedPtr img_msg){
     if(pose_init) {
         img_buf.push(img_msg);
     }
@@ -383,7 +386,7 @@ void ArDemo::imgCallback(const imageConstPtr& img_msg){
         return;
 }
 
-void ArDemo::poseCallback(const odometryConstPtr &pose_msg){
+void ArDemo::poseCallback(const odometryMsg::SharedPtr pose_msg){
     if(!pose_init)  {
         pose_init = true;
         return;
@@ -402,6 +405,61 @@ void ArDemo::poseCallback(const odometryConstPtr &pose_msg){
         img_buf.pop();
     }
 }
+
+void ArDemo::setup(){
+    if(use_undistored_img){
+        row = 680;
+        column = 480;
+        focal_length = 320.0;
+    }else{
+        row = 752;
+        column = 480;
+        focal_length = 460.0;
+    }
+
+    axis[0] = Eigen::Vector3d(0, 1.5, -1.2);
+    axis[1] = Eigen::Vector3d(-10, 5, 0);
+    axis[2] = Eigen::Vector3d(3, 3, 3);
+    axis[3] = Eigen::Vector3d(-2, 2, 0);
+    axis[4] = Eigen::Vector3d(5, 10, -5);
+    axis[5] = Eigen::Vector3d(0, 10, -1);
+
+    cube_center[0] = Eigen::Vector3d(0, 1.5, -1.2 + box_length / 2.0);
+    //cube_center[0] = Eigen::Vector3d(0, 3, -1.2 + box_length / 2.0);
+    cube_center[1] = Eigen::Vector3d(4, -2, -1.2 + box_length / 2.0);
+    cube_center[2] = Eigen::Vector3d(0, -2, -1.2 + box_length / 2.0);
+
+    line_color_r.r = 1.0;
+    line_color_r.a = 1.0;
+    line_color_g.g = 1.0;
+    line_color_g.a = 1.0;
+    line_color_b.b = 1.0;
+    line_color_b.a = 1.0;
+
+    m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
+    addObject();
+    addObject();
+}
+
+void ArDemo::getParam(){
+    this->declare_parameter("calib_file", "");
+    calib_file = this->get_parameter("calib_file").as_string();
+    this->declare_parameter("use_undistored_img", false);
+    use_undistored_img = this->get_parameter("use_undistored_img").as_bool();
+}
+
+void ArDemo::initTopic(){
+    object_pub = this->create_publisher<markerArrayMsg>("AR_object", 10);
+    pub_ARimage = this->create_publisher<sensor_msgs::msg::Image>("AR_image", 1000);
+    sub_point_cloud = this->create_subscription<pointCloudMsg>("pointcloud", 2000, std::bind(
+                                    &ArDemo::pointCallback, this, _1));
+    sub_pose_img = this->create_subscription<odometryMsg>("camera_pose", 100, std::bind(
+                                    &ArDemo::poseCallback, this, _1));
+    sub_img = this->create_subscription<imageMsg>((use_undistored_img ? "image_undistored" : "image_raw")
+                                                            , 100, std::bind(&ArDemo::imgCallback, this, _1));
+
+}
+
 
 int main(int argc, char* argv[]){
     rclcpp::init(argc, argv);
