@@ -41,7 +41,6 @@ using imageMsg = sensor_msgs::msg::Image;
 class ArDemo: public rclcpp::Node{
 public:
     ArDemo();
-    ~ArDemo();
     void axisGenerate(visualization_msgs::msg::Marker &line_list, Eigen::Vector3d &origin, int id);
     void cubeGenerate(visualization_msgs::msg::Marker &marker, Eigen::Vector3d &origin, int id);
     void addObject();

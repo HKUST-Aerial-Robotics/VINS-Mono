@@ -9,10 +9,6 @@ ArDemo::ArDemo():Node("ar_demo"){
     setup();
 }
 
-ArDemo::~ArDemo(){
-
-}
-
 void ArDemo::axisGenerate(visualization_msgs::msg::Marker &line_list, Eigen::Vector3d &origin, int id){
     line_list.id = id;
     line_list.header.frame_id = "world";
