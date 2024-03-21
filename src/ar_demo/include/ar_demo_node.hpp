@@ -28,13 +28,28 @@
 #include "message_filters/time_synchronizer.h"
 #include "message_filters/sync_policies/approximate_time.h"
 
-// #include "camodocal/camera_models/CataCamera.h"
-// #include "camodocal/camera_models/CameraFactory.h"
-// #include "camodocal/camera_models/PinholeCamera.h"
+#include "camodocal/camera_models/CataCamera.h"
+#include "camodocal/camera_models/CameraFactory.h"
+#include "camodocal/camera_models/PinholeCamera.h"
+
 
 using markerArrayMsg = visualization_msgs::msg::MarkerArray;
+using imageConstPtr = sensor_msgs::msg::Image::SharedPtr;
+using odometryConstPtr = nav_msgs::msg::Odometry::SharedPtr;
 
 class ArDemo: public rclcpp::Node{
+public:
+    ArDemo();
+    ~ArDemo();
+    void axisGenerate(visualization_msgs::msg::Marker &line_list, Eigen::Vector3d &origin, int id);
+    void cubeGenerate(visualization_msgs::msg::Marker &marker, Eigen::Vector3d &origin, int id);
+    void addObject();
+    void projectObject(Eigen::Vector3d camera_p, Eigen::Quaterniond camera_q);
+    void drawObject(cv::Mat &AR_image);
+    void callback(const imageConstPtr& img_msg, const odometryConstPtr pose_msg);
+    void pointCallback(const sensor_msgs::msg::PointCloud::SharedPtr &point_msg);
+    void imgCallback(const imageConstPtr& img_msg);
+    void poseCallback(const odometryConstPtr &pose_msg);
 private:
     int row;
     int column;
@@ -47,6 +62,7 @@ private:
     bool use_undistored_img = false;
     bool pose_init          = false;
     double box_length = 0.8;
+    camodocal::CameraPtr m_camera;
     
     Eigen::Vector3d axis[6];
     Eigen::Vector3d cube_center[3];
@@ -55,20 +71,14 @@ private:
     std::vector<Eigen::Vector3d> output_cube[3];
     std::vector<double> output_corner_dis[3];
     double cube_center_depth[3];
-    std::queue<cv_bridge::CvImageConstPtr> img_buf;
+    std::queue<imageConstPtr> img_buf;
     bool look_ground = 0;
     std_msgs::msg::ColorRGBA line_color_r;
     std_msgs::msg::ColorRGBA line_color_g;
     std_msgs::msg::ColorRGBA line_color_b;
 
     rclcpp::Publisher<markerArrayMsg>::SharedPtr object_pub;
-public:
-    ArDemo();
-    ~ArDemo();
-    void axisGenerate(visualization_msgs::msg::Marker &line_list, Eigen::Vector3d &origin, int id);
-    void cubeGenerate(visualization_msgs::msg::Marker &marker, Eigen::Vector3d &origin, int id);
-    void addObject();
-    void projectObject(Eigen::Vector3d camera_p, Eigen::Quaterniond camera_q);
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_ARimage;
 
 };
 

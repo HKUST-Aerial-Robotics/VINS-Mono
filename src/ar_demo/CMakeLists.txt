@@ -17,6 +17,7 @@ find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(image_transport REQUIRED)
+find_package(camodocal REQUIRED)
 
 # find_package(camodocal REQUIRED)
 file(GLOB_RECURSE SRC_FILE ${PROJECT_SOURCE_DIR}/src/*.cpp)
@@ -37,7 +38,7 @@ ament_target_dependencies(
   cv_bridge
   message_filters
   image_transport
-  # camodocal
+  camodocal
 )
 
 install(
