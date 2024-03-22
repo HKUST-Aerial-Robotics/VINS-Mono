@@ -19,6 +19,7 @@ find_package(message_filters REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(camodocal REQUIRED)
 
+
 # find_package(camodocal REQUIRED)
 file(GLOB_RECURSE SRC_FILE ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
