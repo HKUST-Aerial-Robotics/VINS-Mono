@@ -1,0 +1,11 @@
+<launch>
+	<include file="$(find vins_estimator)/launch/3dm.launch"/>
+
+    <node pkg="ar_demo" type="ar_demo_node" name="ar_demo_node" output="screen">
+        <remap from="~image_raw" to="/mv_25001498/image_raw"/>
+        <remap from="~camera_pose" to="/vins_estimator/camera_pose"/>
+        <remap from="~pointcloud" to="/vins_estimator/point_cloud"/>
+        <param name="calib_file" type="string" value="$(find feature_tracker)/../config/3dm/3dm_config.yaml"/>
+        <param name="use_undistored_img" type="bool" value="false"/>
+    </node>
+</launch>
