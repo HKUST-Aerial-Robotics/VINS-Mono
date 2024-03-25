@@ -1,4 +1,4 @@
-#include "parameters.h"
+#include "parameters_.h"
 
 double INIT_DEPTH;
 double MIN_PARALLAX;
@@ -24,22 +24,22 @@ double ROW, COL;
 double TD, TR;
 
 template <typename T>
-T readParam(ros::NodeHandle &n, std::string name)
+T readParam(rclcpp::Node::SharedPtr n, std::string name)
 {
     T ans;
-    if (n.getParam(name, ans))
+    if (n->get_parameter(name, ans))
     {
-        ROS_INFO_STREAM("Loaded " << name << ": " << ans);
+        std::cout << "Loaded " << name << ": " << ans << std::endl;
     }
     else
     {
-        ROS_ERROR_STREAM("Failed to load " << name);
-        n.shutdown();
+        std::cout << "Failed to load " << name << std::endl;
+        rclcpp::shutdown();
     }
     return ans;
 }
 
-void readParameters(ros::NodeHandle &n)
+void readParameters(rclcpp::Node::SharedPtr n)
 {
     std::string config_file;
     config_file = readParam<std::string>(n, "config_file");
@@ -74,12 +74,12 @@ void readParameters(ros::NodeHandle &n)
     G.z() = fsSettings["g_norm"];
     ROW = fsSettings["image_height"];
     COL = fsSettings["image_width"];
-    ROS_INFO("ROW: %f COL: %f ", ROW, COL);
+    printf("ROW: %f COL: %f ", ROW, COL);
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2)
     {
-        ROS_WARN("have no prior about extrinsic param, calibrate extrinsic param");
+        printf("have no prior about extrinsic param, calibrate extrinsic param");
         RIC.push_back(Eigen::Matrix3d::Identity());
         TIC.push_back(Eigen::Vector3d::Zero());
         EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
@@ -89,11 +89,11 @@ void readParameters(ros::NodeHandle &n)
     {
         if ( ESTIMATE_EXTRINSIC == 1)
         {
-            ROS_WARN(" Optimize extrinsic param around initial guess!");
+            printf(" Optimize extrinsic param around initial guess!");
             EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
         }
         if (ESTIMATE_EXTRINSIC == 0)
-            ROS_WARN(" fix extrinsic param ");
+            printf(" fix extrinsic param ");
 
         cv::Mat cv_R, cv_T;
         fsSettings["extrinsicRotation"] >> cv_R;
@@ -106,9 +106,8 @@ void readParameters(ros::NodeHandle &n)
         eigen_R = Q.normalized();
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
-        ROS_INFO_STREAM("Extrinsic_R : " << std::endl << RIC[0]);
-        ROS_INFO_STREAM("Extrinsic_T : " << std::endl << TIC[0].transpose());
-        
+       std::cout << "Extrinsic_R : " << std::endl << RIC[0] << std::endl;
+       std::cout << "Extrinsic_T : " << std::endl << TIC[0].transpose() << std::endl;
     } 
 
     INIT_DEPTH = 5.0;
@@ -118,15 +117,15 @@ void readParameters(ros::NodeHandle &n)
     TD = fsSettings["td"];
     ESTIMATE_TD = fsSettings["estimate_td"];
     if (ESTIMATE_TD)
-        ROS_INFO_STREAM("Unsynchronized sensors, online estimate time offset, initial td: " << TD);
+        std::cout << "Unsynchronized sensors, online estimate time offset, initial td: " << TD << std::endl;
     else
-        ROS_INFO_STREAM("Synchronized sensors, fix time offset: " << TD);
+        std::cout << "Synchronized sensors, fix time offset: " << TD << std::endl;
 
     ROLLING_SHUTTER = fsSettings["rolling_shutter"];
     if (ROLLING_SHUTTER)
     {
         TR = fsSettings["rolling_shutter_tr"];
-        ROS_INFO_STREAM("rolling shutter camera, read out time per line: " << TR);
+        std::cout << "rolling shutter camera, read out time per line: " << TR << std::endl;
     }
     else
     {

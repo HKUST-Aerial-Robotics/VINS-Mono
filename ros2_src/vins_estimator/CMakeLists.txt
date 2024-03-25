@@ -15,7 +15,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(camodocal REQUIRED)
+# find_package(camodocal REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 
@@ -27,7 +27,21 @@ include_directories(${Boost_INCLUDE_DIRS}
               )
 
 add_executable(vins_estimator_node
-      src/estimator_node.cpp 
+  src/estimator_node.cpp
+  src/parameters.cpp
+  src/estimator.cpp
+  src/feature_manager.cpp
+  src/factor/pose_local_parameterization.cpp
+  src/factor/projection_factor.cpp
+  src/factor/projection_td_factor.cpp
+  src/factor/marginalization_factor.cpp
+  src/utility/utility.cpp
+  src/utility/visualization.cpp
+  src/utility/CameraPoseVisualization.cpp
+  src/initial/solve_5pts.cpp
+  src/initial/initial_aligment.cpp
+  src/initial/initial_sfm.cpp
+  src/initial/initial_ex_rotation.cpp
 )
 
 ament_target_dependencies(
@@ -38,7 +52,7 @@ ament_target_dependencies(
   tf2
   tf2_ros
   OpenCV
-  camodocal
+  # camodocal
   visualization_msgs
   std_msgs
   cv_bridge

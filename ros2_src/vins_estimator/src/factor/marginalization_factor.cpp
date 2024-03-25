@@ -70,7 +70,7 @@ void ResidualBlockInfo::Evaluate()
 
 MarginalizationInfo::~MarginalizationInfo()
 {
-    //ROS_WARN("release marginlizationinfo");
+    //printf("release marginlizationinfo");
     
     for (auto it = parameter_block_data.begin(); it != parameter_block_data.end(); ++it)
         delete[] it->second;
@@ -249,8 +249,9 @@ void MarginalizationInfo::marginalize()
         int ret = pthread_create( &tids[i], NULL, ThreadsConstructA ,(void*)&(threadsstruct[i]));
         if (ret != 0)
         {
-            ROS_WARN("pthread_create error");
-            ROS_BREAK();
+            printf("pthread_create error");
+            // ROS_BREAK();
+            break;
         }
     }
     for( int i = NUM_THREADS - 1; i >= 0; i--)  
