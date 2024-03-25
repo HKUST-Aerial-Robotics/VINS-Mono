@@ -11,8 +11,7 @@ A3_rs/
 A3_rs.launch
 test/
 test.launch
-.vscode/
-log/**
-build/**
-log/**
-install/**
+**/.vscode/
+**/log/**
+**/build/**
+**/install/**
