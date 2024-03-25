@@ -300,51 +300,51 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::msg::Header &head
 
 void pubTF(const Estimator &estimator, const std_msgs::msg::Header &header)
 {
-    node = rclcpp::Node::make_shared("your_node_name");
-    if( estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
-        return;
-    static tf2_ros::TransformBroadcaster br(node);
-    tf2::Transform transform;
-    tf2::Quaternion q;
-    // body frame
-    Vector3d correct_t;
-    Quaterniond correct_q;
-    correct_t = estimator.Ps[WINDOW_SIZE];
-    correct_q = estimator.Rs[WINDOW_SIZE];
+    // node = rclcpp::Node::make_shared("your_node_name");
+    // if( estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
+    //     return;
+    // static tf2_ros::TransformBroadcaster br(node);
+    // tf2::Transform transform;
+    // tf2::Quaternion q;
+    // // body frame
+    // Vector3d correct_t;
+    // Quaterniond correct_q;
+    // correct_t = estimator.Ps[WINDOW_SIZE];
+    // correct_q = estimator.Rs[WINDOW_SIZE];
 
-    transform.setOrigin(tf2::Vector3(correct_t(0),
-                                    correct_t(1),
-                                    correct_t(2)));
-    q.setW(correct_q.w());
-    q.setX(correct_q.x());
-    q.setY(correct_q.y());
-    q.setZ(correct_q.z());
-    transform.setRotation(q);
-    br.sendTransform(tf::StampedTransform(transform, header.stamp, "world", "body"));
+    // transform.setOrigin(tf2::Vector3(correct_t(0),
+    //                                 correct_t(1),
+    //                                 correct_t(2)));
+    // q.setW(correct_q.w());
+    // q.setX(correct_q.x());
+    // q.setY(correct_q.y());
+    // q.setZ(correct_q.z());
+    // transform.setRotation(q);
+    // br.sendTransform(tf::StampedTransform(transform, header.stamp, "world", "body"));
 
-    // camera frame
-    transform.setOrigin(tf2::Vector3(estimator.tic[0].x(),
-                                    estimator.tic[0].y(),
-                                    estimator.tic[0].z()));
-    q.setW(Quaterniond(estimator.ric[0]).w());
-    q.setX(Quaterniond(estimator.ric[0]).x());
-    q.setY(Quaterniond(estimator.ric[0]).y());
-    q.setZ(Quaterniond(estimator.ric[0]).z());
-    transform.setRotation(q);
-    br.sendTransform(tf::StampedTransform(transform, header.stamp, "body", "camera"));
+    // // camera frame
+    // transform.setOrigin(tf2::Vector3(estimator.tic[0].x(),
+    //                                 estimator.tic[0].y(),
+    //                                 estimator.tic[0].z()));
+    // q.setW(Quaterniond(estimator.ric[0]).w());
+    // q.setX(Quaterniond(estimator.ric[0]).x());
+    // q.setY(Quaterniond(estimator.ric[0]).y());
+    // q.setZ(Quaterniond(estimator.ric[0]).z());
+    // transform.setRotation(q);
+    // br.sendTransform(tf::StampedTransform(transform, header.stamp, "body", "camera"));
 
-    nav_msgs::msg::Odometry odometry;
-    odometry.header = header;
-    odometry.header.frame_id = "world";
-    odometry.pose.pose.position.x = estimator.tic[0].x();
-    odometry.pose.pose.position.y = estimator.tic[0].y();
-    odometry.pose.pose.position.z = estimator.tic[0].z();
-    Quaterniond tmp_q{estimator.ric[0]};
-    odometry.pose.pose.orientation.x = tmp_q.x();
-    odometry.pose.pose.orientation.y = tmp_q.y();
-    odometry.pose.pose.orientation.z = tmp_q.z();
-    odometry.pose.pose.orientation.w = tmp_q.w();
-    pub_extrinsic->publish(odometry);
+    // nav_msgs::msg::Odometry odometry;
+    // odometry.header = header;
+    // odometry.header.frame_id = "world";
+    // odometry.pose.pose.position.x = estimator.tic[0].x();
+    // odometry.pose.pose.position.y = estimator.tic[0].y();
+    // odometry.pose.pose.position.z = estimator.tic[0].z();
+    // Quaterniond tmp_q{estimator.ric[0]};
+    // odometry.pose.pose.orientation.x = tmp_q.x();
+    // odometry.pose.pose.orientation.y = tmp_q.y();
+    // odometry.pose.pose.orientation.z = tmp_q.z();
+    // odometry.pose.pose.orientation.w = tmp_q.w();
+    // pub_extrinsic->publish(odometry);
 
 }
 

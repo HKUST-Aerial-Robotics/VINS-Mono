@@ -41,8 +41,8 @@ extern rclcpp::Publisher<markerMsg>::SharedPtr pub_key_poses;
 // extern rclcpp::Publisher<>::SharedPtr pub_key;
 // extern rclcpp::Publisher<>::SharedPtr pub_pose_graph;
 
-std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
-rclcpp::Node::SharedPtr node;
+// std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
+// rclcpp::Node::SharedPtr node;
 
 extern nav_msgs::msg::Path path;
 extern int IMAGE_ROW, IMAGE_COL;

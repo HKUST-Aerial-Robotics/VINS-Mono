@@ -3,12 +3,108 @@
 Estimator estimator;
 
 EstimatorNode::EstimatorNode() : Node("estimator_node"){
-    measurement_process = std::thread(&EstimatorNode::process, this);
+    // measurement_process = std::thread(&EstimatorNode::process, this);
         // estimator.setParameter();
     RCLCPP_INFO(this->get_logger(), "waiting for image and imu...");
     // registerPub(this);
     getParams();
 
+}
+
+void EstimatorNode::predict(const imuMsg::SharedPtr imu_msg)
+{
+    double t = imu_msg->header.stamp.sec;
+    if (init_imu)
+    {
+        latest_time = t;
+        init_imu = 0;
+        return;
+    }
+    double dt = t - latest_time;
+    latest_time = t;
+
+    double dx = imu_msg->linear_acceleration.x;
+    double dy = imu_msg->linear_acceleration.y;
+    double dz = imu_msg->linear_acceleration.z;
+    Eigen::Vector3d linear_acceleration{dx, dy, dz};
+
+    double rx = imu_msg->angular_velocity.x;
+    double ry = imu_msg->angular_velocity.y;
+    double rz = imu_msg->angular_velocity.z;
+    Eigen::Vector3d angular_velocity{rx, ry, rz};
+
+    Eigen::Vector3d un_acc_0 = tmp_Q * (acc_0 - tmp_Ba) - estimator.g;
+
+    Eigen::Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - tmp_Bg;
+    tmp_Q = tmp_Q * Utility::deltaQ(un_gyr * dt);
+
+    Eigen::Vector3d un_acc_1 = tmp_Q * (linear_acceleration - tmp_Ba) - estimator.g;
+
+    Eigen::Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
+
+    tmp_P = tmp_P + dt * tmp_V + 0.5 * dt * dt * un_acc;
+    tmp_V = tmp_V + dt * un_acc;
+
+    acc_0 = linear_acceleration;
+    gyr_0 = angular_velocity;
+}
+
+void EstimatorNode::update()
+{
+    TicToc t_predict;
+    latest_time = current_time;
+    tmp_P = estimator.Ps[WINDOW_SIZE];
+    tmp_Q = estimator.Rs[WINDOW_SIZE];
+    tmp_V = estimator.Vs[WINDOW_SIZE];
+    tmp_Ba = estimator.Bas[WINDOW_SIZE];
+    tmp_Bg = estimator.Bgs[WINDOW_SIZE];
+    acc_0 = estimator.acc_0;
+    gyr_0 = estimator.gyr_0;
+
+    queue<imuMsg::SharedPtr> tmp_imu_buf = imu_buf;
+    for (imuMsg::SharedPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())
+        predict(tmp_imu_buf.front());
+
+}
+
+
+std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>> EstimatorNode::getMeasurements()
+{
+    std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>> measurements;
+
+    while (true)
+    {
+        if (imu_buf.empty() || feature_buf.empty())
+            return measurements;
+
+        if (!(imu_buf.back()->header.stamp.sec > feature_buf.front()->header.stamp.sec + estimator.td))
+        {
+            //printf("wait for imu, only should happen at the beginning");
+            sum_of_wait++;
+            return measurements;
+        }
+
+        if (!(imu_buf.front()->header.stamp.sec < feature_buf.front()->header.stamp.sec + estimator.td))
+        {
+            printf("throw img, only should happen at the beginning");
+            feature_buf.pop();
+            continue;
+        }
+        pointCloudMsg::SharedPtr img_msg = feature_buf.front();
+        feature_buf.pop();
+
+        std::vector<imuMsg::SharedPtr> IMUs;
+        while (imu_buf.front()->header.stamp.sec < img_msg->header.stamp.sec + estimator.td)
+        {
+            IMUs.emplace_back(imu_buf.front());
+            imu_buf.pop();
+        }
+        IMUs.emplace_back(imu_buf.front());
+        if (IMUs.empty())
+            printf("no imu between two image");
+        measurements.emplace_back(IMUs, img_msg);
+    }
+    return measurements;
 }
 
 void EstimatorNode::imuCallback(const imuMsg::SharedPtr imu_msg){
@@ -196,7 +292,7 @@ void EstimatorNode::process(){
             pubKeyframe(estimator);
             if (relo_msg != NULL)
                 pubRelocalization(estimator);
-            //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.toSec(), ros::Time::now().toSec());
+            //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.sec, ros::Time::now().toSec());
         }
         m_estimator.unlock();
         m_buf.lock();

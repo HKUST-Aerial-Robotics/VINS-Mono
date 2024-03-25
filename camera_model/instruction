@@ -1,0 +1,1 @@
+rosrun camera_model Calibration -w 8 -h 11 -s 70 -i ~/bag/PX/calib/

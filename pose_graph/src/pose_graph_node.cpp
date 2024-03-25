@@ -1,10 +1,4 @@
 #include <vector>
-#include <mutex>
-#include <queue>
-#include <thread>
-#include <iostream>
-
-
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
@@ -14,9 +8,12 @@
 #include <visualization_msgs/Marker.h>
 #include <std_msgs/Bool.h>
 #include <cv_bridge/cv_bridge.h>
+#include <iostream>
 #include <ros/package.h>
-
-
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <eigen3/Eigen/Dense>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 #include "keyframe.h"
@@ -24,7 +21,6 @@
 #include "pose_graph.h"
 #include "utility/CameraPoseVisualization.h"
 #include "parameters.h"
-
 #define SKIP_FIRST_CNT 10
 using namespace std;
 
