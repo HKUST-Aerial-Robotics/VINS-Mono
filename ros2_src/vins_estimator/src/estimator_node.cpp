@@ -3,8 +3,8 @@
 Estimator estimator;
 
 EstimatorNode::EstimatorNode() : Node("estimator_node"){
-    // measurement_process = std::thread(&EstimatorNode::process, this);
-        // estimator.setParameter();
+    measurement_process = std::thread(&EstimatorNode::process, this);
+    estimator.setParameter();
     RCLCPP_INFO(this->get_logger(), "waiting for image and imu...");
     // registerPub(this);
     getParams();
@@ -66,7 +66,6 @@ void EstimatorNode::update()
         predict(tmp_imu_buf.front());
 
 }
-
 
 std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>> EstimatorNode::getMeasurements()
 {
@@ -305,14 +304,14 @@ void EstimatorNode::process(){
 }
 
 void EstimatorNode::initTopics(){
-//   sub_imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000, 
-//                             std::bind(&EstimatorNode::imuCallback, this, std::placeholders::_1));
-//   sub_image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000, std::bind(
-//                                     &EstimatorNode::feature_callback, this, std::placeholders::_1));
-//   sub_restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000, std::bind( 
-//                             &EstimatorNode::restart_callback, this, std::placeholders::_1));
-//   sub_relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000, std::bind( 
-//                                                        &EstimatorNode::relocalization_callback, this, std::placeholders::_1));
+  sub_imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000, 
+                            std::bind(&EstimatorNode::imuCallback, this, std::placeholders::_1));
+  sub_image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000, std::bind(
+                                    &EstimatorNode::feature_callback, this, std::placeholders::_1));
+  sub_restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000, std::bind( 
+                            &EstimatorNode::restart_callback, this, std::placeholders::_1));
+  sub_relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000, std::bind( 
+                                                       &EstimatorNode::relocalization_callback, this, std::placeholders::_1));
 
 }
 
