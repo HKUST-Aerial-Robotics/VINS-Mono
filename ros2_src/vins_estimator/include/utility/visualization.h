@@ -17,6 +17,7 @@
 #include "geometry_msgs/msg/point_stamped.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 
+#include "tf2/convert.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Transform.h"

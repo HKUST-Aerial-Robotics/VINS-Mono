@@ -196,7 +196,7 @@ void EstimatorNode::process(){
                     if (current_time < 0)
                         current_time = t;
                     double dt = t - current_time;
-                    // ROS_ASSERT(dt >= 0);
+                    assert(dt >= 0);
                     current_time = t;
                     dx = imu_msg->linear_acceleration.x;
                     dy = imu_msg->linear_acceleration.y;
@@ -205,7 +205,7 @@ void EstimatorNode::process(){
                     ry = imu_msg->angular_velocity.y;
                     rz = imu_msg->angular_velocity.z;
                     estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    //printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
+                    printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
 
                 }
                 else
@@ -213,9 +213,9 @@ void EstimatorNode::process(){
                     double dt_1 = img_t - current_time;
                     double dt_2 = t - img_t;
                     current_time = img_t;
-                    // ROS_ASSERT(dt_1 >= 0);
-                    // ROS_ASSERT(dt_2 >= 0);
-                    // ROS_ASSERT(dt_1 + dt_2 > 0);
+                    assert(dt_1 >= 0);
+                    assert(dt_2 >= 0);
+                    assert(dt_1 + dt_2 > 0);
                     double w1 = dt_2 / (dt_1 + dt_2);
                     double w2 = dt_1 / (dt_1 + dt_2);
                     dx = w1 * dx + w2 * imu_msg->linear_acceleration.x;
@@ -225,7 +225,7 @@ void EstimatorNode::process(){
                     ry = w1 * ry + w2 * imu_msg->angular_velocity.y;
                     rz = w1 * rz + w2 * imu_msg->angular_velocity.z;
                     estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
+                    printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
                 }
             }
             // set relocalization frame
@@ -271,7 +271,7 @@ void EstimatorNode::process(){
                 double p_v = img_msg->channels[2].values[i];
                 double velocity_x = img_msg->channels[3].values[i];
                 double velocity_y = img_msg->channels[4].values[i];
-                // ROS_ASSERT(z == 1);
+                assert(z == 1);
                 Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
                 image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
@@ -291,7 +291,7 @@ void EstimatorNode::process(){
             pubKeyframe(estimator);
             if (relo_msg != NULL)
                 pubRelocalization(estimator);
-            //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.sec, ros::Time::now().toSec());
+            // printf("end: %d, at %d", img_msg->header.stamp.sec, rclcpp::Node::now());
         }
         m_estimator.unlock();
         m_buf.lock();
