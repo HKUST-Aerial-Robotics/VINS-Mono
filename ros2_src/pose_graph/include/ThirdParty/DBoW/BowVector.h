@@ -1,3 +1,12 @@
+/**
+ * File: BowVector.h
+ * Date: March 2011
+ * Author: Dorian Galvez-Lopez
+ * Description: bag of words vector
+ * License: see the LICENSE.txt file
+ *
+ */
+
 #ifndef __D_T_BOW_VECTOR__
 #define __D_T_BOW_VECTOR__
 

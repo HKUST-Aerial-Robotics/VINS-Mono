@@ -18,10 +18,6 @@ int FOCAL_LENGTH;
 int FISHEYE;
 bool PUB_THIS_FRAME;
 
-int row = 680;
-int column = 480;
-double focal_length = 320.0;
-
 template <typename T>
 T readParam(rclcpp::Node &n, std::string name){
     T ans;

@@ -6,7 +6,7 @@ bool inBorder(const cv::Point2f &pt){
     const int BORDER_SIZE = 1;
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
-    return BORDER_SIZE <= img_x && img_x < column - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < row - BORDER_SIZE;
+    return BORDER_SIZE <= img_x && img_x < COL - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < ROW - BORDER_SIZE;
 }
 
 
@@ -33,7 +33,7 @@ void FeatureTracker::setMask() {
     if(FISHEYE)
         mask = fisheye_mask.clone();
     else
-        mask = cv::Mat(row, column, CV_8UC1, cv::Scalar(255));
+        mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
     
 
     // prefer to keep features that are tracked for long time
@@ -160,13 +160,13 @@ void FeatureTracker::rejectWithF(){
         for (unsigned int i = 0; i < cur_pts.size(); i++) {
             Eigen::Vector3d tmp_p;
             m_camera->liftProjective(Eigen::Vector2d(cur_pts[i].x, cur_pts[i].y), tmp_p);
-            tmp_p.x() = focal_length * tmp_p.x() / tmp_p.z() + column / 2.0;
-            tmp_p.y() = focal_length * tmp_p.y() / tmp_p.z() + row / 2.0;
+            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
+            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
             un_cur_pts[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
 
             m_camera->liftProjective(Eigen::Vector2d(forw_pts[i].x, forw_pts[i].y), tmp_p);
-            tmp_p.x() = focal_length * tmp_p.x() / tmp_p.z() + column / 2.0;
-            tmp_p.y() = focal_length * tmp_p.y() / tmp_p.z() + row / 2.0;
+            tmp_p.x() = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
+            tmp_p.y() = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
             un_forw_pts[i] = cv::Point2f(tmp_p.x(), tmp_p.y());
         }
 
@@ -200,10 +200,10 @@ void FeatureTracker::readIntrinsicParameter(const std::string &calib_file){
 }
 
 void FeatureTracker::showUndistortion(const std::string &name) {
-    cv::Mat undistortedImg(row + 600, column + 600, CV_8UC1, cv::Scalar(0));
+    cv::Mat undistortedImg(ROW + 600, COL + 600, CV_8UC1, cv::Scalar(0));
     std::vector<Eigen::Vector2d> distortedp, undistortedp;
-    for (int i = 0; i < column; i++)
-        for (int j = 0; j < row; j++)
+    for (int i = 0; i < COL; i++)
+        for (int j = 0; j < ROW; j++)
         {
             Eigen::Vector2d a(i, j);
             Eigen::Vector3d b;
@@ -215,13 +215,13 @@ void FeatureTracker::showUndistortion(const std::string &name) {
     for (int i = 0; i < int(undistortedp.size()); i++)
     {
         cv::Mat pp(3, 1, CV_32FC1);
-        pp.at<float>(0, 0) = undistortedp[i].x() * focal_length + column / 2;
-        pp.at<float>(1, 0) = undistortedp[i].y() * focal_length + row / 2;
+        pp.at<float>(0, 0) = undistortedp[i].x() * FOCAL_LENGTH + COL / 2;
+        pp.at<float>(1, 0) = undistortedp[i].y() * FOCAL_LENGTH + ROW / 2;
         pp.at<float>(2, 0) = 1.0;
         //cout << trackerData[0].K << endl;
         //printf("%lf %lf\n", p.at<float>(1, 0), p.at<float>(0, 0));
         //printf("%lf %lf\n", pp.at<float>(1, 0), pp.at<float>(0, 0));
-        if (pp.at<float>(1, 0) + 300 >= 0 && pp.at<float>(1, 0) + 300 < row + 600 && pp.at<float>(0, 0) + 300 >= 0 && pp.at<float>(0, 0) + 300 < column + 600)
+        if (pp.at<float>(1, 0) + 300 >= 0 && pp.at<float>(1, 0) + 300 < ROW + 600 && pp.at<float>(0, 0) + 300 >= 0 && pp.at<float>(0, 0) + 300 < COL + 600)
         {
             undistortedImg.at<uchar>(pp.at<float>(1, 0) + 300, pp.at<float>(0, 0) + 300) = cur_img.at<uchar>(distortedp[i].y(), distortedp[i].x());
         }

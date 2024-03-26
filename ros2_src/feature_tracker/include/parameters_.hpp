@@ -4,9 +4,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
-extern int row;
-extern int column;
-extern double focal_length ;
+extern int ROW;
+extern int COL;
+extern int FOCAL_LENGTH;
 const int NUM_OF_CAM = 1;
 
 

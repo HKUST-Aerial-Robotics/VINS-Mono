@@ -16,7 +16,6 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
                 std::cout << "load mask success\n";
         }
     }
-
 }
 
 void FeatureTrackerNode::initTopic(){
@@ -82,15 +81,15 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
     for (int i = 0; i < NUM_OF_CAM; i++) {
         std::cout << "processing camera " << i <<std::endl;
         if (i != 1 || !STEREO_TRACK)
-            trackerData[i].readImage(ptr->image.rowRange(row * i, row * (i + 1)), img_msg->header.stamp.sec);
+            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.sec);
         else
         {
             if (EQUALIZE) {
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
-                clahe->apply(ptr->image.rowRange(row * i, row * (i + 1)), trackerData[i].cur_img);
+                clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i].cur_img);
             }
             else
-                trackerData[i].cur_img = ptr->image.rowRange(row * i, row * (i + 1));
+                trackerData[i].cur_img = ptr->image.rowRange(ROW * i, ROW * (i + 1));
         }
 
 #if SHOW_UNDISTORTION
@@ -168,7 +167,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
 
             for (int i = 0; i < NUM_OF_CAM; i++)
             {
-                cv::Mat tmp_img = stereo_img.rowRange(i * row, (i + 1) * row);
+                cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
                 cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
 
                 for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
@@ -196,7 +195,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
             pub_match->publish(*ptr->toImageMsg());
         }
     }
-    std::cout << "whole feature tracker processing costs: " << t_r.toc() << std::endl;
+    RCLCPP_INFO(this->get_logger(), "whole feature tracker processing costs: %f", t_r.toc());
 }
 
 int main(int argc, char* argv[]){
