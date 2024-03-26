@@ -44,8 +44,8 @@ int FeatureManager::getFeatureCount()
 
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td)
 {
-    printf("input feature: %d", (int)image.size());
-    printf("num of feature: %d", getFeatureCount());
+    RCLCPP_DEBUG(rclcpp::get_logger("feature_manager"), "input feature: %d", (int)image.size());
+    RCLCPP_DEBUG(rclcpp::get_logger("feature_manager"), "num of feature: %d", getFeatureCount());
     double parallax_sum = 0;
     int parallax_num = 0;
     last_track_num = 0;
@@ -90,26 +90,26 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
     }
     else
     {
-        printf("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
-        printf("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_manager"), "parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_manager"), "current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
         return parallax_sum / parallax_num >= MIN_PARALLAX;
     }
 }
 
 void FeatureManager::debugShow()
 {
-    printf("debug show");
+    RCLCPP_DEBUG(rclcpp::get_logger("feature_manager"), "debug show");
     for (auto &it : feature)
     {
         assert(it.feature_per_frame.size() != 0);
         assert(it.start_frame >= 0);
         assert(it.used_num >= 0);
 
-        printf("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_manager"), "%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
         int sum = 0;
         for (auto &j : it.feature_per_frame)
         {
-            printf("%d,", int(j.is_used));
+            RCLCPP_DEBUG(rclcpp::get_logger("feature_manager"), "%d,", int(j.is_used));
             sum += j.is_used;
             printf("(%lf,%lf) ",j.point(0), j.point(1));
         }
@@ -148,7 +148,7 @@ void FeatureManager::setDepth(const VectorXd &x)
             continue;
 
         it_per_id.estimated_depth = 1.0 / x(++feature_index);
-        //ROS_INFO("feature id %d , start_frame %d, depth %f ", it_per_id->feature_id, it_per_id-> start_frame, it_per_id->estimated_depth);
+        //RCLCPP_INFO(rclcpp::get_logger("feature_manager"), "feature id %d , start_frame %d, depth %f ", it_per_id->feature_id, it_per_id-> start_frame, it_per_id->estimated_depth);
         if (it_per_id.estimated_depth < 0)
         {
             it_per_id.solve_flag = 2;

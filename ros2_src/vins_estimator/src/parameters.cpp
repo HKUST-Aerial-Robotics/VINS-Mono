@@ -29,11 +29,11 @@ T readParam(rclcpp::Node::SharedPtr n, std::string name)
     T ans;
     if (n->get_parameter(name, ans))
     {
-        std::cout << "Loaded " << name << ": " << ans << std::endl;
+        RCLCPP_INFO_STREAM(n->get_logger(), "Loaded " << name << ": " << ans);
     }
     else
     {
-        std::cout << "Failed to load " << name << std::endl;
+        RCLCPP_ERROR_STREAM(n->get_logger(),  "Failed to load " << name );
         rclcpp::shutdown();
     }
     return ans;
@@ -74,12 +74,13 @@ void readParameters(rclcpp::Node::SharedPtr n)
     G.z() = fsSettings["g_norm"];
     ROW = fsSettings["image_height"];
     COL = fsSettings["image_width"];
-    printf("ROW: %f COL: %f ", ROW, COL);
+
+    RCLCPP_INFO(rclcpp::get_logger("parameters"), "ROW: %f COL: %f ", ROW, COL);
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2)
     {
-        printf("have no prior about extrinsic param, calibrate extrinsic param");
+        RCLCPP_WARN(rclcpp::get_logger("parameters"), "have no prior about extrinsic param, calibrate extrinsic param");
         RIC.push_back(Eigen::Matrix3d::Identity());
         TIC.push_back(Eigen::Vector3d::Zero());
         EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
@@ -89,11 +90,11 @@ void readParameters(rclcpp::Node::SharedPtr n)
     {
         if ( ESTIMATE_EXTRINSIC == 1)
         {
-            printf(" Optimize extrinsic param around initial guess!");
+            RCLCPP_WARN(rclcpp::get_logger("parameters"), " Optimize extrinsic param around initial guess!");
             EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
         }
         if (ESTIMATE_EXTRINSIC == 0)
-            printf(" fix extrinsic param ");
+            RCLCPP_WARN(rclcpp::get_logger("parameters"), " fix extrinsic param ");
 
         cv::Mat cv_R, cv_T;
         fsSettings["extrinsicRotation"] >> cv_R;
@@ -106,8 +107,8 @@ void readParameters(rclcpp::Node::SharedPtr n)
         eigen_R = Q.normalized();
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
-       std::cout << "Extrinsic_R : " << std::endl << RIC[0] << std::endl;
-       std::cout << "Extrinsic_T : " << std::endl << TIC[0].transpose() << std::endl;
+       RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_R : " << std::endl << RIC[0]);
+       RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_T : " << std::endl << TIC[0].transpose());
     } 
 
     INIT_DEPTH = 5.0;
@@ -117,15 +118,15 @@ void readParameters(rclcpp::Node::SharedPtr n)
     TD = fsSettings["td"];
     ESTIMATE_TD = fsSettings["estimate_td"];
     if (ESTIMATE_TD)
-        std::cout << "Unsynchronized sensors, online estimate time offset, initial td: " << TD << std::endl;
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Unsynchronized sensors, online estimate time offset, initial td: " << TD);
     else
-        std::cout << "Synchronized sensors, fix time offset: " << TD << std::endl;
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Synchronized sensors, fix time offset: " << TD);
 
     ROLLING_SHUTTER = fsSettings["rolling_shutter"];
     if (ROLLING_SHUTTER)
     {
         TR = fsSettings["rolling_shutter_tr"];
-        std::cout << "rolling shutter camera, read out time per line: " << TR << std::endl;
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "rolling shutter camera, read out time per line: " << TR);
     }
     else
     {

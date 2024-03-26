@@ -34,7 +34,6 @@ public:
     void relocalization_callback(const pointCloudMsg::SharedPtr points_msg);
     void process();
     void initTopics();
-    void getParams();
 private:
     std::condition_variable con;
     double current_time = -1;
@@ -62,6 +61,7 @@ private:
     rclcpp::Subscription<boolMsg>::SharedPtr sub_restart;
     rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_relo_points;
     std::thread measurement_process;
+    rclcpp::Node::SharedPtr node; 
 };
 
 #endif

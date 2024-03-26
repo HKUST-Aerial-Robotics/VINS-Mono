@@ -2,13 +2,17 @@
 
 Estimator estimator;
 
-EstimatorNode::EstimatorNode() : Node("estimator_node"){
-    measurement_process = std::thread(&EstimatorNode::process, this);
+EstimatorNode::EstimatorNode() : Node("base_estimator_node"),
+                    node(rclcpp::Node::make_shared("estimator_node")){
+    readParameters(node);
     estimator.setParameter();
-    RCLCPP_INFO(this->get_logger(), "waiting for image and imu...");
-    // registerPub(this);
-    getParams();
-
+#ifdef EIGEN_DONT_PARALLELIZE
+        RCLCPP_DEBUG(node->get_logger(), "EIGEN_DONT_PARALLELIZE");
+#endif
+    RCLCPP_INFO(node->get_logger(), "waiting for image and imu...");
+    registerPub(node);
+    initTopics();
+    measurement_process = std::thread(&EstimatorNode::process, this);
 }
 
 void EstimatorNode::predict(const imuMsg::SharedPtr imu_msg)
@@ -78,14 +82,14 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
 
         if (!(imu_buf.back()->header.stamp.sec > feature_buf.front()->header.stamp.sec + estimator.td))
         {
-            //printf("wait for imu, only should happen at the beginning");
+            //RCLCPP_WARN(node->get_logger(), "wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
         if (!(imu_buf.front()->header.stamp.sec < feature_buf.front()->header.stamp.sec + estimator.td))
         {
-            printf("throw img, only should happen at the beginning");
+            RCLCPP_WARN(node->get_logger(), "throw img, only should happen at the beginning");
             feature_buf.pop();
             continue;
         }
@@ -100,7 +104,7 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
         }
         IMUs.emplace_back(imu_buf.front());
         if (IMUs.empty())
-            printf("no imu between two image");
+            RCLCPP_WARN(node->get_logger(), "no imu between two image");
         measurements.emplace_back(IMUs, img_msg);
     }
     return measurements;
@@ -109,7 +113,7 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
 void EstimatorNode::imuCallback(const imuMsg::SharedPtr imu_msg){
     if (imu_msg->header.stamp.sec <= last_imu_t)
     {
-        RCLCPP_WARN(this->get_logger(), "imu message in disorder!");
+        RCLCPP_WARN(node->get_logger(), "imu message in disorder!");
         return;
     }
     last_imu_t = imu_msg->header.stamp.sec;
@@ -147,7 +151,7 @@ void EstimatorNode::feature_callback(const pointCloudMsg::SharedPtr feature_msg)
 void EstimatorNode::restart_callback(const boolMsg::SharedPtr restart_msg){
     if (restart_msg->data == true)
     {
-        RCLCPP_WARN(this->get_logger(), "restart the estimator!");
+        RCLCPP_WARN(node->get_logger(), "restart the estimator!");
         m_buf.lock();
         while(!feature_buf.empty())
             feature_buf.pop();
@@ -161,11 +165,10 @@ void EstimatorNode::restart_callback(const boolMsg::SharedPtr restart_msg){
         current_time = -1;
         last_imu_t = 0;
     }
-    return;
 }
 
 void EstimatorNode::relocalization_callback(const pointCloudMsg::SharedPtr points_msg){
-    RCLCPP_INFO(this->get_logger(), "relocalization callback!");
+    RCLCPP_INFO(node->get_logger(), "relocalization callback!");
     m_buf.lock();
     relo_buf.push(points_msg);
     m_buf.unlock();
@@ -205,7 +208,7 @@ void EstimatorNode::process(){
                     ry = imu_msg->angular_velocity.y;
                     rz = imu_msg->angular_velocity.z;
                     estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
+                    // printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
 
                 }
                 else
@@ -225,7 +228,7 @@ void EstimatorNode::process(){
                     ry = w1 * ry + w2 * imu_msg->angular_velocity.y;
                     rz = w1 * rz + w2 * imu_msg->angular_velocity.z;
                     estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
+                    // printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
                 }
             }
             // set relocalization frame
@@ -255,7 +258,7 @@ void EstimatorNode::process(){
                 estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);
             }
 
-            // RCLCPP_INFO(this->get_logger(), "processing vision data with stamp %f \n", img_msg->header.stamp.sec);
+            RCLCPP_DEBUG(node->get_logger(), "processing vision data with stamp %f \n", img_msg->header.stamp.sec);
 
             TicToc t_s;
             map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
@@ -304,18 +307,15 @@ void EstimatorNode::process(){
 }
 
 void EstimatorNode::initTopics(){
-  sub_imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000, 
+  sub_imu = node->create_subscription<imuMsg>(IMU_TOPIC, 2000, 
                             std::bind(&EstimatorNode::imuCallback, this, std::placeholders::_1));
-  sub_image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000, std::bind(
+  sub_image = node->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000, std::bind(
                                     &EstimatorNode::feature_callback, this, std::placeholders::_1));
-  sub_restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000, std::bind( 
+  sub_restart = node->create_subscription<boolMsg>("/feature_tracker/restart", 2000, std::bind( 
                             &EstimatorNode::restart_callback, this, std::placeholders::_1));
-  sub_relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000, std::bind( 
+  sub_relo_points = node->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000, std::bind( 
                                                        &EstimatorNode::relocalization_callback, this, std::placeholders::_1));
 
-}
-
-void EstimatorNode::getParams(){
 }
 
 int main(int argc, char** argv){

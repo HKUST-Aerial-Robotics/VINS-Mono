@@ -68,14 +68,14 @@ void printStatistics(const Estimator &estimator, double t)
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
     printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
-    std::cout << "position: " << estimator.Ps[WINDOW_SIZE].transpose() << std::endl;
-    std::cout << "orientation: " << estimator.Vs[WINDOW_SIZE].transpose() << std::endl;
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "position: " << estimator.Ps[WINDOW_SIZE].transpose() << std::endl);
+    RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "orientation: " << estimator.Vs[WINDOW_SIZE].transpose() << std::endl);
 
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         printf("calibration result for camera %d", i);
-        std::cout << "extirnsic tic: " << estimator.tic[i].transpose() << std::endl;
-        std::cout << "extrinsic ric: " << Utility::R2ypr(estimator.ric[i]).transpose() << std::endl;
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "extirnsic tic: " << estimator.tic[i].transpose() << std::endl);
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "extrinsic ric: " << Utility::R2ypr(estimator.ric[i]).transpose() << std::endl);
         if (ESTIMATE_EXTRINSIC)
         {
             cv::FileStorage fs(EX_CALIB_RESULT_PATH, cv::FileStorage::WRITE);
@@ -95,14 +95,14 @@ void printStatistics(const Estimator &estimator, double t)
     static int sum_of_calculation = 0;
     sum_of_time += t;
     sum_of_calculation++;
-    printf("vo solver costs: %f ms", t);
-    printf("average of time %f ms", sum_of_time / sum_of_calculation);
+    RCLCPP_DEBUG(rclcpp::get_logger("visualization"), "vo solver costs: %f ms", t);
+    RCLCPP_DEBUG(rclcpp::get_logger("visualization"), "average of time %f ms", sum_of_time / sum_of_calculation);
 
     sum_of_path += (estimator.Ps[WINDOW_SIZE] - last_path).norm();
     last_path = estimator.Ps[WINDOW_SIZE];
-    printf("sum of path %f", sum_of_path);
+    RCLCPP_DEBUG(rclcpp::get_logger("visualization"),"sum of path %f", sum_of_path);
     if (ESTIMATE_TD)
-        printf("td %f", estimator.td);
+        RCLCPP_DEBUG(rclcpp::get_logger("visualization"),"td %f", estimator.td);
 }
 
 void pubOdometry(const Estimator &estimator, const std_msgs::msg::Header &header)
