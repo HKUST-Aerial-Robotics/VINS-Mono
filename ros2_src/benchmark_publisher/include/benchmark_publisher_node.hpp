@@ -18,18 +18,18 @@ using pathMsg = nav_msgs::msg::Path;
 
 const int SKIP = 50;
 
-template <typename T>
-T readParam(rclcpp::Node &n, std::string name){
-    T ans;
-    if (n.get_parameter(name, ans)) {
-        std::cout << "Loaded " << name << ": " << ans << std::endl;
-    }
-    else {
-        std::cout << "Failed to load " << name << std::endl;
-        rclcpp::shutdown();
-    }
-    return ans;
-}
+// template <typename T>
+// T readParam(rclcpp::Node &n, std::string name){
+//     T ans;
+//     if (n.get_parameter(name, ans)) {
+//         std::cout << "Loaded " << name << ": " << ans << std::endl;
+//     }
+//     else {
+//         std::cout << "Failed to load " << name << std::endl;
+//         rclcpp::shutdown();
+//     }
+//     return ans;
+// }
 
 struct Data{
     Data(FILE *f) {
@@ -56,6 +56,7 @@ public:
     void initTopic();
     void odomCallback(const odometryMsg::SharedPtr odom_msg);
     void readFile();
+
 private:
     int idx = 1;
     std::vector<Data> benchmark;

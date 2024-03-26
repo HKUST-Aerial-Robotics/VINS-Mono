@@ -13,7 +13,7 @@ vins_estimator_path = get_package_share_directory('vins_estimator')
 
 vins_estimator_node = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(vins_estimator_path,'launch','3dm.launch.py')
+            os.path.join(vins_estimator_path,'launch','realsense_fisheye.launch.py')
         )
 )
 
@@ -22,13 +22,13 @@ ar_demo_node = Node(
             executable='ar_demo_node',
             output='screen',
             remappings=[
-                ('image_raw', '/mv_25001498/image_raw'),
+                ('image_raw', '/camera/fisheye/image_raw'),
                 ('camera_pose', '/vins_estimator/camera_pose'),
                 ('pointcloud', '/vins_estimator/point_cloud'),
             ],
             parameters=[
                 {'calib_file': os.path.join(get_package_share_directory('config'), 
-                                                    'config', '3dm', '3dm_config.yaml')},
+                                            'config', 'realsense', 'realsense_fisheye_config.yaml')},
                 {'use_undistored_img': False}
             ]
 )

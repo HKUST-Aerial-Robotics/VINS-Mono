@@ -42,7 +42,8 @@ T readParam(rclcpp::Node::SharedPtr n, std::string name)
 void readParameters(rclcpp::Node::SharedPtr n)
 {
     std::string config_file;
-    config_file = readParam<std::string>(n, "config_file");
+    // config_file = readParam<std::string>(n, "config_file");
+    config_file = n->get_parameter("config_file").as_string();
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {

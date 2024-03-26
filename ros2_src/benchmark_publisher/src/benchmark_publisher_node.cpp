@@ -3,7 +3,8 @@
 BenchmarkPublisherNode::BenchmarkPublisherNode(): Node("benchmark_publisher_node"){
     initTopic();
     trans = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
-    csv_file = readParam<std::string>(*this, "data_name");
+    csv_file = this->get_parameter("data_name").as_string();
+    // csv_file = readParam<std::string>(*this, "data_name");
     std::cout << "load ground truth " << csv_file << std::endl;
     readFile();
 }
