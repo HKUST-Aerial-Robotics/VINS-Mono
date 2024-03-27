@@ -17,6 +17,8 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("base_feature_tracker_node"),
                 std::cout << "load mask success\n";
         }
     }
+    initTopic();
+
 }
 
 void FeatureTrackerNode::initTopic(){

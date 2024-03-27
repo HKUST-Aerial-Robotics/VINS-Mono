@@ -60,7 +60,8 @@ private:
     rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_image;
     rclcpp::Subscription<boolMsg>::SharedPtr sub_restart;
     rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_relo_points;
-    std::thread measurement_process;
+    rclcpp::TimerBase::SharedPtr measurement_process_timer;
+    // std::thread measurement_process;
     rclcpp::Node::SharedPtr node; 
 };
 

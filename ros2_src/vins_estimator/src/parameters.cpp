@@ -1,5 +1,7 @@
 #include "parameters_.h"
 
+bool flag = true;
+
 double INIT_DEPTH;
 double MIN_PARALLAX;
 double ACC_N, ACC_W;
@@ -27,7 +29,11 @@ double TD, TR;
 void readParameters(rclcpp::Node::SharedPtr n)
 {
     std::string config_file;
-    n->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    if(flag){
+        flag = false;
+        n->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    }
+
     config_file = n->get_parameter("config_file").as_string();
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
@@ -93,8 +99,8 @@ void readParameters(rclcpp::Node::SharedPtr n)
         eigen_R = Q.normalized();
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
-       RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_R : " << std::endl << RIC[0]);
-       RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_T : " << std::endl << TIC[0].transpose());
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_R : " << std::endl << RIC[0]);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_T : " << std::endl << TIC[0].transpose());
     } 
 
     INIT_DEPTH = 5.0;

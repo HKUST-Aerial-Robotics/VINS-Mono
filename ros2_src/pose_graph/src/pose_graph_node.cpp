@@ -17,6 +17,7 @@ int COL;
 std::string VINS_RESULT_PATH;
 int DEBUG_IMAGE;
 int FAST_RELOCALIZATION;
+bool flag =  true;
 
 CameraPoseVisualization cameraposevisual(1, 0, 0, 1);
 Eigen::Vector3d last_t(-100, -100, -100);
@@ -26,16 +27,20 @@ PoseGraphNode::PoseGraphNode(): Node("base_pose_graph_node"),
                     node(rclcpp::Node::make_shared("pose_graph_node")){
     posegraph.registerPub(node);
     getParams();
-
-    measurement_process = std::thread(&PoseGraphNode::process, this);
-    keyboard_command_process = std::thread(&PoseGraphNode::command, this);
     initTopic();
+
+    measurement_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
+                                            std::bind(&PoseGraphNode::process, this));
+    keyboard_command_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
+                                            std::bind(&PoseGraphNode::command, this));
+    // measurement_process = std::thread(&PoseGraphNode::process, this);
+    // keyboard_command_process = std::thread(&PoseGraphNode::command, this);
 }
 
 void PoseGraphNode::newSequence(){
-    printf("new sequence\n");
+    RCLCPP_INFO(this->get_logger(), "new sequence\n");
     sequence++;
-    printf("sequence cnt %d \n", sequence);
+    RCLCPP_INFO(this->get_logger(), "sequence cnt %d \n", sequence);
     if (sequence > 5)
     {
         RCLCPP_WARN(this->get_logger(), "only support 5 sequences since it's boring to copy code for more sequences.");
@@ -417,13 +422,15 @@ void PoseGraphNode::initTopic(){
 }
 
 void PoseGraphNode::getParams(){
-    node->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
-    node->declare_parameter<int>("visualization_shift_x", 0);
-    node->declare_parameter<int>("visualization_shift_y", 0);
-    node->declare_parameter<int>("skip_cnt", 0);
-    node->declare_parameter<double>("skip_dis", 0.0);
+    if(flag){
+        flag = false;
+        node->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+        node->declare_parameter<int>("visualization_shift_x", 0);
+        node->declare_parameter<int>("visualization_shift_y", 0);
+        node->declare_parameter<int>("skip_cnt", 0);
+        node->declare_parameter<double>("skip_dis", 0.0);
+    }
     
-
     VISUALIZATION_SHIFT_X = node->get_parameter("visualization_shift_x").as_int();
     VISUALIZATION_SHIFT_Y = node->get_parameter("visualization_shift_y").as_int();
     SKIP_CNT = node->get_parameter("skip_cnt").as_int();

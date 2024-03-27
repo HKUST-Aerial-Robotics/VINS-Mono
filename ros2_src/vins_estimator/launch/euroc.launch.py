@@ -1,5 +1,3 @@
-
-
 import os
 
 from ament_index_python.packages import get_package_share_directory
@@ -7,27 +5,25 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch_ros.actions import Node
 
-# config_path_arg = DeclareLaunchArgument('config_path', default_value = os.path.join(get_package_share_directory('config'), 
-#                                             'config', 'euroc', 'euroc_config.yaml'))
-# vins_path_arg = DeclareLaunchArgument('vins_path', default_value = os.path.join(get_package_share_directory('config'), '..'))
 
-config_path_arg = "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml"
-vins_path_arg = "/home/serkan/source_code/VINS-Mono/ros2_src/config"
+config = os.path.join(
+        get_package_share_directory('config'),
+        'config',
+        'params.yaml'
+    )
 
 feature_tracker_node = Node(
         package='feature_tracker',
         executable='feature_tracker_node',
-        output='log',
-        # parameters=[{'config_file': config_path_arg},
-        #             {'vins_folder': vins_path_arg}]
+        output='screen',
+        parameters=[config]
     )
 
 vins_estimator_node = Node(
         package='vins_estimator',
         executable='vins_estimator_node',
         output='screen',
-        # parameters=[{'config_file': config_path_arg},
-        #             {'vins_folder': vins_path_arg}]
+        parameters=[config]
     )
 
 pose_graph_node = Node(
@@ -40,6 +36,7 @@ pose_graph_node = Node(
         #             {'skip_cnt': 0},
         #             {'skip_dis': 0.0}
         #             ]
+        parameters=[config]
     )
 
 def generate_launch_description():
