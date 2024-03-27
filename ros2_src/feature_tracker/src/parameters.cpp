@@ -18,30 +18,20 @@ int FOCAL_LENGTH;
 int FISHEYE;
 bool PUB_THIS_FRAME;
 
-// template <typename T>
-// T readParam(rclcpp::Node &n, std::string name){
-//     T ans;
-//     if (n.get_parameter(name, ans)) {
-//         std::cout << "Loaded " << name << ": " << ans << std::endl;
-//     }
-//     else {
-//         std::cout << "Failed to load " << name << std::endl;
-//         rclcpp::shutdown();
-//     }
-//     return ans;
-// }
 
-void readParameters(rclcpp::Node &n){
+void readParameters(rclcpp::Node::SharedPtr n){
     std::string config_file;
-    // config_file = readParam<std::string>(n, "config_file");
-    config_file = n.get_parameter("config_file").as_string();
+    n->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    n->declare_parameter<std::string>("vins_folder", "/home/serkan/source_code/VINS-Mono/ros2_src/config");
+
+    config_file = n->get_parameter("config_file").as_string();
+    std::string VINS_FOLDER_PATH = n->get_parameter("vins_folder").as_string();
+
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
-    // std::string VINS_FOLDER_PATH = readParam<std::string>(n, "vins_folder");
-    std::string VINS_FOLDER_PATH = n.get_parameter("vins_folder").as_string();
 
     fsSettings["image_topic"] >> IMAGE_TOPIC;
     fsSettings["imu_topic"] >> IMU_TOPIC;

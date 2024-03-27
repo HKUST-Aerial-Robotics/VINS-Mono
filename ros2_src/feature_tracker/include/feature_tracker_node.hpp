@@ -39,6 +39,7 @@ private:
     bool first_image_flag = true;
     double last_image_time = 0;
     bool init_pub = 0;
+    rclcpp::Node::SharedPtr node;
 };
 
 #endif

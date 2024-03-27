@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 
 install(DIRECTORY 
   config
+  support_files
   DESTINATION share/${PROJECT_NAME}
 )
 

@@ -1,7 +1,8 @@
 #include "feature_tracker_node.hpp"
 
-FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
-    readParameters(*this);
+FeatureTrackerNode::FeatureTrackerNode(): Node("base_feature_tracker_node"),
+                            node(rclcpp::Node::make_shared("feature_tracker_node")){
+    readParameters(node);
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
 
@@ -22,7 +23,7 @@ void FeatureTrackerNode::initTopic(){
     pub_img     = this->create_publisher<pointCloudMsg>("feature", 100);
     pub_match   = this->create_publisher<imageMsg>("feature_img", 100);
     pub_restart = this->create_publisher<boolMsg>("restart", 100);
-    sub_img = this->create_subscription<imageMsg>(IMAGE_TOPIC, 100, std::bind(
+    sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 100, std::bind(
                         &FeatureTrackerNode::imgCallback, this, std::placeholders::_1));
 }
 

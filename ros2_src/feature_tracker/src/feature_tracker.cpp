@@ -195,7 +195,7 @@ bool FeatureTracker::updateID(unsigned int i){
 }
 
 void FeatureTracker::readIntrinsicParameter(const std::string &calib_file){
-    std::cout << "reading paramerter of camera " << calib_file.c_str() << std::endl;
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("FeatureTracker"), "reading paramerter of camera " << calib_file.c_str());
     m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 

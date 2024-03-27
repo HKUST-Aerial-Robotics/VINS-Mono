@@ -24,13 +24,13 @@ PoseGraph::~PoseGraph()
 	t_optimization.join();
 }
 
-void PoseGraph::registerPub(class PoseGraphNode &n)
+void PoseGraph::registerPub(rclcpp::Node::SharedPtr n)
 {
-    pub_pg_path = n.create_publisher<navPath>("pose_graph_path", 1000);
-    pub_base_path = n.create_publisher<navPath>("base_path", 1000);
-    pub_pose_graph = n.create_publisher<markerArrayMsg>("pose_graph", 1000);
+    pub_pg_path = n->create_publisher<navPath>("pose_graph_path", 1000);
+    pub_base_path = n->create_publisher<navPath>("base_path", 1000);
+    pub_pose_graph = n->create_publisher<markerArrayMsg>("pose_graph", 1000);
     for (int i = 1; i < 10; i++)
-        pub_path[i] = n.create_publisher<navPath>("path_" + to_string(i), 1000);
+        pub_path[i] = n->create_publisher<navPath>("path_" + to_string(i), 1000);
 }
 
 void PoseGraph::loadVocabulary(std::string voc_path)

@@ -25,6 +25,6 @@ extern int EQUALIZE;
 extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 
-void readParameters(rclcpp::Node &n);
+void readParameters(rclcpp::Node::SharedPtr n);
 
 #endif

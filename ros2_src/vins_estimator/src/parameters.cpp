@@ -23,26 +23,11 @@ std::string IMU_TOPIC;
 double ROW, COL;
 double TD, TR;
 
-template <typename T>
-T readParam(rclcpp::Node::SharedPtr n, std::string name)
-{
-    T ans;
-    if (n->get_parameter(name, ans))
-    {
-        RCLCPP_INFO_STREAM(n->get_logger(), "Loaded " << name << ": " << ans);
-    }
-    else
-    {
-        RCLCPP_ERROR_STREAM(n->get_logger(),  "Failed to load " << name );
-        rclcpp::shutdown();
-    }
-    return ans;
-}
 
 void readParameters(rclcpp::Node::SharedPtr n)
 {
     std::string config_file;
-    // config_file = readParam<std::string>(n, "config_file");
+    n->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
     config_file = n->get_parameter("config_file").as_string();
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())

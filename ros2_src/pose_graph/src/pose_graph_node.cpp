@@ -22,13 +22,14 @@ CameraPoseVisualization cameraposevisual(1, 0, 0, 1);
 Eigen::Vector3d last_t(-100, -100, -100);
 PoseGraph posegraph;
 
-PoseGraphNode::PoseGraphNode(): Node("pose_graph_node"){
-    posegraph.registerPub(*this);
-    initTopic();
+PoseGraphNode::PoseGraphNode(): Node("base_pose_graph_node"),
+                    node(rclcpp::Node::make_shared("pose_graph_node")){
+    posegraph.registerPub(node);
     getParams();
 
     measurement_process = std::thread(&PoseGraphNode::process, this);
     keyboard_command_process = std::thread(&PoseGraphNode::command, this);
+    initTopic();
 }
 
 void PoseGraphNode::newSequence(){
@@ -384,7 +385,6 @@ void PoseGraphNode::command(){
             m_process.unlock();
             printf("save pose graph finish\nyou can set 'load_previous_pose_graph' to 1 in the config file to reuse it next time\n");
             // printf("program shutting down...\n");
-            // ros::shutdown();
         }
         if (c == 'n')
             newSequence();
@@ -404,8 +404,8 @@ void PoseGraphNode::initTopic(){
                                         std::bind(&PoseGraphNode::poseCallback, this, _1));
     sub_extrinsic = this->create_subscription<odometryMsg>("/vins_estimator/extrinsic", 2000, 
                                                 std::bind(&PoseGraphNode::extrinsicCallback, this , _1));
-    // sub_point = this->create_subscription<pointCloudMsg>("/vins_estimator/keyframe_point", 2000, 
-    //                                                     std::bind(pointCallback, this, _1));
+    sub_point = this->create_subscription<pointCloudMsg>("/vins_estimator/keyframe_point", 2000, 
+                                                        std::bind(&PoseGraphNode::pointCallback, this, _1));
     sub_relo_relative_pose = this->create_subscription<odometryMsg>("/vins_estimator/relo_relative_pose", 2000, 
                                                                         std::bind(&PoseGraphNode::reloRelativePoseCallback, this, _1));
 
@@ -417,12 +417,18 @@ void PoseGraphNode::initTopic(){
 }
 
 void PoseGraphNode::getParams(){
-    VISUALIZATION_SHIFT_X = this->get_parameter("visualization_shift_x").as_int();
-    VISUALIZATION_SHIFT_Y = this->get_parameter("visualization_shift_y").as_int();
-    SKIP_CNT = this->get_parameter("skip_cnt").as_int();
-    SKIP_DIS = this->get_parameter("skip_dis").as_double();
-    // IMAGE_TOPIC = this->get_parameter("image_topic").as_string();
-    this->get_parameter("config_file", config_file);
+    node->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    node->declare_parameter<int>("visualization_shift_x", 0);
+    node->declare_parameter<int>("visualization_shift_y", 0);
+    node->declare_parameter<int>("skip_cnt", 0);
+    node->declare_parameter<double>("skip_dis", 0.0);
+    
+
+    VISUALIZATION_SHIFT_X = node->get_parameter("visualization_shift_x").as_int();
+    VISUALIZATION_SHIFT_Y = node->get_parameter("visualization_shift_y").as_int();
+    SKIP_CNT = node->get_parameter("skip_cnt").as_int();
+    SKIP_DIS = node->get_parameter("skip_dis").as_double();
+    config_file = node->get_parameter("config_file").as_string();
 
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
@@ -434,19 +440,18 @@ void PoseGraphNode::getParams(){
     cameraposevisual.setScale(camera_visual_size);
     cameraposevisual.setLineWidth(camera_visual_size / 10.0);
 
-
     LOOP_CLOSURE = fsSettings["loop_closure"];
-    std::string IMAGE_TOPIC;
     int LOAD_PREVIOUS_POSE_GRAPH;
 
     if (LOOP_CLOSURE){
         ROW = fsSettings["image_height"];
         COL = fsSettings["image_width"];
-        std::string pkg_path = ament_index_cpp::get_package_share_directory("pose_graph");
-        string vocabulary_file = pkg_path + "/../support_files/brief_k10L6.bin";
+        std::string pkg_path = ament_index_cpp::get_package_share_directory("config");
+        RCLCPP_INFO_STREAM(this->get_logger(), pkg_path);
+        string vocabulary_file = pkg_path + "/support_files/brief_k10L6.bin";
         cout << "vocabulary_file" << vocabulary_file << endl;
         posegraph.loadVocabulary(vocabulary_file);
-        BRIEF_PATTERN_FILE = pkg_path + "/../support_files/brief_pattern.yml";
+        BRIEF_PATTERN_FILE = pkg_path + "/support_files/brief_pattern.yml";
         cout << "BRIEF_PATTERN_FILE" << BRIEF_PATTERN_FILE << endl;
         m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file.c_str());
 
