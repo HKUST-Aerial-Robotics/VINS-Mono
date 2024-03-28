@@ -1,5 +1,5 @@
 #include "parameters_.h"
-
+#define COLOR_YLW "\x1b[33m"
 bool flag = true;
 
 double INIT_DEPTH;
@@ -38,7 +38,8 @@ void readParameters(rclcpp::Node::SharedPtr n)
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
-        std::cerr << "ERROR: Wrong path to settings" << std::endl;
+        RCLCPP_ERROR(rclcpp::get_logger("parameters"), 
+                            "ERROR: Wrong path to settings");
     }
 
     fsSettings["imu_topic"] >> IMU_TOPIC;
@@ -51,8 +52,6 @@ void readParameters(rclcpp::Node::SharedPtr n)
     std::string OUTPUT_PATH;
     fsSettings["output_path"] >> OUTPUT_PATH;
     VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop.csv";
-    std::cout << "result path " << VINS_RESULT_PATH << std::endl;
-
     // create folder if not exists
     FileSystemHelper::createDirectoryIfNotExists(OUTPUT_PATH.c_str());
 
@@ -67,7 +66,19 @@ void readParameters(rclcpp::Node::SharedPtr n)
     ROW = fsSettings["image_height"];
     COL = fsSettings["image_width"];
 
-    RCLCPP_INFO(rclcpp::get_logger("parameters"), "ROW: %f COL: %f ", ROW, COL);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), 
+        COLOR_GRN 
+        << "\n" << LINE
+        << "\n- COL: " << COL
+        << "\n- ROW: " << ROW
+        << "\n- IMU_TOPIC: " << IMU_TOPIC
+        << "\n- SOLVER_TIME: " << SOLVER_TIME 
+        << "\n- MIN_PARALLAX: " << MIN_PARALLAX
+        << "\n- FOCAL_LENGTH: " << FOCAL_LENGTH
+        << "\n- NUM_ITERATIONS: " << NUM_ITERATIONS
+        << "\n- VINS_RESULT_PATH: " << VINS_RESULT_PATH
+        << "\n" << LINE
+    );
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2)
@@ -99,8 +110,10 @@ void readParameters(rclcpp::Node::SharedPtr n)
         eigen_R = Q.normalized();
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_R : " << std::endl << RIC[0]);
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "Extrinsic_T : " << std::endl << TIC[0].transpose());
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "\nExtrinsic_R : "
+                                << std::endl << RIC[0] << "\nExtrinsic_T : "
+                                << std::endl << TIC[0].transpose()
+        );
     } 
 
     INIT_DEPTH = 5.0;

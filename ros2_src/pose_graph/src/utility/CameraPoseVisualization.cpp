@@ -83,7 +83,7 @@ void CameraPoseVisualization::add_loopedge(const Eigen::Vector3d& p0, const Eige
     //  tmp_loop_edge_num = 1;
     marker.type = markerMsg::LINE_STRIP;
     marker.action = markerMsg::ADD;
-    marker.lifetime = rclcpp::Duration(0, 400);
+    marker.lifetime = rclcpp::Duration(0, 0);
     //marker.scale.x = 0.4;
     marker.scale.x = 0.02;
     marker.color.r = 1.0f;

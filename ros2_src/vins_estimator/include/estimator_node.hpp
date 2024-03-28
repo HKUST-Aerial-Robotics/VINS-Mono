@@ -21,6 +21,13 @@ using imuMsg = sensor_msgs::msg::Imu;
 using pointCloudMsg = sensor_msgs::msg::PointCloud;
 using boolMsg = std_msgs::msg::Bool;
 
+typedef struct{
+    rclcpp::Subscription<imuMsg>::SharedPtr imu;
+    rclcpp::Subscription<pointCloudMsg>::SharedPtr image;
+    rclcpp::Subscription<boolMsg>::SharedPtr restart;
+    rclcpp::Subscription<pointCloudMsg>::SharedPtr relo_points;
+} Sub_t;
+
 class EstimatorNode: public rclcpp::Node{
 public:
     EstimatorNode();
@@ -28,12 +35,11 @@ public:
     void update();
     std::vector<std::pair<std::vector<imuMsg::SharedPtr>, 
         pointCloudMsg::SharedPtr>> getMeasurements();
-    void imuCallback(const imuMsg::SharedPtr imu_msg);
+    void imu_callback(const imuMsg::SharedPtr imu_msg);
     void feature_callback(const pointCloudMsg::SharedPtr feature_msg);
     void restart_callback(const boolMsg::SharedPtr restart_msg);
     void relocalization_callback(const pointCloudMsg::SharedPtr points_msg);
     void process();
-    void initTopics();
 private:
     std::condition_variable con;
     double current_time = -1;
@@ -56,13 +62,11 @@ private:
     bool init_feature = 0;
     bool init_imu = 1;
     double last_imu_t = 0;
-    rclcpp::Subscription<imuMsg>::SharedPtr sub_imu ;
-    rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_image;
-    rclcpp::Subscription<boolMsg>::SharedPtr sub_restart;
-    rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_relo_points;
-    rclcpp::TimerBase::SharedPtr measurement_process_timer;
-    // std::thread measurement_process;
+
+    Sub_t sub;
     rclcpp::Node::SharedPtr node; 
+    // rclcpp::TimerBase::SharedPtr measurement_process_timer;
+    std::thread measurement_process;
 };
 
 #endif

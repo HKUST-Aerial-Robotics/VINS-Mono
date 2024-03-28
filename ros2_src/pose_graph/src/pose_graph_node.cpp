@@ -29,12 +29,12 @@ PoseGraphNode::PoseGraphNode(): Node("base_pose_graph_node"),
     getParams();
     initTopic();
 
-    measurement_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
-                                            std::bind(&PoseGraphNode::process, this));
-    keyboard_command_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
-                                            std::bind(&PoseGraphNode::command, this));
-    // measurement_process = std::thread(&PoseGraphNode::process, this);
-    // keyboard_command_process = std::thread(&PoseGraphNode::command, this);
+    // measurement_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
+    //                                         std::bind(&PoseGraphNode::process, this));
+    // keyboard_command_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
+    //                                         std::bind(&PoseGraphNode::command, this));
+    measurement_process = std::thread(&PoseGraphNode::process, this);
+    keyboard_command_process = std::thread(&PoseGraphNode::command, this);
 }
 
 void PoseGraphNode::newSequence(){
@@ -191,7 +191,7 @@ void PoseGraphNode::vioCallback(const odometryMsg::SharedPtr pose_msg){
     key_odometrys.type = visualization_msgs::msg::Marker::SPHERE_LIST;
     key_odometrys.action = visualization_msgs::msg::Marker::ADD;
     key_odometrys.pose.orientation.w = 1.0;
-    key_odometrys.lifetime = rclcpp::Duration(0, 400000);
+    key_odometrys.lifetime = rclcpp::Duration(0, 0);
 
     //static int key_odometrys_id = 0;
     key_odometrys.id = 0; //key_odometrys_id++;

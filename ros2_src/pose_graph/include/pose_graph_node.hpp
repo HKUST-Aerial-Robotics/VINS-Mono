@@ -73,8 +73,8 @@ private:
     std::string IMAGE_TOPIC;
     std::string config_file;
 
-    // std::thread measurement_process;
-    // std::thread keyboard_command_process;
+    std::thread measurement_process;
+    std::thread keyboard_command_process;
 
     rclcpp::Publisher<markerArrayMsg>::SharedPtr pub_camera_pose_visual;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub_key_odometrys;
@@ -88,8 +88,6 @@ private:
     rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_point;
     rclcpp::Subscription<odometryMsg>::SharedPtr sub_relo_relative_pose;
     rclcpp::Node::SharedPtr node;
-    rclcpp::TimerBase::SharedPtr measurement_process_timer;
-    rclcpp::TimerBase::SharedPtr keyboard_command_process_timer;
 };
 
 #endif

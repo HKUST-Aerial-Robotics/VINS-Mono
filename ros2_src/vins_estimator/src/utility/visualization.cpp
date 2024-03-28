@@ -186,7 +186,7 @@ void pubKeyPoses(const Estimator &estimator, const std_msgs::msg::Header &header
     key_poses.type = visualization_msgs::msg::Marker::SPHERE_LIST;
     key_poses.action = visualization_msgs::msg::Marker::ADD;
     key_poses.pose.orientation.w = 1.0;
-    key_poses.lifetime = rclcpp::Duration(0, 1000);
+    key_poses.lifetime = rclcpp::Duration(0, 0);
 
     //static int key_poses_id = 0;
     key_poses.id = 0; //key_poses_id++;

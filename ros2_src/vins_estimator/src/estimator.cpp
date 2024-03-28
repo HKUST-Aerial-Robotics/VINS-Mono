@@ -2,7 +2,7 @@
 
 Estimator::Estimator(): f_manager{Rs}
 {
-    RCLCPP_INFO(rclcpp::get_logger("estimator"), "init begins");
+    // RCLCPP_INFO(rclcpp::get_logger("estimator"), "init begins");
     clearState();
 }
 
