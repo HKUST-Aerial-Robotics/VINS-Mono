@@ -40,6 +40,8 @@ public:
     void restart_callback(const boolMsg::SharedPtr restart_msg);
     void relocalization_callback(const pointCloudMsg::SharedPtr points_msg);
     void process();
+    void initTopic();
+    void getParams();
 private:
     std::condition_variable con;
     double current_time = -1;
@@ -64,7 +66,7 @@ private:
     double last_imu_t = 0;
 
     Sub_t sub;
-    rclcpp::Node::SharedPtr node; 
+    // rclcpp::Node::SharedPtr node; 
     // rclcpp::TimerBase::SharedPtr measurement_process_timer;
     std::thread measurement_process;
 };

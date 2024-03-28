@@ -26,15 +26,8 @@ double ROW, COL;
 double TD, TR;
 
 
-void readParameters(rclcpp::Node::SharedPtr n)
+void readParameters(std::string config_file)
 {
-    std::string config_file;
-    if(flag){
-        flag = false;
-        n->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
-    }
-
-    config_file = n->get_parameter("config_file").as_string();
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {

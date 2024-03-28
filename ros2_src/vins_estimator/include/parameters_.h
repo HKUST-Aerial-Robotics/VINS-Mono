@@ -64,7 +64,7 @@ extern int ROLLING_SHUTTER;
 extern double ROW, COL;
 
 
-void readParameters(rclcpp::Node::SharedPtr n);
+void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION
 {

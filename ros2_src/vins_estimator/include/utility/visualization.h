@@ -37,18 +37,26 @@ extern rclcpp::Publisher<navOdometryMsg>::SharedPtr pub_odometry;
 extern rclcpp::Publisher<navPathMsg>::SharedPtr pub_path, pub_pose;
 extern rclcpp::Publisher<pointCloudMsg>::SharedPtr pub_cloud, pub_map;
 extern rclcpp::Publisher<markerMsg>::SharedPtr pub_key_poses;
+extern rclcpp::Publisher<navOdometryMsg>::SharedPtr pub_odometry, pub_latest_odometry;
+extern rclcpp::Publisher<pointCloudMsg>::SharedPtr pub_point_cloud, pub_margin_cloud;
+extern rclcpp::Publisher<navPathMsg>::SharedPtr pub_relo_path;
+extern rclcpp::Publisher<navOdometryMsg>::SharedPtr pub_relo_relative_pose;
+extern rclcpp::Publisher<navOdometryMsg>::SharedPtr pub_camera_pose;
+extern rclcpp::Publisher<markerArrayMsg>::SharedPtr pub_camera_pose_visual;
+extern rclcpp::Publisher<navOdometryMsg>::SharedPtr pub_keyframe_pose;
+extern rclcpp::Publisher<pointCloudMsg>::SharedPtr pub_keyframe_point;
+extern rclcpp::Publisher<navOdometryMsg>::SharedPtr pub_extrinsic;
 
 // extern rclcpp::Publisher<>::SharedPtr pub_ref_pose, pub_cur_pose;
 // extern rclcpp::Publisher<>::SharedPtr pub_key;
 // extern rclcpp::Publisher<>::SharedPtr pub_pose_graph;
 
 // std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
-// rclcpp::Node::SharedPtr node;
 
 extern nav_msgs::msg::Path path;
 extern int IMAGE_ROW, IMAGE_COL;
 
-void registerPub(rclcpp::Node::SharedPtr n);
+void registerPub();
 
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, const std_msgs::msg::Header &header);
 
