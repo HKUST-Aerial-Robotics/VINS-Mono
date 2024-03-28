@@ -87,7 +87,6 @@ private:
     rclcpp::Subscription<odometryMsg>::SharedPtr sub_extrinsic;
     rclcpp::Subscription<pointCloudMsg>::SharedPtr sub_point;
     rclcpp::Subscription<odometryMsg>::SharedPtr sub_relo_relative_pose;
-    rclcpp::Node::SharedPtr node;
 };
 
 #endif

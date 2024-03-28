@@ -19,14 +19,7 @@ int FISHEYE;
 bool PUB_THIS_FRAME;
 
 
-void readParameters(rclcpp::Node::SharedPtr n){
-    std::string config_file;
-    n->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
-    n->declare_parameter<std::string>("vins_folder", "/home/serkan/source_code/VINS-Mono/ros2_src/config");
-
-    config_file = n->get_parameter("config_file").as_string();
-    std::string VINS_FOLDER_PATH = n->get_parameter("vins_folder").as_string();
-
+void readParameters(std::string config_file, std::string VINS_FOLDER_PATH){
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {

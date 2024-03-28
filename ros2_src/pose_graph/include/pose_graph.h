@@ -43,7 +43,7 @@ class PoseGraph
 public:
 	PoseGraph();
 	~PoseGraph();
-	void registerPub(rclcpp::Node::SharedPtr n);
+	// void registerPub(rclcpp::Node::SharedPtr n);
 	void addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop);
 	void loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop);
 	void loadVocabulary(std::string voc_path);
@@ -62,6 +62,11 @@ public:
 	Vector3d w_t_vio;
 	Matrix3d w_r_vio;
 
+public:
+	rclcpp::Publisher<navPath>::SharedPtr pub_pg_path;
+	rclcpp::Publisher<navPath>::SharedPtr pub_base_path;
+	rclcpp::Publisher<markerArrayMsg>::SharedPtr pub_pose_graph;
+	rclcpp::Publisher<navPath>::SharedPtr pub_path[10];
 
 private:
 	int detectLoop(KeyFrame* keyframe, int frame_index);
@@ -85,11 +90,6 @@ private:
 
 	BriefDatabase db;
 	BriefVocabulary* voc;
-
-	rclcpp::Publisher<navPath>::SharedPtr pub_pg_path;
-	rclcpp::Publisher<navPath>::SharedPtr pub_base_path;
-	rclcpp::Publisher<markerArrayMsg>::SharedPtr pub_pose_graph;
-	rclcpp::Publisher<navPath>::SharedPtr pub_path[10];
 };
 
 template <typename T>

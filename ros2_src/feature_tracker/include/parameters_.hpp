@@ -25,6 +25,6 @@ extern int EQUALIZE;
 extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 
-void readParameters(rclcpp::Node::SharedPtr n);
+void readParameters(std::string config_file, std::string VINS_FOLDER_PATH);
 
 #endif

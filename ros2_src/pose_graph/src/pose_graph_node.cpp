@@ -17,22 +17,15 @@ int COL;
 std::string VINS_RESULT_PATH;
 int DEBUG_IMAGE;
 int FAST_RELOCALIZATION;
-bool flag =  true;
 
 CameraPoseVisualization cameraposevisual(1, 0, 0, 1);
 Eigen::Vector3d last_t(-100, -100, -100);
 PoseGraph posegraph;
 
-PoseGraphNode::PoseGraphNode(): Node("base_pose_graph_node"),
-                    node(rclcpp::Node::make_shared("pose_graph_node")){
-    posegraph.registerPub(node);
+PoseGraphNode::PoseGraphNode(): Node("pose_graph_node"){
     getParams();
     initTopic();
 
-    // measurement_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
-    //                                         std::bind(&PoseGraphNode::process, this));
-    // keyboard_command_process_timer = this->create_wall_timer(std::chrono::nanoseconds(1), 
-    //                                         std::bind(&PoseGraphNode::command, this));
     measurement_process = std::thread(&PoseGraphNode::process, this);
     keyboard_command_process = std::thread(&PoseGraphNode::command, this);
 }
@@ -419,23 +412,26 @@ void PoseGraphNode::initTopic(){
     pub_key_odometrys = this->create_publisher<visualization_msgs::msg::Marker>("key_odometrys", 1000);
     pub_vio_path = this->create_publisher<nav_msgs::msg::Path>("no_loop_path", 1000);
     pub_match_points = this->create_publisher<sensor_msgs::msg::PointCloud>("match_points", 100);
+
+    posegraph.pub_pg_path = this->create_publisher<navPath>("pose_graph_path", 1000);
+    posegraph.pub_base_path = this->create_publisher<navPath>("base_path", 1000);
+    posegraph.pub_pose_graph = this->create_publisher<markerArrayMsg>("pose_graph", 1000);
+    for (int i = 1; i < 10; i++)
+        posegraph.pub_path[i] = this->create_publisher<navPath>("path_" + to_string(i), 1000);
 }
 
 void PoseGraphNode::getParams(){
-    if(flag){
-        flag = false;
-        node->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
-        node->declare_parameter<int>("visualization_shift_x", 0);
-        node->declare_parameter<int>("visualization_shift_y", 0);
-        node->declare_parameter<int>("skip_cnt", 0);
-        node->declare_parameter<double>("skip_dis", 0.0);
-    }
+    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    this->declare_parameter<int>("visualization_shift_x", 0);
+    this->declare_parameter<int>("visualization_shift_y", 0);
+    this->declare_parameter<int>("skip_cnt", 0);
+    this->declare_parameter<double>("skip_dis", 0.0);
     
-    VISUALIZATION_SHIFT_X = node->get_parameter("visualization_shift_x").as_int();
-    VISUALIZATION_SHIFT_Y = node->get_parameter("visualization_shift_y").as_int();
-    SKIP_CNT = node->get_parameter("skip_cnt").as_int();
-    SKIP_DIS = node->get_parameter("skip_dis").as_double();
-    config_file = node->get_parameter("config_file").as_string();
+    VISUALIZATION_SHIFT_X = this->get_parameter("visualization_shift_x").as_int();
+    VISUALIZATION_SHIFT_Y = this->get_parameter("visualization_shift_y").as_int();
+    SKIP_CNT = this->get_parameter("skip_cnt").as_int();
+    SKIP_DIS = this->get_parameter("skip_dis").as_double();
+    config_file = this->get_parameter("config_file").as_string();
 
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())

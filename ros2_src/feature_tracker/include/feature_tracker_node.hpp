@@ -23,6 +23,7 @@ public:
     FeatureTrackerNode();
     void imgCallback(const imageMsg::SharedPtr img_msg);
     void initTopic();
+    void getParams();
 private:
     std::vector<uchar> r_status;
     std::vector<float> r_err;
@@ -39,7 +40,6 @@ private:
     bool first_image_flag = true;
     double last_image_time = 0;
     bool init_pub = 0;
-    rclcpp::Node::SharedPtr node;
 };
 
 #endif

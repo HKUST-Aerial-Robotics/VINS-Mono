@@ -1,8 +1,7 @@
 #include "feature_tracker_node.hpp"
 
-FeatureTrackerNode::FeatureTrackerNode(): Node("base_feature_tracker_node"),
-                            node(rclcpp::Node::make_shared("feature_tracker_node")){
-    readParameters(node);
+FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
+    getParams();
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
 
@@ -17,8 +16,8 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("base_feature_tracker_node"),
                 std::cout << "load mask success\n";
         }
     }
+    
     initTopic();
-
 }
 
 void FeatureTrackerNode::initTopic(){
@@ -200,6 +199,15 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
     }
     RCLCPP_INFO(this->get_logger(), "whole feature tracker processing costs: %f", t_r.toc());
 }
+
+void FeatureTrackerNode::getParams(){
+    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    this->declare_parameter<std::string>("vins_folder", "/home/serkan/source_code/VINS-Mono/ros2_src/config");
+
+    std::string config_file = this->get_parameter("config_file").as_string();
+    std::string VINS_FOLDER_PATH = this->get_parameter("vins_folder").as_string();
+    readParameters(config_file, VINS_FOLDER_PATH);
+}   
 
 int main(int argc, char* argv[]){
     rclcpp::init(argc, argv);
