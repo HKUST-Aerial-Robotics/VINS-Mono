@@ -1,0 +1,89 @@
+%YAML:1.0
+
+#common parameters
+imu_topic: "/djiros/imu"
+image_topic: "/djiros/image"
+output_path: "/home/urop/output/"         # vins outputs will be wrttento vins_folder_path + output_path
+
+#camera calibration 
+model_type: MEI
+camera_name: camera
+image_width: 752
+image_height: 480
+mirror_parameters:
+   xi: 2.2134257311108083e+00
+distortion_parameters:
+   k1: 1.4213768437132895e-01
+   k2: 9.1226950620748259e-01
+   p1: 1.2056297779277966e-03
+   p2: 2.0300076091651340e-03
+projection_parameters:
+   gamma1: 1.1659242643040975e+03
+   gamma2: 1.1656143723709608e+03
+   u0: 3.9238492754088008e+02
+   v0: 2.4392485271819217e+02
+
+
+# Extrinsic parameter between IMU and Camera.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+                        # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning. 
+#If you choose 0 or 1, you should write down the following matrix.
+#Rotation from camera frame to imu frame, imu^R_cam
+extrinsicRotation: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 3.5547377966504534e-02, -9.9819308302994181e-01,
+       -4.8445360055281682e-02, 9.9855985185796758e-01,
+       3.3527772724371241e-02, 4.1882104932016398e-02,
+       -4.0182162424389177e-02, -4.9864390574059170e-02,
+       9.9794736152543517e-01 ]
+extrinsicTranslation: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 6.5272135116678912e-02, -6.8544177447541876e-02,
+       3.7304589197375740e-02 ]
+
+
+#feature traker paprameters
+
+max_cnt: 120           # max feature number in feature tracking
+min_dist: 30            # min distance between two features 
+freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
+F_threshold: 1.0        # ransac threshold (pixel)
+show_track: 1           # publish tracking image as topic
+equalize: 1             # if image is too dark or light, trun on equalize to find enough features
+fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
+
+#optimization parameters
+max_solver_time: 0.04   # max solver itration time (ms), to guarantee real time
+max_num_iterations: 8   # max solver itrations, to guarantee real time
+keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
+
+#imu parameters       The more accurate parameters you provide, the better performance
+acc_n: 0.2          # accelerometer measurement noise standard deviation.
+gyr_n: 0.05         # gyroscope measurement noise standard deviation.
+acc_w: 0.002        # accelerometer bias random work noise standard deviation.
+gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.
+g_norm: 9.805         #
+
+#loop closure parameters
+loop_closure: 1                 # start loop closure
+load_previous_pose_graph: 0     # load and reuse previous pose graph; load from 'pose_graph_save_path'
+fast_relocalization: 1          # useful in real-time and large project
+pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
+
+#unsynchronization parameters
+estimate_td: 1                      # online estimate time offset between camera and imu
+td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#rolling shutter parameters
+rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera
+rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per frame (from data sheet). 
+
+#visualization parameters
+save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
+visualize_imu_forward: 1        # output imu forward propogation to achieve low latency and high frequence results
+visualize_camera_size: 0.4      # size of camera marker in RVIZ

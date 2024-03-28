@@ -1,0 +1,21 @@
+
+@inproceedings{qin2018online,
+  title={Online Temporal Calibration for Monocular Visual-Inertial Systems},
+  author={Qin, Tong and Shen, Shaojie},
+  booktitle={2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  pages={3662--3669},
+  year={2018},
+  organization={IEEE}
+}
+
+
+
+@article{qin2017vins,
+  title={VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator},
+  author={Qin, Tong and Li, Peiliang and Shen, Shaojie},
+  journal={IEEE Transactions on Robotics}, 
+  year={2018},
+  volume={34}, 
+  number={4}, 
+  pages={1004-1020}
+}
