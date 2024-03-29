@@ -113,6 +113,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
 
    if (PUB_THIS_FRAME) {
         pub_count++;
+        // sensor_msgs::msg::PointCloud2::SharedPtr feature_points(new sensor_msgs::msg::PointCloud2);
         sensor_msgs::msg::PointCloud::SharedPtr feature_points(new sensor_msgs::msg::PointCloud);
         sensor_msgs::msg::ChannelFloat32 id_of_point;
         sensor_msgs::msg::ChannelFloat32 u_of_point;

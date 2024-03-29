@@ -4,6 +4,8 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/point_cloud.hpp"
+#include "sensor_msgs/msg/channel_float32.hpp"
+#include "geometry_msgs/msg/point32.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "cv_bridge/cv_bridge.h"
