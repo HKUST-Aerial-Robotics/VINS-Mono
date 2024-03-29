@@ -80,7 +80,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time) {
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         TicToc t_c;
         clahe->apply(_img, img);
-        std::cout << "CLAHE costs: " << t_c.toc() << " ms" << std::endl;
+         RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"),"CLAHE costs: " << t_c.toc() << " ms" );
     }
     else
         img = _img;
@@ -109,7 +109,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time) {
         reduceVector(ids, status);
         reduceVector(cur_un_pts, status);
         reduceVector(track_cnt, status);
-        std::cout << "temporal optical flow costs: " << t_o.toc() << " ms" << std::endl;
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "temporal optical flow costs: " << t_o.toc() << " ms" );
     }
 
     for (auto &n : track_cnt)
@@ -117,31 +117,31 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time) {
 
     if (PUB_THIS_FRAME) {
         rejectWithF();
-        std::cout << "set mask begins" <<std::endl;
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "set mask begins");
         TicToc t_m;
         setMask();
-        std::cout << "set mask costs " << t_m.toc() << " ms"<<std::endl;
-        std::cout << "detect feature begins "<<std::endl;
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "set mask costs " << t_m.toc() << " ms");
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "detect feature begins");
 
         TicToc t_t;
         int n_max_cnt = MAX_CNT - static_cast<int>(forw_pts.size());
         if (n_max_cnt > 0)
         {
             if(mask.empty())
-                std::cout << "mask is empty " << std::endl;
+                RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "mask is empty " );
             if (mask.type() != CV_8UC1)
-                std::cout << "mask type wrong " << std::endl;
+                RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "mask type wrong " );
             if (mask.size() != forw_img.size())
-                std::cout << "wrong size " << std::endl;
+                RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "wrong size " );
             cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
         }
         else
             n_pts.clear();
-        std::cout << "detect feature costs: " << t_t.toc() << " ms" << std::endl;
-        std::cout << "add feature begins" << std::endl;
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "detect feature costs: " << t_t.toc() << " ms" );
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "add feature begins" );
         TicToc t_a;
         addPoints();
-        std::cout << "selectFeature costs: " << t_t.toc() << " ms" << std::endl;
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "selectFeature costs: " << t_t.toc() << " ms" );
     }
     prev_img = cur_img;
     prev_pts = cur_pts;
@@ -154,7 +154,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time) {
 
 void FeatureTracker::rejectWithF(){
     if (forw_pts.size() >= 8) {
-        std::cout << "FM ransac begins" << std::endl;
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "FM ransac begins");
         TicToc t_f;
         std::vector<cv::Point2f> un_cur_pts(cur_pts.size()), un_forw_pts(forw_pts.size());
         for (unsigned int i = 0; i < cur_pts.size(); i++) {
@@ -179,8 +179,9 @@ void FeatureTracker::rejectWithF(){
         reduceVector(cur_un_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
-        std::cout << "FM ransac: " << size_a << " -> " << forw_pts.size() << " : "  << ( 1.0 * forw_pts.size() / size_a) << std::endl;
-        std::cout << "FM ransac costs: " << t_f.toc() << " ms\n";
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "FM ransac: " << size_a << " -> " 
+                                    << forw_pts.size() << " : " << ( 1.0 * forw_pts.size() / size_a));
+        RCLCPP_DEBUG_STREAM(rclcpp::get_logger("feature_tracker"), "FM ransac costs: " << t_f.toc() << " ms");
     }
 }
 
@@ -195,7 +196,7 @@ bool FeatureTracker::updateID(unsigned int i){
 }
 
 void FeatureTracker::readIntrinsicParameter(const std::string &calib_file){
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("FeatureTracker"), "reading paramerter of camera " << calib_file.c_str());
+    // RCLCPP_INFO_STREAM(rclcpp::get_logger("FeatureTracker"), "reading paramerter of camera " << calib_file.c_str());
     m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 

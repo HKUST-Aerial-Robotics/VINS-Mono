@@ -15,6 +15,9 @@ find_package(message_filters REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(camodocal REQUIRED)
 
+
+# add_definitions(DEBUG)
+
 file(GLOB_RECURSE SRC_FILE ${PROJECT_SOURCE_DIR}/src/*.cpp)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 

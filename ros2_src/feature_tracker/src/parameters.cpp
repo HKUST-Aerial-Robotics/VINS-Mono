@@ -50,4 +50,26 @@ void readParameters(std::string config_file, std::string VINS_FOLDER_PATH){
         FREQ = 100;
 
     fsSettings.release();
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), 
+        COLOR_GRN 
+        << "\n" << LINE
+        << "\n- IMU_TOPIC: " << IMU_TOPIC 
+        << "\n- IMU_TOPIC: " << IMU_TOPIC << std::endl
+        << "\n- ROW: " << ROW
+        << "\n- COL: " << COL
+        << "\n- FREQ: " << FREQ
+        << "\n- FISHEYE: " << FISHEYE
+        << "\n- MAX_CNT: " << MAX_CNT
+        << "\n- EQUALIZE: " << EQUALIZE
+        << "\n- MIN_DIST: " << MIN_DIST
+        << "\n- SHOW_TRACK: " << SHOW_TRACK
+        << "\n- F_THRESHOLD: " << F_THRESHOLD
+        << "\n- WINDOW_SIZE: " << WINDOW_SIZE
+        << "\n- STEREO_TRACK: " << STEREO_TRACK
+        << "\n- FOCAL_LENGTH: " << FOCAL_LENGTH
+        << "\n- PUB_THIS_FRAME: " << PUB_THIS_FRAME << std::endl
+        << "\n- VINS_FOLDER_PATH: " << VINS_FOLDER_PATH
+        << "\n- config_file: " << config_file
+        << "\n" << LINE << std::endl;
+    );
 }

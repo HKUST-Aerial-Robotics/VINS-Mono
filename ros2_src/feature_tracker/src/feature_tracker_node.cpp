@@ -9,11 +9,10 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
     {
         for (int i = 0; i < NUM_OF_CAM; i++){
             trackerData[i].fisheye_mask = cv::imread(FISHEYE_MASK, 0);
-            if(!trackerData[i].fisheye_mask.data){
-                std::cout << "load mask fail\n";
-            }
+            if(!trackerData[i].fisheye_mask.data)
+                RCLCPP_ERROR(this->get_logger(), "load mask fail");
             else
-                std::cout << "load mask success\n";
+                RCLCPP_ERROR(this->get_logger(), "load mask success");
         }
     }
     
@@ -21,23 +20,24 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
 }
 
 void FeatureTrackerNode::initTopic(){
-    pub_img     = this->create_publisher<pointCloudMsg>("feature", 100);
-    pub_match   = this->create_publisher<imageMsg>("feature_img", 100);
-    pub_restart = this->create_publisher<boolMsg>("restart", 100);
-    sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 100, std::bind(
+    pub_img     = this->create_publisher<pointCloudMsg>("feature", 2000);
+    pub_match   = this->create_publisher<imageMsg>("feature_img", 2000);
+    pub_restart = this->create_publisher<boolMsg>("restart", 2000);
+    sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 2000, std::bind(
                         &FeatureTrackerNode::imgCallback, this, std::placeholders::_1));
 }
 
 void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
-     if(first_image_flag)
+    current_time = static_cast<double>(img_msg->header.stamp.sec) + static_cast<double>(img_msg->header.stamp.nanosec / 1.0e9);
+    if(first_image_flag)
     {
         first_image_flag = false;
-        first_image_time = img_msg->header.stamp.sec;
-        last_image_time = img_msg->header.stamp.sec;
+        first_image_time = current_time;
+        last_image_time = current_time;
         return;
     }
     // detect unstable camera stream
-    if (img_msg->header.stamp.sec - last_image_time > 1.0 || img_msg->header.stamp.sec < last_image_time) {
+    if (current_time - last_image_time > 1.0 || current_time < last_image_time) {
         RCLCPP_WARN(this->get_logger(), "image discontinue! reset the feature tracker!");
         first_image_flag = true; 
         last_image_time = 0;
@@ -47,21 +47,23 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
         pub_restart->publish(restart_flag);
         return;
     }
-    last_image_time = img_msg->header.stamp.sec;
+    last_image_time = current_time;
     // frequency control
-    if (round(1.0 * pub_count / (img_msg->header.stamp.sec- first_image_time)) <= FREQ)
+    // RCLCPP_INFO(this->get_logger(), COLOR_BLE"now: %lf prev: %lf",current_time, first_image_time);
+    // RCLCPP_INFO(this->get_logger(), "now freq: %lf freq: %d",(1.0 * pub_count /(current_time - first_image_time)), FREQ);
+    if (1.0 * pub_count /(current_time - first_image_time) <= FREQ)
     {
         PUB_THIS_FRAME = true;
         // reset the frequency control
-        if (abs(1.0 * pub_count / (img_msg->header.stamp.sec- first_image_time) - FREQ) < 0.01 * FREQ)
+        if (abs(1.0 * pub_count / (current_time - first_image_time) - FREQ) < 0.01 * FREQ)
         {
-            first_image_time = img_msg->header.stamp.sec;
+            first_image_time = current_time;
             pub_count = 0;
         }
     }
-    else
+    else{
         PUB_THIS_FRAME = false;
-
+    }
     cv_bridge::CvImageConstPtr ptr;
     if (img_msg->encoding == "8UC1")
     {
@@ -81,7 +83,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
     cv::Mat show_img = ptr->image;
     TicToc t_r;
     for (int i = 0; i < NUM_OF_CAM; i++) {
-        std::cout << "processing camera " << i <<std::endl;
+        RCLCPP_DEBUG_STREAM(this->get_logger(), "processing camera " << i );
         if (i != 1 || !STEREO_TRACK)
             trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.sec);
         else
@@ -153,7 +155,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
         feature_points->channels.push_back(v_of_point);
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
-        std::cout << "publish " << feature_points->header.stamp.sec << " at " << (this->now().seconds()) << std::endl;
+        RCLCPP_DEBUG_STREAM(this->get_logger(), "publish " << feature_points->header.stamp.sec << " at " << (this->now().seconds()));
         // skip the first image; since no optical speed on frist image
         if (!init_pub){
             init_pub = 1;
@@ -192,12 +194,12 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
                     //cv::putText(tmp_img, name, trackerData[i].cur_pts[j], cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
                 }
             }
-            //cv::imshow("vis", stereo_img);
-            //cv::waitKey(5);
+            // cv::imshow("vis", stereo_img);
+            // cv::waitKey(5);
             pub_match->publish(*ptr->toImageMsg());
         }
     }
-    RCLCPP_INFO(this->get_logger(), "whole feature tracker processing costs: %f", t_r.toc());
+    RCLCPP_DEBUG(this->get_logger(), "whole feature tracker processing costs: %f", t_r.toc());
 }
 
 void FeatureTrackerNode::getParams(){

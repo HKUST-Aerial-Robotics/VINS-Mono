@@ -12,6 +12,7 @@
 #include "feature_tracker.hpp"
 
 #define SHOW_UNDISTORTION 0
+#define MY_VARIABLE_STRING "${MY_VARIABLE}"
 
 using imuMsg = sensor_msgs::msg::Imu;
 using imageMsg = sensor_msgs::msg::Image;
@@ -38,8 +39,9 @@ private:
     double first_image_time;
     int pub_count = 1;
     bool first_image_flag = true;
-    double last_image_time = 0;
+    double last_image_time = 0.0;
     bool init_pub = 0;
+    double current_time = 0.0;
 };
 
 #endif
