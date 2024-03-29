@@ -17,7 +17,7 @@ feature_tracker_node = Node(
         executable='feature_tracker_node',
         output='screen',
         parameters=[config],
-        # ros_arguments=[ "--log-level", "feature_tracker_node:=debug"]
+        # ros_arguments=[ "--log-level", "feature_tracker_node:=debug"]w
     )
 
 vins_estimator_node = Node(

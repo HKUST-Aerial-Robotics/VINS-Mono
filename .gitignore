@@ -15,3 +15,6 @@ test.launch
 **/log/**
 **/build/**
 **/install/**
+**/V1_01_easy/
+output/
+search.txt
