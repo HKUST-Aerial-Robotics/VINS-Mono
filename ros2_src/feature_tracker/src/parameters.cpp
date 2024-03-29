@@ -70,6 +70,7 @@ void readParameters(std::string config_file, std::string VINS_FOLDER_PATH){
         << "\n- PUB_THIS_FRAME: " << PUB_THIS_FRAME << std::endl
         << "\n- VINS_FOLDER_PATH: " << VINS_FOLDER_PATH
         << "\n- config_file: " << config_file
-        << "\n" << LINE << std::endl;
+        << "\n" << LINE << std::endl
+        << COLOR_RST
     );
 }

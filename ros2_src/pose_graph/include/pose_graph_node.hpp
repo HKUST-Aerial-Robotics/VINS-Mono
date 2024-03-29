@@ -26,6 +26,20 @@
 
 #define SKIP_FIRST_CNT 10
 
+#define COLOR_BLK "\x1b[30m"
+#define COLOR_RED "\x1b[31m"
+#define COLOR_GRN "\x1b[32m"
+#define COLOR_YLW "\x1b[33m"
+#define COLOR_BLE "\x1b[34m"
+#define COLOR_MGT "\x1b[35m"
+#define COLOR_CYN "\x1b[36m"
+#define COLOR_WHT "\x1b[37m"
+#define COLOR_RST "\x1b[0m"
+
+#define UNDERLINE "\x1b[21m"
+#define LINE "================================================================================================="
+
+
 using namespace std;
 using namespace DVision;
 using namespace DBoW2;

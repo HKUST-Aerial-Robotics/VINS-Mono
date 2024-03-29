@@ -15,6 +15,7 @@ std::string POSE_GRAPH_SAVE_PATH;
 int ROW;
 int COL;
 std::string VINS_RESULT_PATH;
+string vocabulary_file;
 int DEBUG_IMAGE;
 int FAST_RELOCALIZATION;
 
@@ -411,7 +412,7 @@ void PoseGraphNode::initTopic(){
     pub_camera_pose_visual = this->create_publisher<visualization_msgs::msg::MarkerArray>("camera_pose_visual", 1000);
     pub_key_odometrys = this->create_publisher<visualization_msgs::msg::Marker>("key_odometrys", 1000);
     pub_vio_path = this->create_publisher<nav_msgs::msg::Path>("no_loop_path", 1000);
-    pub_match_points = this->create_publisher<sensor_msgs::msg::PointCloud>("match_points", 100);
+    pub_match_points = this->create_publisher<sensor_msgs::msg::PointCloud>("pose_graph/match_points", 100);
 
     posegraph.pub_pg_path = this->create_publisher<navPath>("pose_graph_path", 1000);
     posegraph.pub_base_path = this->create_publisher<navPath>("base_path", 1000);
@@ -451,11 +452,9 @@ void PoseGraphNode::getParams(){
         COL = fsSettings["image_width"];
         std::string pkg_path = ament_index_cpp::get_package_share_directory("config");
         RCLCPP_INFO_STREAM(this->get_logger(), pkg_path);
-        string vocabulary_file = pkg_path + "/support_files/brief_k10L6.bin";
-        cout << "vocabulary_file" << vocabulary_file << endl;
+        vocabulary_file = pkg_path + "/support_files/brief_k10L6.bin";
         posegraph.loadVocabulary(vocabulary_file);
         BRIEF_PATTERN_FILE = pkg_path + "/support_files/brief_pattern.yml";
-        cout << "BRIEF_PATTERN_FILE" << BRIEF_PATTERN_FILE << endl;
         m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(config_file.c_str());
 
         fsSettings["image_topic"] >> IMAGE_TOPIC;        
@@ -489,6 +488,30 @@ void PoseGraphNode::getParams(){
             load_flag = 1;
         }
     }
+
+    RCLCPP_INFO_STREAM(this->get_logger(), 
+        COLOR_GRN 
+        << "\n" << LINE
+        << "\n- COL: " << COL
+        << "\n- ROW: " << ROW
+        << "\n- SKIP_CNT: " << SKIP_CNT
+        << "\n- SKIP_DIS: " << SKIP_DIS
+        << "\n- IMAGE_TOPIC: " << IMAGE_TOPIC
+        << "\n- DEBUG_IMAGE: " << DEBUG_IMAGE
+        << "\n- LOOP_CLOSURE: " << LOOP_CLOSURE
+        << "\n- FAST_RELOCALIZATION: " << FAST_RELOCALIZATION
+        << "\n- VISUALIZE_IMU_FORWARD: " << VISUALIZE_IMU_FORWARD
+        << "\n- VISUALIZATION_SHIFT_X: " << VISUALIZATION_SHIFT_X
+        << "\n- VISUALIZATION_SHIFT_Y: " << VISUALIZATION_SHIFT_Y 
+        << "\n- LOAD_PREVIOUS_POSE_GRAPH: " << LOAD_PREVIOUS_POSE_GRAPH << std::endl
+        << "\n- config_file: " << config_file
+        << "\n- vocabulary_file: " << vocabulary_file
+        << "\n- VINS_RESULT_PATH: " << VINS_RESULT_PATH
+        << "\n- BRIEF_PATTERN_FILE: " << BRIEF_PATTERN_FILE
+        << "\n- POSE_GRAPH_SAVE_PATH: " << POSE_GRAPH_SAVE_PATH
+        << "\n" << LINE
+        << COLOR_RST
+    );
 
     fsSettings.release();
 }

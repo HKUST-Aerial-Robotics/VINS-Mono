@@ -37,6 +37,6 @@ pose_graph_node = Node(
 def generate_launch_description():
     return LaunchDescription([
         feature_tracker_node,
-        # vins_estimator_node,
-        # pose_graph_node
+        vins_estimator_node,
+        pose_graph_node
     ])
