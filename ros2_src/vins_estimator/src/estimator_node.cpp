@@ -113,19 +113,22 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
 
 void EstimatorNode::imu_callback(const imuMsg::SharedPtr imu_msg){
     // RCLCPP_INFO(this->get_logger(), "IMU Callback");
-    if (imu_msg->header.stamp.sec <= last_imu_t)
+    imu_timer_ = static_cast<double>(imu_msg->header.stamp.sec) + 
+                        static_cast<double>(imu_msg->header.stamp.nanosec / 1.0e9);
+
+    if (imu_timer_ <= last_imu_t)
     {
         RCLCPP_WARN_STREAM(this->get_logger(), "imu message in disorder!");
         return;
     }
-    last_imu_t = imu_msg->header.stamp.sec;
+    last_imu_t = imu_timer_;
 
     m_buf.lock();
     imu_buf.push(imu_msg);
     m_buf.unlock();
     con.notify_one();
 
-    last_imu_t = imu_msg->header.stamp.sec;
+    last_imu_t = imu_timer_;
     {
         std::lock_guard<std::mutex> lg(m_state);
         predict(imu_msg);
@@ -138,7 +141,6 @@ void EstimatorNode::imu_callback(const imuMsg::SharedPtr imu_msg){
 }
 
 void EstimatorNode::feature_callback(const pointCloudMsg::SharedPtr feature_msg){
-    RCLCPP_INFO(this->get_logger(), "Feature Callback");
     if (!init_feature)
     {
         //skip the first detected feature, which doesn't contain optical flow speed

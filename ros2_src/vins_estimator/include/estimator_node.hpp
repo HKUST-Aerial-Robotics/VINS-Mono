@@ -69,6 +69,7 @@ private:
     // rclcpp::Node::SharedPtr node; 
     // rclcpp::TimerBase::SharedPtr measurement_process_timer;
     std::thread measurement_process;
+    double imu_timer_ = 0.0;
 };
 
 #endif
