@@ -103,9 +103,9 @@ void readParameters(std::string config_file)
         eigen_R = Q.normalized();
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
-        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "\nExtrinsic_R : "
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("parameters"), "\n\nExtrinsic_R : "
                                 << std::endl << RIC[0] << "\nExtrinsic_T : "
-                                << std::endl << TIC[0].transpose()
+                                << std::endl << TIC[0].transpose() << std::endl;
         );
     } 
 
@@ -132,4 +132,9 @@ void readParameters(std::string config_file)
     }
     
     fsSettings.release();
+}
+
+
+double toSec(headerMsg header_time){
+    return static_cast<double>(header_time.stamp.sec + header_time.stamp.nanosec /  1.0e9);
 }

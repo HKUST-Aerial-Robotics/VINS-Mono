@@ -7,6 +7,7 @@
 #include <opencv2/core/eigen.hpp>
 
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/header.hpp"
 
 #include "utility/utility.h"
 
@@ -23,6 +24,7 @@
 #define UNDERLINE "\x1b[21m"
 #define LINE "================================================================================================="
 
+using headerMsg = std_msgs::msg::Header;
 
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
@@ -54,8 +56,8 @@ extern int ESTIMATE_TD;
 extern int ROLLING_SHUTTER;
 extern double ROW, COL;
 
-
 void readParameters(std::string config_file);
+double toSec(headerMsg header_time);
 
 enum SIZE_PARAMETERIZATION
 {

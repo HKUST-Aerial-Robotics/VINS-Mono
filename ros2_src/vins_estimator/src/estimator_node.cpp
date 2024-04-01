@@ -74,21 +74,19 @@ void EstimatorNode::update()
 std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>> EstimatorNode::getMeasurements()
 {
     std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>> measurements;
-
     while (true)
     {
-
         if (imu_buf.empty() || feature_buf.empty())
             return measurements;
 
-        if (!(imu_buf.back()->header.stamp.sec > feature_buf.front()->header.stamp.sec + estimator.td))
+        if (!(toSec(imu_buf.back()->header) > toSec(feature_buf.front()->header) + estimator.td))
         {
             RCLCPP_WARN(this->get_logger(), "wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
-        if (!(imu_buf.front()->header.stamp.sec < feature_buf.front()->header.stamp.sec + estimator.td))
+        if (!(toSec(imu_buf.front()->header) < toSec(feature_buf.front()->header) + estimator.td))
         {
             RCLCPP_WARN(this->get_logger(), "throw img, only should happen at the beginning");
             feature_buf.pop();
@@ -98,8 +96,13 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
         feature_buf.pop();
 
         std::vector<imuMsg::SharedPtr> IMUs;
-        while (imu_buf.front()->header.stamp.sec < img_msg->header.stamp.sec + estimator.td)
+        while (toSec(imu_buf.front()->header) < toSec(img_msg->header) + estimator.td)
         {
+            if (imu_buf.empty()) 
+            {
+                RCLCPP_WARN(this->get_logger(), "no imu between two image (while)");
+                break;
+            }
             IMUs.emplace_back(imu_buf.front());
             imu_buf.pop();
         }
