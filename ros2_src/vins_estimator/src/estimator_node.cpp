@@ -79,7 +79,7 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
         if (imu_buf.empty() || feature_buf.empty())
             return measurements;
 
-        if (!(toSec(imu_buf.back()->header) > toSec(feature_buf.front()->header) + estimator.td))
+        if (!(toSec(imu_buf.back()->header) > toSec(feature_buf.front()->header) - 0.01 /*estimator.td*/))
         {
             RCLCPP_WARN(this->get_logger(), "wait for imu, only should happen at the beginning");
             sum_of_wait++;
@@ -107,8 +107,9 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
             imu_buf.pop();
         }
         IMUs.emplace_back(imu_buf.front());
-        if (IMUs.empty())
+        if (IMUs.empty() || !img_msg)
             RCLCPP_WARN(this->get_logger(), "no imu between two image");
+            continue;
         measurements.emplace_back(IMUs, img_msg);
     }
     return measurements;

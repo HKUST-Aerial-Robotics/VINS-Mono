@@ -4,6 +4,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/image_encodings.hpp"
 #include "sensor_msgs/msg/point_cloud.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/channel_float32.hpp"
 #include "geometry_msgs/msg/point32.hpp"
 #include "sensor_msgs/msg/imu.hpp"
@@ -19,6 +20,7 @@
 using imuMsg = sensor_msgs::msg::Imu;
 using imageMsg = sensor_msgs::msg::Image;
 using pointCloudMsg = sensor_msgs::msg::PointCloud;
+using pointCloud2Msg = sensor_msgs::msg::PointCloud2;
 using boolMsg = std_msgs::msg::Bool;
 
 class FeatureTrackerNode : public rclcpp::Node{
@@ -33,6 +35,7 @@ private:
     std::queue<imageMsg::SharedPtr> img_buf;
 
     rclcpp::Publisher<pointCloudMsg>::SharedPtr pub_img;
+    rclcpp::Publisher<pointCloud2Msg>::SharedPtr pub_img2;
     rclcpp::Publisher<imageMsg>::SharedPtr pub_match;
     rclcpp::Publisher<boolMsg>::SharedPtr pub_restart;
     rclcpp::Subscription<imageMsg>::SharedPtr sub_img;

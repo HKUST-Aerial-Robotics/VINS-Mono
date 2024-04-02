@@ -1,4 +1,5 @@
 #include "feature_tracker_node.hpp"
+#include "sensor_msgs/point_cloud_conversion.hpp"
 
 FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
     getParams();
@@ -21,6 +22,7 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
 
 void FeatureTrackerNode::initTopic(){
     pub_img     = this->create_publisher<pointCloudMsg>("feature_tracker/feature", 2000);
+    pub_img2     = this->create_publisher<pointCloud2Msg>("feature_tracker/feature_2", 2000);
     pub_match   = this->create_publisher<imageMsg>("feature_tracker/feature_img", 2000);
     pub_restart = this->create_publisher<boolMsg>("feature_tracker/restart", 2000);
     sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 2000, std::bind(
@@ -113,8 +115,8 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
 
    if (PUB_THIS_FRAME) {
         pub_count++;
-        // sensor_msgs::msg::PointCloud2::SharedPtr feature_points(new sensor_msgs::msg::PointCloud2);
-        sensor_msgs::msg::PointCloud::SharedPtr feature_points(new sensor_msgs::msg::PointCloud);
+        pointCloud2Msg::SharedPtr feature_points2(new pointCloud2Msg);
+        pointCloudMsg::SharedPtr feature_points(new pointCloudMsg);
         sensor_msgs::msg::ChannelFloat32 id_of_point;
         sensor_msgs::msg::ChannelFloat32 u_of_point;
         sensor_msgs::msg::ChannelFloat32 v_of_point;
@@ -158,12 +160,14 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
         feature_points->channels.push_back(velocity_y_of_point);
         RCLCPP_DEBUG_STREAM(this->get_logger(), "publish " << feature_points->header.stamp.sec << " at " << (this->now().seconds()));
         // skip the first image; since no optical speed on frist image
+        sensor_msgs::convertPointCloudToPointCloud2(*feature_points, *feature_points2);
         if (!init_pub){
             init_pub = 1;
         }
-        else
+        else{
             pub_img->publish(*feature_points);
-
+            pub_img2->publish(*feature_points2);
+        }
         if (SHOW_TRACK)
         {
             ptr = cv_bridge::cvtColor(ptr, sensor_msgs::image_encodings::BGR8);
