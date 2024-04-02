@@ -54,7 +54,7 @@ void readParameters(std::string config_file, std::string VINS_FOLDER_PATH){
         COLOR_GRN 
         << "\n" << LINE
         << "\n- IMU_TOPIC: " << IMU_TOPIC 
-        << "\n- IMU_TOPIC: " << IMU_TOPIC << std::endl
+        << "\n- IMAGE_TOPIC: " << IMAGE_TOPIC << std::endl
         << "\n- ROW: " << ROW
         << "\n- COL: " << COL
         << "\n- FREQ: " << FREQ

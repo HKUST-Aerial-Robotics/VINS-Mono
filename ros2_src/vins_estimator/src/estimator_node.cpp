@@ -2,11 +2,12 @@
 using namespace std::placeholders;
 Estimator estimator;
 
-EstimatorNode::EstimatorNode() : Node("estimator_node"){
+EstimatorNode::EstimatorNode() : Node("estimator_node")
+{
     getParams();
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE
-        RCLCPP_DEBUG(this->get_logger(), "EIGEN_DONT_PARALLELIZE");
+    RCLCPP_DEBUG(this->get_logger(), "EIGEN_DONT_PARALLELIZE");
 #endif
     RCLCPP_WARN(this->get_logger(), "waiting for image and imu...");
     initTopic();
@@ -68,7 +69,6 @@ void EstimatorNode::update()
     queue<imuMsg::SharedPtr> tmp_imu_buf = imu_buf;
     for (imuMsg::SharedPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())
         predict(tmp_imu_buf.front());
-
 }
 
 std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>> EstimatorNode::getMeasurements()
@@ -77,16 +77,18 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
     while (true)
     {
         if (imu_buf.empty() || feature_buf.empty())
-            return measurements;
-
-        if (!(toSec(imu_buf.back()->header) > toSec(feature_buf.front()->header) - 0.01 /*estimator.td*/))
         {
-            RCLCPP_WARN(this->get_logger(), "wait for imu, only should happen at the beginning");
+            return measurements;
+        }
+ 
+        if (toSec(imu_buf.back()->header) <= (toSec(feature_buf.front()->header) + (estimator.td / 1.0)))
+        {
+            RCLCPP_WARN(this->get_logger(),"Wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
-        if (!(toSec(imu_buf.front()->header) < toSec(feature_buf.front()->header) + estimator.td))
+        if (toSec(imu_buf.front()->header) >= (toSec(feature_buf.front()->header) + (estimator.td / 1.0)))
         {
             RCLCPP_WARN(this->get_logger(), "throw img, only should happen at the beginning");
             feature_buf.pop();
@@ -94,31 +96,28 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
         }
         pointCloudMsg::SharedPtr img_msg = feature_buf.front();
         feature_buf.pop();
-
         std::vector<imuMsg::SharedPtr> IMUs;
         while (toSec(imu_buf.front()->header) < toSec(img_msg->header) + estimator.td)
         {
-            if (imu_buf.empty()) 
-            {
-                RCLCPP_WARN(this->get_logger(), "no imu between two image (while)");
-                break;
-            }
             IMUs.emplace_back(imu_buf.front());
             imu_buf.pop();
         }
         IMUs.emplace_back(imu_buf.front());
-        if (IMUs.empty() || !img_msg)
+        if (IMUs.empty() || !img_msg){
             RCLCPP_WARN(this->get_logger(), "no imu between two image");
             continue;
+        }
+
         measurements.emplace_back(IMUs, img_msg);
     }
-    return measurements;
+        return measurements;
 }
 
-void EstimatorNode::imu_callback(const imuMsg::SharedPtr imu_msg){
+void EstimatorNode::imu_callback(const imuMsg::SharedPtr imu_msg)
+{
     // RCLCPP_INFO(this->get_logger(), "IMU Callback");
-    imu_timer_ = static_cast<double>(imu_msg->header.stamp.sec) + 
-                        static_cast<double>(imu_msg->header.stamp.nanosec / 1.0e9);
+    imu_timer_ = static_cast<double>(imu_msg->header.stamp.sec) +
+                 static_cast<double>(imu_msg->header.stamp.nanosec / 1.0e9);
 
     if (imu_timer_ <= last_imu_t)
     {
@@ -144,10 +143,11 @@ void EstimatorNode::imu_callback(const imuMsg::SharedPtr imu_msg){
     }
 }
 
-void EstimatorNode::feature_callback(const pointCloudMsg::SharedPtr feature_msg){
+void EstimatorNode::feature_callback(const pointCloudMsg::SharedPtr feature_msg)
+{
     if (!init_feature)
-    {
-        //skip the first detected feature, which doesn't contain optical flow speed
+    {        
+        // skip the first detected feature, which doesn't contain optical flow speed
         init_feature = 1;
         return;
     }
@@ -157,16 +157,17 @@ void EstimatorNode::feature_callback(const pointCloudMsg::SharedPtr feature_msg)
     con.notify_one();
 }
 
-void EstimatorNode::restart_callback(const boolMsg::SharedPtr restart_msg){
+void EstimatorNode::restart_callback(const boolMsg::SharedPtr restart_msg)
+{
     RCLCPP_INFO(this->get_logger(), "Restart Callback");
 
     if (restart_msg->data == true)
     {
         RCLCPP_WARN(this->get_logger(), "restart the estimator!");
         m_buf.lock();
-        while(!feature_buf.empty())
+        while (!feature_buf.empty())
             feature_buf.pop();
-        while(!imu_buf.empty())
+        while (!imu_buf.empty())
             imu_buf.pop();
         m_buf.unlock();
         m_estimator.lock();
@@ -178,7 +179,8 @@ void EstimatorNode::restart_callback(const boolMsg::SharedPtr restart_msg){
     }
 }
 
-void EstimatorNode::relocalization_callback(const pointCloudMsg::SharedPtr points_msg){
+void EstimatorNode::relocalization_callback(const pointCloudMsg::SharedPtr points_msg)
+{
     RCLCPP_INFO(this->get_logger(), "Relocalization callback!");
     m_buf.lock();
     relo_buf.push(points_msg);
@@ -186,18 +188,21 @@ void EstimatorNode::relocalization_callback(const pointCloudMsg::SharedPtr point
 }
 
 // thread: visual-inertial odometry
-void EstimatorNode::process(){
-    while(true){
-        std::vector<std::pair<std::vector<imuMsg::SharedPtr>, 
-                            pointCloudMsg::SharedPtr>> measurements;
+void EstimatorNode::process()
+{
+    while (true)
+    {
+        std::vector<std::pair<std::vector<imuMsg::SharedPtr>,
+                              pointCloudMsg::SharedPtr>>
+            measurements;
         std::unique_lock<std::mutex> lk(m_buf);
-        con.wait(lk, [&]{ 
-                    return (measurements = getMeasurements()).size() != 0;
-                    });
+        con.wait(lk, [&] { 
+                    return (measurements = getMeasurements()).size() != 0; 
+                });
         lk.unlock();
         m_estimator.lock();
         for (auto &measurement : measurements)
-        {
+        {   
             auto img_msg = measurement.second;
             double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
             for (auto &imu_msg : measurement.first)
@@ -205,7 +210,7 @@ void EstimatorNode::process(){
                 double t = imu_msg->header.stamp.sec;
                 double img_t = img_msg->header.stamp.sec + estimator.td;
                 if (t <= img_t)
-                { 
+                {
                     if (current_time < 0)
                         current_time = t;
                     double dt = t - current_time;
@@ -219,7 +224,6 @@ void EstimatorNode::process(){
                     rz = imu_msg->angular_velocity.z;
                     estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
                     // printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
-
                 }
                 else
                 {
@@ -287,7 +291,7 @@ void EstimatorNode::process(){
                 assert(z == 1);
                 Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
-                image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
+                image[feature_id].emplace_back(camera_id, xyz_uv_velocity);
             }
             estimator.processImage(image, img_msg->header);
 
@@ -295,7 +299,6 @@ void EstimatorNode::process(){
             printStatistics(estimator, whole_t);
             std_msgs::msg::Header header = img_msg->header;
             header.frame_id = "world";
-
             pubOdometry(estimator, header);
             pubKeyPoses(estimator, header);
             pubCameraPose(estimator, header);
@@ -306,6 +309,7 @@ void EstimatorNode::process(){
                 pubRelocalization(estimator);
             // printf("end: %d, at %d", img_msg->header.stamp.sec, rclcpp::Node::now());
         }
+        // RCLCPP_INFO(this->get_logger(), "UPDATE");
         m_estimator.unlock();
         m_buf.lock();
         m_state.lock();
@@ -314,41 +318,43 @@ void EstimatorNode::process(){
         m_state.unlock();
         m_buf.unlock();
     }
-    
 }
 
-void EstimatorNode::initTopic(){
-    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000, 
-                                      std::bind(&EstimatorNode::imu_callback, this, _1));
-    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000, 
-                                      std::bind(&EstimatorNode::feature_callback, this, _1));
-    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000,  
-                                      std::bind(&EstimatorNode::restart_callback, this, _1));
-    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000,  
-                                        std::bind(&EstimatorNode::relocalization_callback, this, _1));
-    
-    pub_latest_odometry    = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 1000);
-    pub_path               = this->create_publisher<navPathMsg>("path", 1000);
-    pub_relo_path          = this->create_publisher<navPathMsg>("relocalization_path", 1000);
-    pub_odometry           = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 1000);
-    pub_point_cloud        = this->create_publisher<pointCloudMsg>("point_cloud", 1000);
-    pub_margin_cloud       = this->create_publisher<pointCloudMsg>("history_cloud", 1000);
-    pub_key_poses          = this->create_publisher<markerMsg>("key_poses", 1000);
-    pub_camera_pose        = this->create_publisher<navOdometryMsg>("camera_pose", 1000);
+void EstimatorNode::initTopic()
+{
+    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000,
+                                                std::bind(&EstimatorNode::imu_callback, this, _1));
+    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000,
+                                                         std::bind(&EstimatorNode::feature_callback, this, _1));
+    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000,
+                                                     std::bind(&EstimatorNode::restart_callback, this, _1));
+    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000,
+                                                               std::bind(&EstimatorNode::relocalization_callback, this, _1));
+
+    pub_latest_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 1000);
+    pub_path = this->create_publisher<navPathMsg>("path", 1000);
+    pub_relo_path = this->create_publisher<navPathMsg>("relocalization_path", 1000);
+    pub_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 1000);
+    pub_point_cloud = this->create_publisher<pointCloudMsg>("point_cloud", 1000);
+    pub_margin_cloud = this->create_publisher<pointCloudMsg>("history_cloud", 1000);
+    pub_key_poses = this->create_publisher<markerMsg>("key_poses", 1000);
+    pub_camera_pose = this->create_publisher<navOdometryMsg>("camera_pose", 1000);
     pub_camera_pose_visual = this->create_publisher<markerArrayMsg>("camera_pose_visual", 1000);
-    pub_keyframe_pose      = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 1000);
-    pub_keyframe_point     = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 1000);
-    pub_extrinsic          = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 1000);
+    pub_keyframe_pose = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 1000);
+    pub_keyframe_point = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 1000);
+    pub_extrinsic = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 1000);
     pub_relo_relative_pose = this->create_publisher<navOdometryMsg>("vins_estimator/relo_relative_pose", 1000);
 }
 
-void EstimatorNode::getParams(){
+void EstimatorNode::getParams()
+{
     this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
     std::string config_file = this->get_parameter("config_file").as_string();
     readParameters(config_file);
 }
 
-int main(int argc, char** argv){
+int main(int argc, char **argv)
+{
     rclcpp::init(argc, argv);
     rclcpp::spin(std::make_shared<EstimatorNode>());
     rclcpp::shutdown();

@@ -215,6 +215,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         last_P0 = Ps[0];
     }
 }
+
 bool Estimator::initialStructure()
 {
     TicToc t_sfm;
@@ -1011,9 +1012,10 @@ void Estimator::slideWindow()
         back_R0 = Rs[0];
         back_P0 = Ps[0];
         if (frame_count == WINDOW_SIZE)
-        {
+        {   
+
             for (int i = 0; i < WINDOW_SIZE; i++)
-            {
+            {   
                 Rs[i].swap(Rs[i + 1]);
 
                 std::swap(pre_integrations[i], pre_integrations[i + 1]);
@@ -1044,6 +1046,7 @@ void Estimator::slideWindow()
 
             if (true || solver_flag == INITIAL)
             {
+
                 map<double, ImageFrame>::iterator it_0;
                 it_0 = all_image_frame.find(t_0);
                 delete it_0->second.pre_integration;
@@ -1055,16 +1058,15 @@ void Estimator::slideWindow()
                         delete it->second.pre_integration;
                     it->second.pre_integration = NULL;
                 }
-
+                
                 all_image_frame.erase(all_image_frame.begin(), it_0);
-                all_image_frame.erase(t_0);
-
+                // all_image_frame.erase(t_0);
             }
             slideWindowOld();
         }
     }
     else
-    {
+    {   
         if (frame_count == WINDOW_SIZE)
         {
             for (unsigned int i = 0; i < dt_buf[frame_count].size(); i++)
