@@ -21,16 +21,15 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
 }
 
 void FeatureTrackerNode::initTopic(){
-    pub_img     = this->create_publisher<pointCloudMsg>("feature_tracker/feature", 2000);
-    pub_img2     = this->create_publisher<pointCloud2Msg>("feature_tracker/feature_2", 2000);
-    pub_match   = this->create_publisher<imageMsg>("feature_tracker/feature_img", 2000);
-    pub_restart = this->create_publisher<boolMsg>("feature_tracker/restart", 2000);
-    sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 2000, std::bind(
+    pub_img     = this->create_publisher<pointCloudMsg>("feature_tracker/feature", 1000);
+    pub_match   = this->create_publisher<imageMsg>("feature_tracker/feature_img", 1000);
+    pub_restart = this->create_publisher<boolMsg>("feature_tracker/restart", 1000);
+    sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 100, std::bind(
                         &FeatureTrackerNode::imgCallback, this, std::placeholders::_1));
 }
 
 void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
-    current_time = static_cast<double>(img_msg->header.stamp.sec) + static_cast<double>(img_msg->header.stamp.nanosec / 1.0e9);
+    current_time = toSec(img_msg->header);
     if(first_image_flag)
     {
         first_image_flag = false;
@@ -87,7 +86,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
     for (int i = 0; i < NUM_OF_CAM; i++) {
         RCLCPP_DEBUG_STREAM(this->get_logger(), "processing camera " << i );
         if (i != 1 || !STEREO_TRACK)
-            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.sec);
+            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), toSec(img_msg->header));
         else
         {
             if (EQUALIZE) {
@@ -158,15 +157,15 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
         feature_points->channels.push_back(v_of_point);
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
-        RCLCPP_DEBUG_STREAM(this->get_logger(), "publish " << feature_points->header.stamp.sec << " at " << (this->now().seconds()));
+        RCLCPP_DEBUG_STREAM(this->get_logger(), "publish " << toSec(feature_points->header) << " at " << (this->now().seconds()));
         // skip the first image; since no optical speed on frist image
-        sensor_msgs::convertPointCloudToPointCloud2(*feature_points, *feature_points2);
+        // sensor_msgs::convertPointCloudToPointCloud2(*feature_points, *feature_points2);
         if (!init_pub){
             init_pub = 1;
         }
         else{
             pub_img->publish(*feature_points);
-            pub_img2->publish(*feature_points2);
+            // pub_img2->publish(*feature_points2);
         }
         if (SHOW_TRACK)
         {

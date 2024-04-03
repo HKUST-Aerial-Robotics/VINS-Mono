@@ -35,9 +35,9 @@ private:
     std::queue<imageMsg::SharedPtr> img_buf;
 
     rclcpp::Publisher<pointCloudMsg>::SharedPtr pub_img;
-    rclcpp::Publisher<pointCloud2Msg>::SharedPtr pub_img2;
     rclcpp::Publisher<imageMsg>::SharedPtr pub_match;
     rclcpp::Publisher<boolMsg>::SharedPtr pub_restart;
+    
     rclcpp::Subscription<imageMsg>::SharedPtr sub_img;
 
     FeatureTracker trackerData[NUM_OF_CAM];

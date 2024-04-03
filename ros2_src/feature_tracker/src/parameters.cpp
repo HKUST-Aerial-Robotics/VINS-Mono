@@ -74,3 +74,7 @@ void readParameters(std::string config_file, std::string VINS_FOLDER_PATH){
         << COLOR_RST
     );
 }
+
+double toSec(headerMsg header_time){
+    return static_cast<double>(header_time.stamp.sec + (header_time.stamp.nanosec /  1.0e9));
+}

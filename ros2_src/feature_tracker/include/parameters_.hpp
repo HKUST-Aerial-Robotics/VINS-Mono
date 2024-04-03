@@ -3,6 +3,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "std_msgs/msg/header.hpp"
 
 #define COLOR_BLK "\x1b[30m"
 #define COLOR_RED "\x1b[31m"
@@ -17,12 +18,12 @@
 #define UNDERLINE "\x1b[21m"
 #define LINE "================================================================================================="
 
+using headerMsg = std_msgs::msg::Header;
 
 extern int ROW;
 extern int COL;
 extern int FOCAL_LENGTH;
 const int NUM_OF_CAM = 1;
-
 
 extern std::string IMAGE_TOPIC;
 extern std::string IMU_TOPIC;
@@ -40,5 +41,5 @@ extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
 
 void readParameters(std::string config_file, std::string VINS_FOLDER_PATH);
-
+double toSec(headerMsg header_time);
 #endif
