@@ -38,6 +38,7 @@ add_executable(pose_graph_node
               src/ThirdParty/DUtils/Timestamp.cpp
               src/ThirdParty/DVision/BRIEF.cpp
               src/ThirdParty/VocabularyBinary.cpp
+              src/parameters_.cpp
 )
 
 ament_target_dependencies(

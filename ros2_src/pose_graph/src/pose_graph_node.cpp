@@ -65,13 +65,13 @@ void PoseGraphNode::imageCallback(const imageMsg::SharedPtr image_msg){
 
     // detect unstable camera stream
     if (last_image_time == -1)
-        last_image_time = image_msg->header.stamp.sec;
-    else if (image_msg->header.stamp.sec - last_image_time > 1.0 || image_msg->header.stamp.sec < last_image_time)
+        last_image_time = toSec(image_msg->header);
+    else if (toSec(image_msg->header) - last_image_time > 1.0 || toSec(image_msg->header) < last_image_time)
     {
         RCLCPP_WARN(this->get_logger(), "image discontinue! detect a new sequence!");
         newSequence();
     }
-    last_image_time = image_msg->header.stamp.sec;
+    last_image_time = toSec(image_msg->header);
 }
 
 void PoseGraphNode::pointCallback(const pointCloudMsg::SharedPtr point_msg){
@@ -249,12 +249,12 @@ void PoseGraphNode::process(){
         m_buf.lock();
         if(!image_buf.empty() && !point_buf.empty() && !pose_buf.empty())
         {
-            if (image_buf.front()->header.stamp.sec > pose_buf.front()->header.stamp.sec)
+            if (toSec(image_buf.front()->header) > toSec(pose_buf.front()->header))
             {
                 pose_buf.pop();
                 printf("throw pose at beginning\n");
             }
-            else if (image_buf.front()->header.stamp.sec > point_buf.front()->header.stamp.sec)
+            else if (toSec(image_buf.front()->header) > toSec(point_buf.front()->header))
             {
                 point_buf.pop();
                 printf("throw point at beginning\n");

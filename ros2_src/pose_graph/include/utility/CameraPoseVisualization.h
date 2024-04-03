@@ -11,7 +11,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <opencv2/opencv.hpp>
-#include "../parameters.h"
+#include "../parameters_.h"
 
 using markerArrayMsg = visualization_msgs::msg::MarkerArray;
 using markerMsg = visualization_msgs::msg::Marker;

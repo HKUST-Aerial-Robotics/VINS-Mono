@@ -18,7 +18,7 @@ EstimatorNode::EstimatorNode() : Node("estimator_node")
 
 void EstimatorNode::predict(const imuMsg::SharedPtr imu_msg)
 {
-    double t = imu_msg->header.stamp.sec;
+    double t = toSec(imu_msg->header);
     if (init_imu)
     {
         latest_time = t;
@@ -116,8 +116,7 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
 void EstimatorNode::imu_callback(const imuMsg::SharedPtr imu_msg)
 {
     // RCLCPP_INFO(this->get_logger(), "IMU Callback");
-    imu_timer_ = static_cast<double>(imu_msg->header.stamp.sec) +
-                 static_cast<double>(imu_msg->header.stamp.nanosec / 1.0e9);
+    imu_timer_ = toSec(imu_msg->header);
 
     if (imu_timer_ <= last_imu_t)
     {
@@ -207,8 +206,8 @@ void EstimatorNode::process()
             double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
             for (auto &imu_msg : measurement.first)
             {
-                double t = imu_msg->header.stamp.sec;
-                double img_t = img_msg->header.stamp.sec + estimator.td;
+                double t = toSec(imu_msg->header);
+                double img_t = toSec(img_msg->header) + estimator.td;
                 if (t <= img_t)
                 {
                     if (current_time < 0)
@@ -255,7 +254,7 @@ void EstimatorNode::process()
             if (relo_msg != NULL)
             {
                 vector<Vector3d> match_points;
-                double frame_stamp = relo_msg->header.stamp.sec;
+                double frame_stamp = toSec(relo_msg->header);
                 for (unsigned int i = 0; i < relo_msg->points.size(); i++)
                 {
                     Vector3d u_v_id;
@@ -272,7 +271,7 @@ void EstimatorNode::process()
                 estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);
             }
 
-            RCLCPP_DEBUG(this->get_logger(), "processing vision data with stamp %d \n", img_msg->header.stamp.sec);
+            RCLCPP_DEBUG(this->get_logger(), "processing vision data with stamp %f \n", toSec(img_msg->header));
 
             TicToc t_s;
             map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
@@ -307,7 +306,7 @@ void EstimatorNode::process()
             pubKeyframe(estimator);
             if (relo_msg != NULL)
                 pubRelocalization(estimator);
-            // printf("end: %d, at %d", img_msg->header.stamp.sec, rclcpp::Node::now());
+            // printf("end: %d, at %d", toSec(img_msg->header), rclcpp::Node::now());
         }
         // RCLCPP_INFO(this->get_logger(), "UPDATE");
         m_estimator.unlock();
