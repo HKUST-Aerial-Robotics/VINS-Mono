@@ -408,17 +408,17 @@ void PoseGraphNode::initTopic(){
     sub_relo_relative_pose = this->create_subscription<odometryMsg>("/vins_estimator/relo_relative_pose", 2000, 
                                                                         std::bind(&PoseGraphNode::reloRelativePoseCallback, this, _1));
 
-    pub_match_img = this->create_publisher<sensor_msgs::msg::Image>("match_image", 1000);
-    pub_camera_pose_visual = this->create_publisher<visualization_msgs::msg::MarkerArray>("camera_pose_visual", 1000);
-    pub_key_odometrys = this->create_publisher<visualization_msgs::msg::Marker>("key_odometrys", 1000);
-    pub_vio_path = this->create_publisher<nav_msgs::msg::Path>("no_loop_path", 1000);
+    pub_match_img = this->create_publisher<sensor_msgs::msg::Image>("/pose_graph/match_image", 1000);
+    pub_camera_pose_visual = this->create_publisher<visualization_msgs::msg::MarkerArray>("/pose_graph/camera_pose_visual", 1000);
+    pub_key_odometrys = this->create_publisher<visualization_msgs::msg::Marker>("/pose_graph/key_odometrys", 1000);
+    pub_vio_path = this->create_publisher<nav_msgs::msg::Path>("/pose_graph/no_loop_path", 1000);
     pub_match_points = this->create_publisher<sensor_msgs::msg::PointCloud>("pose_graph/match_points", 100);
 
-    posegraph.pub_pg_path = this->create_publisher<navPath>("pose_graph_path", 1000);
-    posegraph.pub_base_path = this->create_publisher<navPath>("base_path", 1000);
-    posegraph.pub_pose_graph = this->create_publisher<markerArrayMsg>("pose_graph", 1000);
+    posegraph.pub_pg_path = this->create_publisher<navPath>("/pose_graph/pose_graph_path", 1000);
+    posegraph.pub_base_path = this->create_publisher<navPath>("/pose_graph/base_path", 1000);
+    posegraph.pub_pose_graph = this->create_publisher<markerArrayMsg>("/pose_graph/pose_graph", 1000);
     for (int i = 1; i < 10; i++)
-        posegraph.pub_path[i] = this->create_publisher<navPath>("path_" + to_string(i), 1000);
+        posegraph.pub_path[i] = this->create_publisher<navPath>("/pose_graph/path_" + to_string(i), 1000);
 }
 
 void PoseGraphNode::getParams(){
