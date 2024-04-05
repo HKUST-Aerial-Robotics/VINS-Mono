@@ -1060,7 +1060,7 @@ void Estimator::slideWindow()
                 }
                 
                 all_image_frame.erase(all_image_frame.begin(), it_0);
-                // all_image_frame.erase(t_0);
+                all_image_frame.erase(t_0);
             }
             slideWindowOld();
         }

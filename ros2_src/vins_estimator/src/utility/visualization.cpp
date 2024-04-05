@@ -22,20 +22,6 @@ static Vector3d last_path(0.0, 0.0, 0.0);
 
 void registerPub()
 {
-    // pub_latest_odometry    = n->create_publisher<navOdometryMsg>("imu_propagate", 1000);
-    // pub_path               = n->create_publisher<navPathMsg>("path", 1000);
-    // pub_relo_path          = n->create_publisher<navPathMsg>("relocalization_path", 1000);
-    // pub_odometry           = n->create_publisher<navOdometryMsg>("odometry", 1000);
-    // pub_point_cloud        = n->create_publisher<pointCloudMsg>("point_cloud", 1000);
-    // pub_margin_cloud       = n->create_publisher<pointCloudMsg>("history_cloud", 1000);
-    // pub_key_poses          = n->create_publisher<markerMsg>("key_poses", 1000);
-    // pub_camera_pose        = n->create_publisher<navOdometryMsg>("camera_pose", 1000);
-    // pub_camera_pose_visual = n->create_publisher<markerArrayMsg>("camera_pose_visual", 1000);
-    // pub_keyframe_pose      = n->create_publisher<navOdometryMsg>("keyframe_pose", 1000);
-    // pub_keyframe_point     = n->create_publisher<pointCloudMsg>("keyframe_point", 1000);
-    // pub_extrinsic          = n->create_publisher<navOdometryMsg>("extrinsic", 1000);
-    // pub_relo_relative_pose = n->create_publisher<navOdometryMsg>("relo_relative_pose", 1000);
-
     cameraposevisual.setScale(1);
     cameraposevisual.setLineWidth(0.05);
     keyframebasevisual.setScale(0.1);
@@ -73,7 +59,7 @@ void printStatistics(const Estimator &estimator, double t)
 
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
-        printf("calibration result for camera %d", i);
+        RCLCPP_DEBUG(rclcpp::get_logger("visualization"), "calibration result for camera %d", i);
         RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "extirnsic tic: " << estimator.tic[i].transpose() << std::endl);
         RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "extrinsic ric: " << Utility::R2ypr(estimator.ric[i]).transpose() << std::endl);
         if (ESTIMATE_EXTRINSIC)
