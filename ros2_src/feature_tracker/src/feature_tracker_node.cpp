@@ -21,9 +21,9 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
 }
 
 void FeatureTrackerNode::initTopic(){
-    pub_img     = this->create_publisher<pointCloudMsg>("feature_tracker/feature", 1000);
-    pub_match   = this->create_publisher<imageMsg>("feature_tracker/feature_img", 1000);
-    pub_restart = this->create_publisher<boolMsg>("feature_tracker/restart", 1000);
+    pub_img     = this->create_publisher<pointCloudMsg>("feature_tracker/feature", 100);
+    pub_match   = this->create_publisher<imageMsg>("feature_tracker/feature_img", 100);
+    pub_restart = this->create_publisher<boolMsg>("feature_tracker/restart", 100);
     sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 100, std::bind(
                         &FeatureTrackerNode::imgCallback, this, std::placeholders::_1));
 }

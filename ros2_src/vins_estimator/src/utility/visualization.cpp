@@ -111,6 +111,8 @@ void pubOdometry(const Estimator &estimator, const std_msgs::msg::Header &header
         odometry.twist.twist.linear.x = estimator.Vs[WINDOW_SIZE].x();
         odometry.twist.twist.linear.y = estimator.Vs[WINDOW_SIZE].y();
         odometry.twist.twist.linear.z = estimator.Vs[WINDOW_SIZE].z();
+        // RCLCPP_INFO(rclcpp::get_logger(""), "x: %f, y: %f, z: %f", odometry.pose.pose.position.x, 
+        //                                 odometry.pose.pose.position.y, odometry.pose.pose.position.z);
         pub_odometry->publish(odometry);
 
         geometry_msgs::msg::PoseStamped pose_stamped;
@@ -145,7 +147,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::msg::Header &header
         ofstream foutC(VINS_RESULT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(0);
-        foutC << header.stamp.sec * 1e9 << ",";
+        foutC << toSec(header) * 1e9 << ",";
         foutC.precision(5);
         foutC << estimator.Ps[WINDOW_SIZE].x() << ","
               << estimator.Ps[WINDOW_SIZE].y() << ","
