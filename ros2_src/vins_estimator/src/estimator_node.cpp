@@ -4,6 +4,7 @@ Estimator estimator;
 
 EstimatorNode::EstimatorNode() : Node("estimator_node")
 {
+    br_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
     getParams();
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE
@@ -323,28 +324,28 @@ void EstimatorNode::process()
 
 void EstimatorNode::initTopic()
 {
-    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 200,
+    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000,
                                                 std::bind(&EstimatorNode::imu_callback, this, _1));
-    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 200,
+    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000,
                                                          std::bind(&EstimatorNode::feature_callback, this, _1));
-    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 200,
+    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000,
                                                      std::bind(&EstimatorNode::restart_callback, this, _1));
-    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 200,
+    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000,
                                                                std::bind(&EstimatorNode::relocalization_callback, this, _1));
 
-    pub_path = this->create_publisher<navPathMsg>("vins_estimator/path", 100);
-    pub_key_poses = this->create_publisher<markerMsg>("vins_estimator/key_poses", 100);
-    pub_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 100);
-    pub_extrinsic = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 100);
-    pub_point_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/point_cloud", 100);
-    pub_camera_pose = this->create_publisher<navOdometryMsg>("vins_estimator/camera_pose", 100);
-    pub_margin_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/history_cloud", 100);
-    pub_relo_path = this->create_publisher<navPathMsg>("vins_estimator/relocalization_path", 100);
-    pub_keyframe_pose = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 100);
-    pub_keyframe_point = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 100);
-    pub_latest_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 100);
-    pub_camera_pose_visual = this->create_publisher<markerArrayMsg>("vins_estimator/camera_pose_visual", 100);
-    pub_relo_relative_pose = this->create_publisher<navOdometryMsg>("vins_estimator/relo_relative_pose", 100);
+    pub_path = this->create_publisher<navPathMsg>("vins_estimator/path", 1000);
+    pub_key_poses = this->create_publisher<markerMsg>("vins_estimator/key_poses", 1000);
+    pub_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 1000);
+    pub_extrinsic = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 1000);
+    pub_point_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/point_cloud", 1000);
+    pub_camera_pose = this->create_publisher<navOdometryMsg>("vins_estimator/camera_pose", 1000);
+    pub_margin_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/history_cloud", 1000);
+    pub_relo_path = this->create_publisher<navPathMsg>("vins_estimator/relocalization_path", 1000);
+    pub_keyframe_pose = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 1000);
+    pub_keyframe_point = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 1000);
+    pub_latest_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 1000);
+    pub_camera_pose_visual = this->create_publisher<markerArrayMsg>("vins_estimator/camera_pose_visual", 1000);
+    pub_relo_relative_pose = this->create_publisher<navOdometryMsg>("vins_estimator/relo_relative_pose", 1000);
 }
 
 void EstimatorNode::getParams()
@@ -352,6 +353,82 @@ void EstimatorNode::getParams()
     this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
     std::string config_file = this->get_parameter("config_file").as_string();
     readParameters(config_file);
+}
+
+
+void EstimatorNode::pubTF(const Estimator &estimator, const std_msgs::msg::Header &header)
+{
+    if( estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
+        return;
+
+    tf2::Transform transform;
+    tf2::Quaternion q;
+
+    // geometry_msgs::msg::TransformStamped transform_stamped;
+
+
+    // // body frame
+    Vector3d correct_t = estimator.Ps[WINDOW_SIZE];
+    Quaterniond correct_q;
+    correct_q = estimator.Rs[WINDOW_SIZE];
+
+    transform.setOrigin(tf2::Vector3(correct_t(0), 
+                                    correct_t(1),
+                                    correct_t(2)));
+    q.setW(correct_q.w());
+    q.setX(correct_q.x());
+    q.setY(correct_q.y());
+    q.setZ(correct_q.z());
+    transform.setRotation(q);
+    
+    geometry_msgs::msg::TransformStamped body_transform;
+    body_transform.header.stamp = header.stamp;
+    body_transform.header.frame_id = "world";
+    body_transform.child_frame_id = "body";
+    body_transform.transform.translation.x = transform.getOrigin().getX();
+    body_transform.transform.translation.y = transform.getOrigin().getY();
+    body_transform.transform.translation.z = transform.getOrigin().getZ();
+    body_transform.transform.rotation.x = q.x();
+    body_transform.transform.rotation.y = q.y();
+    body_transform.transform.rotation.z = q.z();
+    body_transform.transform.rotation.w = q.w();
+    br_->sendTransform(body_transform);
+
+    // // camera frame
+    transform.setOrigin(tf2::Vector3(estimator.tic[0].x(),
+                                    estimator.tic[0].y(),
+                                    estimator.tic[0].z()));
+
+    q.setW(Quaterniond(estimator.ric[0]).w());
+    q.setX(Quaterniond(estimator.ric[0]).x());
+    q.setY(Quaterniond(estimator.ric[0]).y());
+    q.setZ(Quaterniond(estimator.ric[0]).z());
+    transform.setRotation(q);
+    geometry_msgs::msg::TransformStamped camera_transform;
+    camera_transform.header.stamp = header.stamp;
+    camera_transform.header.frame_id = "body";
+    camera_transform.child_frame_id = "camera";
+    camera_transform.transform.translation.x = transform.getOrigin().getX();
+    camera_transform.transform.translation.y = transform.getOrigin().getY();
+    camera_transform.transform.translation.z = transform.getOrigin().getZ();
+    camera_transform.transform.rotation.x = q.x();
+    camera_transform.transform.rotation.y = q.y();
+    camera_transform.transform.rotation.z = q.z();
+    camera_transform.transform.rotation.w = q.w();
+    br_->sendTransform(camera_transform);
+
+    auto odometry = std::make_unique<nav_msgs::msg::Odometry>();
+
+    odometry->header = header;
+    odometry->header.frame_id = "world";
+    odometry->pose.pose.position.x = estimator.tic[0].x();
+    odometry->pose.pose.position.y = estimator.tic[0].y();
+    odometry->pose.pose.position.z = estimator.tic[0].z();
+    odometry->pose.pose.orientation.x = Quaterniond(estimator.ric[0]).x();
+    odometry->pose.pose.orientation.y = Quaterniond(estimator.ric[0]).y();
+    odometry->pose.pose.orientation.z = Quaterniond(estimator.ric[0]).z();
+    odometry->pose.pose.orientation.w = Quaterniond(estimator.ric[0]).w();
+    pub_extrinsic->publish(std::move(odometry));
 }
 
 int main(int argc, char **argv)
