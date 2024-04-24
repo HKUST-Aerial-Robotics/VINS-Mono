@@ -2,7 +2,8 @@
 
 int FeatureTracker::n_id = 0;
 
-bool inBorder(const cv::Point2f &pt){
+bool inBorder(const cv::Point2f &pt)
+{
     const int BORDER_SIZE = 1;
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
@@ -10,7 +11,8 @@ bool inBorder(const cv::Point2f &pt){
 }
 
 
-void reduceVector(std::vector<cv::Point2f> &v, std::vector<uchar> status){
+void reduceVector(std::vector<cv::Point2f> &v, std::vector<uchar> status)
+{
     int j = 0;
     for (int i = 0; i < int(v.size()); i++)
         if (status[i])
@@ -18,14 +20,14 @@ void reduceVector(std::vector<cv::Point2f> &v, std::vector<uchar> status){
     v.resize(j);
 }
 
-void reduceVector(std::vector<int> &v, std::vector<uchar> status) {
+void reduceVector(std::vector<int> &v, std::vector<uchar> status) 
+{
     int j = 0;
     for (int i = 0; i < int(v.size()); i++)
         if (status[i])
             v[j++] = v[i];
     v.resize(j);
 }
-
 
 FeatureTracker::FeatureTracker() { }
 
@@ -35,14 +37,14 @@ void FeatureTracker::setMask() {
     else
         mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
     
-
     // prefer to keep features that are tracked for long time
     std::vector<std::pair<int, std::pair<cv::Point2f, int>>> cnt_pts_id;
 
     for (unsigned int i = 0; i < forw_pts.size(); i++)
         cnt_pts_id.push_back(std::make_pair(track_cnt[i], std::make_pair(forw_pts[i], ids[i])));
 
-    sort(cnt_pts_id.begin(), cnt_pts_id.end(), [](const std::pair<int, std::pair<cv::Point2f, int>> &a, const std::pair<int, std::pair<cv::Point2f, int>> &b)
+    sort(cnt_pts_id.begin(), cnt_pts_id.end(), [](const std::pair<int, std::pair<cv::Point2f, int>> &a,
+                                                         const std::pair<int, std::pair<cv::Point2f, int>> &b)
          {
             return a.first > b.first;
          });
@@ -196,7 +198,7 @@ bool FeatureTracker::updateID(unsigned int i){
 }
 
 void FeatureTracker::readIntrinsicParameter(const std::string &calib_file){
-    // RCLCPP_INFO_STREAM(rclcpp::get_logger("FeatureTracker"), "reading paramerter of camera " << calib_file.c_str());
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("FeatureTracker"), "reading paramerter of camera " << calib_file.c_str());
     m_camera = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 

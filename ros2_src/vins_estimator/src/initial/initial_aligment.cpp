@@ -24,7 +24,6 @@ void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
 
     }
     delta_bg = A.ldlt().solve(b);
-    // ROS_WARN_STREAM("gyroscope bias initial calibration " << delta_bg.transpose());
     RCLCPP_WARN_STREAM(rclcpp::get_logger("initial_aligment"), "gyroscope bias initial calibration" << delta_bg.transpose() );
     for (int i = 0; i <= WINDOW_SIZE; i++)
         Bgs[i] += delta_bg;

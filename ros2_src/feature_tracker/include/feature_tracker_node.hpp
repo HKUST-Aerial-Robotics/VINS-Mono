@@ -15,7 +15,6 @@
 #include "feature_tracker.hpp"
 
 #define SHOW_UNDISTORTION 0
-#define MY_VARIABLE_STRING "${MY_VARIABLE}"
 
 using imuMsg = sensor_msgs::msg::Imu;
 using imageMsg = sensor_msgs::msg::Image;

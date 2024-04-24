@@ -21,9 +21,9 @@ FeatureTrackerNode::FeatureTrackerNode(): Node("feature_tracker_node"){
 }
 
 void FeatureTrackerNode::initTopic(){
-    pub_img     = this->create_publisher<pointCloudMsg>("feature_tracker/feature", 100);
-    pub_match   = this->create_publisher<imageMsg>("feature_tracker/feature_img", 100);
-    pub_restart = this->create_publisher<boolMsg>("feature_tracker/restart", 100);
+    pub_img     = this->create_publisher<pointCloudMsg>("feature_tracker/feature", 1000);
+    pub_match   = this->create_publisher<imageMsg>("feature_tracker/feature_img", 1000);
+    pub_restart = this->create_publisher<boolMsg>("feature_tracker/restart", 1000);
     sub_img     = this->create_subscription<imageMsg>(IMAGE_TOPIC, 100, std::bind(
                         &FeatureTrackerNode::imgCallback, this, std::placeholders::_1));
 }
@@ -50,9 +50,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
     }
     last_image_time = current_time;
     // frequency control
-    // RCLCPP_INFO(this->get_logger(), COLOR_BLE"now: %lf prev: %lf",current_time, first_image_time);
-    // RCLCPP_INFO(this->get_logger(), "now freq: %lf freq: %d",(1.0 * pub_count /(current_time - first_image_time)), FREQ);
-    if (1.0 * pub_count /(current_time - first_image_time) <= FREQ)
+    if (round(1.0 * pub_count /(current_time - first_image_time)) <= FREQ)
     {
         PUB_THIS_FRAME = true;
         // reset the frequency control
@@ -65,6 +63,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
     else{
         PUB_THIS_FRAME = false;
     }
+
     cv_bridge::CvImageConstPtr ptr;
     if (img_msg->encoding == "8UC1")
     {
@@ -114,7 +113,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
 
    if (PUB_THIS_FRAME) {
         pub_count++;
-        pointCloud2Msg::SharedPtr feature_points2(new pointCloud2Msg);
+        // pointCloud2Msg::SharedPtr feature_points2(new pointCloud2Msg);
         pointCloudMsg::SharedPtr feature_points(new pointCloudMsg);
         sensor_msgs::msg::ChannelFloat32 id_of_point;
         sensor_msgs::msg::ChannelFloat32 u_of_point;
@@ -157,6 +156,7 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
         feature_points->channels.push_back(v_of_point);
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
+        
         RCLCPP_DEBUG_STREAM(this->get_logger(), "publish " << toSec(feature_points->header) << " at " << (this->now().seconds()));
         // skip the first image; since no optical speed on frist image
         // sensor_msgs::convertPointCloudToPointCloud2(*feature_points, *feature_points2);

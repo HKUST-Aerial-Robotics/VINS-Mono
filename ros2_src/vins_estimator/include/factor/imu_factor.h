@@ -79,7 +79,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
             if (pre_integration->jacobian.maxCoeff() > 1e8 || pre_integration->jacobian.minCoeff() < -1e8)
             {
-                printf("numerical unstable in preintegration");
+                RCLCPP_WARN(rclcpp::get_logger("imu_factor"), "numerical unstable in preintegration");
                 // std::cerr << pre_integration->jacobian << std::endl;
                 // assert(false); // ROS_BREAK()
             }
@@ -105,7 +105,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
                 if (jacobian_pose_i.maxCoeff() > 1e8 || jacobian_pose_i.minCoeff() < -1e8)
                 {
-                    printf("numerical unstable in preintegration");
+                    RCLCPP_WARN(rclcpp::get_logger("imu_factor"),"numerical unstable in preintegration");
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }

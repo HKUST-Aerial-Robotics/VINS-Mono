@@ -249,7 +249,7 @@ void MarginalizationInfo::marginalize()
         int ret = pthread_create( &tids[i], NULL, ThreadsConstructA ,(void*)&(threadsstruct[i]));
         if (ret != 0)
         {
-            printf("pthread_create error");
+            RCLCPP_WARN(rclcpp::get_logger("marginalization_factor"), "pthread_create error");
             // ROS_BREAK();
             break;
         }
