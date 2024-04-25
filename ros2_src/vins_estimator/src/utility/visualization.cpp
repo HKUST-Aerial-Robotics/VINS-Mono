@@ -53,7 +53,10 @@ void printStatistics(const Estimator &estimator, double t)
 {
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
-    printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
+    printf("position: %.2f, %.2f, %.2f | orientation: %.2f, %.2f, %.2f \r", 
+                                estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z(),
+                                estimator.Vs[WINDOW_SIZE].x(), estimator.Vs[WINDOW_SIZE].y(), estimator.Vs[WINDOW_SIZE].z()
+                                );
     RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "position: " << estimator.Ps[WINDOW_SIZE].transpose() << std::endl);
     RCLCPP_DEBUG_STREAM(rclcpp::get_logger("visualization"), "orientation: " << estimator.Vs[WINDOW_SIZE].transpose() << std::endl);
 
