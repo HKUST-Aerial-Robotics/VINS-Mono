@@ -82,14 +82,14 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
             return measurements;
         }
  
-        if (toSec(imu_buf.back()->header) <= (toSec(feature_buf.front()->header) + (estimator.td / 1.0)))
+        if (!(toSec(imu_buf.back()->header) > (toSec(feature_buf.front()->header) + (estimator.td / 1.0))))
         {
             RCLCPP_WARN(this->get_logger(),"Wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
-        if (toSec(imu_buf.front()->header) >= (toSec(feature_buf.front()->header) + (estimator.td / 1.0)))
+        if (!(toSec(imu_buf.front()->header) < (toSec(feature_buf.front()->header) + (estimator.td))))
         {
             RCLCPP_WARN(this->get_logger(), "throw img, only should happen at the beginning");
             feature_buf.pop();
@@ -98,7 +98,7 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
         pointCloudMsg::SharedPtr img_msg = feature_buf.front();
         feature_buf.pop();
         std::vector<imuMsg::SharedPtr> IMUs;
-        while (toSec(imu_buf.front()->header) < toSec(img_msg->header) + estimator.td)
+        while (toSec(imu_buf.front()->header) < (toSec(img_msg->header) + estimator.td))
         {
             IMUs.emplace_back(imu_buf.front());
             imu_buf.pop();
@@ -109,8 +109,7 @@ std::vector<std::pair<std::vector<imuMsg::SharedPtr>, pointCloudMsg::SharedPtr>>
 
         measurements.emplace_back(IMUs, img_msg);
     }
-        RCLCPP_INFO(rclcpp::get_logger(""), "1");
-        return measurements;
+    return measurements;
 }
 
 void EstimatorNode::imu_callback(const imuMsg::SharedPtr imu_msg)
@@ -158,21 +157,21 @@ void EstimatorNode::feature_callback(const pointCloudMsg::SharedPtr feature_msg)
 
 void EstimatorNode::restart_callback(const boolMsg::SharedPtr restart_msg)
 {
-    if (restart_msg->data == false) {  return; }
-    
-    RCLCPP_WARN(this->get_logger(), "restart the estimator!");
-    m_buf.lock();
-    while (!feature_buf.empty())
-        feature_buf.pop();
-    while (!imu_buf.empty())
-        imu_buf.pop();
-    m_buf.unlock();
-    m_estimator.lock();
-    estimator.clearState();
-    estimator.setParameter();
-    m_estimator.unlock();
-    current_time = -1;
-    last_imu_t = 0;
+    if (restart_msg->data == true) { 
+        RCLCPP_WARN(this->get_logger(), "restart the estimator!");
+        m_buf.lock();
+        while (!feature_buf.empty())
+            feature_buf.pop();
+        while (!imu_buf.empty())
+            imu_buf.pop();
+        m_buf.unlock();
+        m_estimator.lock();
+        estimator.clearState();
+        estimator.setParameter();
+        m_estimator.unlock();
+        current_time = -1;
+        last_imu_t = 0;
+    }
 }
 
 void EstimatorNode::relocalization_callback(const pointCloudMsg::SharedPtr points_msg)
@@ -324,28 +323,28 @@ void EstimatorNode::process()
 
 void EstimatorNode::initTopic()
 {
-    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000,
+    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 100,
                                                 std::bind(&EstimatorNode::imu_callback, this, _1));
-    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000,
+    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 100,
                                                          std::bind(&EstimatorNode::feature_callback, this, _1));
-    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000,
+    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 100,
                                                      std::bind(&EstimatorNode::restart_callback, this, _1));
-    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000,
+    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 100,
                                                                std::bind(&EstimatorNode::relocalization_callback, this, _1));
 
-    pub_path = this->create_publisher<navPathMsg>("vins_estimator/path", 1000);
-    pub_key_poses = this->create_publisher<markerMsg>("vins_estimator/key_poses", 1000);
-    pub_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 1000);
-    pub_extrinsic = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 1000);
-    pub_point_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/point_cloud", 1000);
-    pub_camera_pose = this->create_publisher<navOdometryMsg>("vins_estimator/camera_pose", 1000);
-    pub_margin_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/history_cloud", 1000);
-    pub_relo_path = this->create_publisher<navPathMsg>("vins_estimator/relocalization_path", 1000);
-    pub_keyframe_pose = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 1000);
-    pub_keyframe_point = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 1000);
-    pub_latest_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 1000);
-    pub_camera_pose_visual = this->create_publisher<markerArrayMsg>("vins_estimator/camera_pose_visual", 1000);
-    pub_relo_relative_pose = this->create_publisher<navOdometryMsg>("vins_estimator/relo_relative_pose", 1000);
+    pub_path = this->create_publisher<navPathMsg>("vins_estimator/path", 50);
+    pub_key_poses = this->create_publisher<markerMsg>("vins_estimator/key_poses", 50);
+    pub_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 50);
+    pub_extrinsic = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 50);
+    pub_point_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/point_cloud", 50);
+    pub_camera_pose = this->create_publisher<navOdometryMsg>("vins_estimator/camera_pose", 50);
+    pub_margin_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/history_cloud", 50);
+    pub_relo_path = this->create_publisher<navPathMsg>("vins_estimator/relocalization_path", 50);
+    pub_keyframe_pose = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 50);
+    pub_keyframe_point = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 50);
+    pub_latest_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 50);
+    pub_camera_pose_visual = this->create_publisher<markerArrayMsg>("vins_estimator/camera_pose_visual", 50);
+    pub_relo_relative_pose = this->create_publisher<navOdometryMsg>("vins_estimator/relo_relative_pose", 50);
 }
 
 void EstimatorNode::getParams()

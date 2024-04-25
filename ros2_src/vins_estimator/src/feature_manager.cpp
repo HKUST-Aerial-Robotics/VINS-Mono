@@ -258,7 +258,7 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 
 void FeatureManager::removeOutlier()
 {
-    // ROS_BREAK();
+    return;
     int i = -1;
     for (auto it = feature.begin(), it_next = feature.begin();
          it != feature.end(); it = it_next)
