@@ -128,6 +128,7 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     Quaterniond Q{R};
     poseStampedMsg pose_stamped;
     pose_stamped.header.stamp = rclcpp::Time(cur_kf->time_stamp);
+    // RCLCPP_INFO(rclcpp::get_logger("pose_grap"), "cur_kf: %f", cur_kf->time_stamp);
     pose_stamped.header.frame_id = "world";
     pose_stamped.pose.position.x = P.x() + VISUALIZATION_SHIFT_X;
     pose_stamped.pose.position.y = P.y() + VISUALIZATION_SHIFT_Y;
