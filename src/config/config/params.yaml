@@ -1,7 +1,7 @@
 /**:
     ros__parameters:
-        config_file: "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml"
-        vins_folder: "/home/serkan/source_code/VINS-Mono/ros2_src/config"
+        config_file: "/home/serkan/source_code/VINS-Mono/src/config/config/euroc/euroc_config.yaml"
+        vins_folder: "/home/serkan/source_code/VINS-Mono/config"
         visualization_shift_x: 0
         visualization_shift_y: 0
         skip_cnt: 0

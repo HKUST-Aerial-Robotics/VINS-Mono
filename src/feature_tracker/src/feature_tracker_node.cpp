@@ -207,8 +207,8 @@ void FeatureTrackerNode::imgCallback(const imageMsg::SharedPtr img_msg){
 }
 
 void FeatureTrackerNode::getParams(){
-    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
-    this->declare_parameter<std::string>("vins_folder", "/home/serkan/source_code/VINS-Mono/ros2_src/config");
+    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/src/config/config/euroc/euroc_config.yaml");
+    this->declare_parameter<std::string>("vins_folder", "/home/serkan/source_code/VINS-Mono/config");
 
     std::string config_file = this->get_parameter("config_file").as_string();
     std::string VINS_FOLDER_PATH = this->get_parameter("vins_folder").as_string();

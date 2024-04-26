@@ -422,7 +422,7 @@ void PoseGraphNode::initTopic(){
 }
 
 void PoseGraphNode::getParams(){
-    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/src/config/config/euroc/euroc_config.yaml");
     this->declare_parameter<int>("visualization_shift_x", 0);
     this->declare_parameter<int>("visualization_shift_y", 0);
     this->declare_parameter<int>("skip_cnt", 0);

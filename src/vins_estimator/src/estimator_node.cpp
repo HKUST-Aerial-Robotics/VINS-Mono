@@ -349,7 +349,7 @@ void EstimatorNode::initTopic()
 
 void EstimatorNode::getParams()
 {
-    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config.yaml");
+    this->declare_parameter<std::string>("config_file", "/home/serkan/source_code/VINS-Mono/src/config/config/euroc/euroc_config.yaml");
     std::string config_file = this->get_parameter("config_file").as_string();
     readParameters(config_file);
 }

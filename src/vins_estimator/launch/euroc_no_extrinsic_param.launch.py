@@ -10,8 +10,8 @@ from launch_ros.actions import Node
 #                                             'config', 'euroc', 'euroc_config_no_extrinsic.yaml'))
 # vins_path_arg = DeclareLaunchArgument('vins_path', default_value = os.path.join(get_package_share_directory('config'), '..'))
 
-config_path_arg = "/home/serkan/source_code/VINS-Mono/ros2_src/config/config/euroc/euroc_config_no_extrinsic.yaml"
-vins_path_arg = "/home/serkan/source_code/VINS-Mono/ros2_src/config"
+config_path_arg = "/home/serkan/source_code/VINS-Mono/config/config/euroc/euroc_config_no_extrinsic.yaml"
+vins_path_arg = "/home/serkan/source_code/VINS-Mono/config"
 
 feature_tracker_node = Node(
         package='feature_tracker',
