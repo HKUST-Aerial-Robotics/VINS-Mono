@@ -349,7 +349,9 @@ void pubKeyframe(const Estimator &estimator)
 void pubRelocalization(const Estimator &estimator)
 {
     nav_msgs::msg::Odometry odometry;
-    odometry.header.stamp = rclcpp::Time(estimator.relo_frame_stamp);
+    // odometry.header.stamp = rclcpp::Time(estimator.relo_frame_stamp);
+    odometry.header.stamp.sec = (uint32_t)floor(estimator.relo_frame_stamp);
+    odometry.header.stamp.nanosec = (uint32_t)round((estimator.relo_frame_stamp - odometry.header.stamp.sec) * 1e9);
     odometry.header.frame_id = "world";
     odometry.pose.pose.position.x = estimator.relo_relative_t.x();
     odometry.pose.pose.position.y = estimator.relo_relative_t.y();
