@@ -490,7 +490,9 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	    	if(FAST_RELOCALIZATION)
 	    	{
 			    sensor_msgs::msg::PointCloud msg_match_points;
-			    msg_match_points.header.stamp = rclcpp::Time(time_stamp);
+			    // msg_match_points.header.stamp = rclcpp::Time(time_stamp);
+				msg_match_points.header.stamp.sec = (uint32_t)floor(time_stamp);
+        		msg_match_points.header.stamp.nanosec = (uint32_t)round((time_stamp - msg_match_points.header.stamp.sec) * 1e9);
 			    for (int i = 0; i < (int)matched_2d_old_norm.size(); i++)
 			    {
 		            geometry_msgs::msg::Point32 p;
