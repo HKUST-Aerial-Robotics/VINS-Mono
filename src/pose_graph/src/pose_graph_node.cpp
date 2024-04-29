@@ -393,31 +393,31 @@ void PoseGraphNode::command(){
 }
 
 void PoseGraphNode::initTopic(){
-    sub_imu_forward = this->create_subscription<odometryMsg>("/vins_estimator/imu_propagate", 1000, 
+    sub_imu_forward = this->create_subscription<odometryMsg>("/vins_estimator/imu_propagate", 2000, 
                                                 std::bind(&PoseGraphNode::imuForwardCallback, this, _1));
-    sub_vio = this->create_subscription<odometryMsg>("/vins_estimator/odometry", 1000, 
+    sub_vio = this->create_subscription<odometryMsg>("/vins_estimator/odometry", 2000, 
                                         std::bind(&PoseGraphNode::vioCallback, this, _1));
-    sub_image = this->create_subscription<imageMsg>(IMAGE_TOPIC, 1000, std::bind(&PoseGraphNode::imageCallback, this, _1));
-    sub_pose = this->create_subscription<odometryMsg>("/vins_estimator/keyframe_pose", 1000, 
+    sub_image = this->create_subscription<imageMsg>(IMAGE_TOPIC, 2000, std::bind(&PoseGraphNode::imageCallback, this, _1));
+    sub_pose = this->create_subscription<odometryMsg>("/vins_estimator/keyframe_pose", 2000, 
                                         std::bind(&PoseGraphNode::poseCallback, this, _1));
-    sub_extrinsic = this->create_subscription<odometryMsg>("/vins_estimator/extrinsic", 1000, 
+    sub_extrinsic = this->create_subscription<odometryMsg>("/vins_estimator/extrinsic", 2000, 
                                                 std::bind(&PoseGraphNode::extrinsicCallback, this , _1));
-    sub_point = this->create_subscription<pointCloudMsg>("/vins_estimator/keyframe_point", 1000, 
+    sub_point = this->create_subscription<pointCloudMsg>("/vins_estimator/keyframe_point", 2000, 
                                                         std::bind(&PoseGraphNode::pointCallback, this, _1));
-    sub_relo_relative_pose = this->create_subscription<odometryMsg>("/vins_estimator/relo_relative_pose", 1000, 
+    sub_relo_relative_pose = this->create_subscription<odometryMsg>("/vins_estimator/relo_relative_pose", 2000, 
                                                                         std::bind(&PoseGraphNode::reloRelativePoseCallback, this, _1));
 
-    pub_match_img = this->create_publisher<sensor_msgs::msg::Image>("/pose_graph/match_image", 500);
-    pub_camera_pose_visual = this->create_publisher<visualization_msgs::msg::MarkerArray>("/pose_graph/camera_pose_visual", 500);
-    pub_key_odometrys = this->create_publisher<visualization_msgs::msg::Marker>("/pose_graph/key_odometrys", 500);
-    pub_vio_path = this->create_publisher<nav_msgs::msg::Path>("/pose_graph/no_loop_path", 500);
-    pub_match_points = this->create_publisher<sensor_msgs::msg::PointCloud>("pose_graph/match_points", 500);
+    pub_match_img = this->create_publisher<sensor_msgs::msg::Image>("/pose_graph/match_image", 1000);
+    pub_camera_pose_visual = this->create_publisher<visualization_msgs::msg::MarkerArray>("/pose_graph/camera_pose_visual", 1000);
+    pub_key_odometrys = this->create_publisher<visualization_msgs::msg::Marker>("/pose_graph/key_odometrys", 1000);
+    pub_vio_path = this->create_publisher<nav_msgs::msg::Path>("/pose_graph/no_loop_path", 1000);
+    pub_match_points = this->create_publisher<sensor_msgs::msg::PointCloud>("pose_graph/match_points", 1000);
 
-    posegraph.pub_pg_path = this->create_publisher<navPath>("/pose_graph/pose_graph_path", 500);
-    posegraph.pub_base_path = this->create_publisher<navPath>("/pose_graph/base_path", 500);
-    posegraph.pub_pose_graph = this->create_publisher<markerArrayMsg>("/pose_graph/pose_graph", 500);
+    posegraph.pub_pg_path = this->create_publisher<navPath>("/pose_graph/pose_graph_path", 1000);
+    posegraph.pub_base_path = this->create_publisher<navPath>("/pose_graph/base_path", 1000);
+    posegraph.pub_pose_graph = this->create_publisher<markerArrayMsg>("/pose_graph/pose_graph", 1000);
     for (int i = 1; i < 10; i++)
-        posegraph.pub_path[i] = this->create_publisher<navPath>("/pose_graph/path_" + to_string(i), 500);
+        posegraph.pub_path[i] = this->create_publisher<navPath>("/pose_graph/path_" + to_string(i), 1000);
 }
 
 void PoseGraphNode::getParams(){

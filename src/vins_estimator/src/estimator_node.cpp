@@ -323,28 +323,28 @@ void EstimatorNode::process()
 
 void EstimatorNode::initTopic()
 {
-    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 100,
+    sub.imu = this->create_subscription<imuMsg>(IMU_TOPIC, 2000,
                                                 std::bind(&EstimatorNode::imu_callback, this, _1));
-    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 100,
+    sub.image = this->create_subscription<pointCloudMsg>("/feature_tracker/feature", 2000,
                                                          std::bind(&EstimatorNode::feature_callback, this, _1));
-    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 100,
+    sub.restart = this->create_subscription<boolMsg>("/feature_tracker/restart", 2000,
                                                      std::bind(&EstimatorNode::restart_callback, this, _1));
-    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 100,
+    sub.relo_points = this->create_subscription<pointCloudMsg>("/pose_graph/match_points", 2000,
                                                                std::bind(&EstimatorNode::relocalization_callback, this, _1));
 
-    pub_path = this->create_publisher<navPathMsg>("vins_estimator/path", 50);
-    pub_key_poses = this->create_publisher<markerMsg>("vins_estimator/key_poses", 50);
-    pub_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 50);
-    pub_extrinsic = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 50);
-    pub_point_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/point_cloud", 50);
-    pub_camera_pose = this->create_publisher<navOdometryMsg>("vins_estimator/camera_pose", 50);
-    pub_margin_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/history_cloud", 50);
-    pub_relo_path = this->create_publisher<navPathMsg>("vins_estimator/relocalization_path", 50);
-    pub_keyframe_pose = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 50);
-    pub_keyframe_point = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 50);
-    pub_latest_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 50);
-    pub_camera_pose_visual = this->create_publisher<markerArrayMsg>("vins_estimator/camera_pose_visual", 50);
-    pub_relo_relative_pose = this->create_publisher<navOdometryMsg>("vins_estimator/relo_relative_pose", 50);
+    pub_path = this->create_publisher<navPathMsg>("vins_estimator/path", 1000);
+    pub_key_poses = this->create_publisher<markerMsg>("vins_estimator/key_poses", 1000);
+    pub_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/odometry", 1000);
+    pub_extrinsic = this->create_publisher<navOdometryMsg>("vins_estimator/extrinsic", 1000);
+    pub_point_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/point_cloud", 1000);
+    pub_camera_pose = this->create_publisher<navOdometryMsg>("vins_estimator/camera_pose", 1000);
+    pub_margin_cloud = this->create_publisher<pointCloudMsg>("vins_estimator/history_cloud", 1000);
+    pub_relo_path = this->create_publisher<navPathMsg>("vins_estimator/relocalization_path", 1000);
+    pub_keyframe_pose = this->create_publisher<navOdometryMsg>("vins_estimator/keyframe_pose", 1000);
+    pub_keyframe_point = this->create_publisher<pointCloudMsg>("vins_estimator/keyframe_point", 1000);
+    pub_latest_odometry = this->create_publisher<navOdometryMsg>("vins_estimator/imu_propagate", 1000);
+    pub_camera_pose_visual = this->create_publisher<markerArrayMsg>("vins_estimator/camera_pose_visual", 1000);
+    pub_relo_relative_pose = this->create_publisher<navOdometryMsg>("vins_estimator/relo_relative_pose", 1000);
 }
 
 void EstimatorNode::getParams()
