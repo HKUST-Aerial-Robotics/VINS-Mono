@@ -13,7 +13,6 @@
 
 #include "camodocal/camera_models/CameraFactory.h"
 #include "camodocal/sparse_graph/Transform.h"
-#include "camodocal/gpl/EigenQuaternionParameterization.h"
 #include "camodocal/gpl/EigenUtils.h"
 #include "camodocal/camera_models/CostFunctionFactory.h"
 
@@ -504,10 +503,10 @@ CameraCalibration::optimize(CameraPtr& camera,
                                      transformVec.at(i).translationData());
         }
 
-        ceres::LocalParameterization* quaternionParameterization =
-            new EigenQuaternionParameterization;
+        ceres::EigenQuaternionManifold* quaternionParameterization =
+            new ceres::EigenQuaternionManifold;
 
-        problem.SetParameterization(transformVec.at(i).rotationData(),
+        problem.SetManifold(transformVec.at(i).rotationData(),
                                     quaternionParameterization);
     }
 

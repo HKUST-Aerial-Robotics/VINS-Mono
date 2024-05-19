@@ -46,8 +46,7 @@ add_executable(Calibration
     src/camera_models/EquidistantCamera.cc
     src/camera_models/ScaramuzzaCamera.cc
     src/sparse_graph/Transform.cc
-    src/gpl/gpl.cc
-    src/gpl/EigenQuaternionParameterization.cc)
+    src/gpl/gpl.cc)
 
 add_library(camera_model
     src/chessboard/Chessboard.cc
@@ -60,8 +59,7 @@ add_library(camera_model
     src/camera_models/EquidistantCamera.cc
     src/camera_models/ScaramuzzaCamera.cc
     src/sparse_graph/Transform.cc
-    src/gpl/gpl.cc
-    src/gpl/EigenQuaternionParameterization.cc)
+    src/gpl/gpl.cc)
 
 target_link_libraries(Calibration ${Boost_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
 target_link_libraries(camera_model ${Boost_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
