@@ -1,3 +1,9 @@
+# Fork of VINS-mono
+This is a fork of [VINS-mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono). The main changes are listed below:
+1. Works with ceres-solver 2.2.0
+2. Uses C++17
+3. Added script to instal dependencies and ceres-solver
+---
 # VINS-Mono
 ## A Robust and Versatile Monocular Visual-Inertial State Estimator
 
@@ -51,6 +57,9 @@ additional ROS pacakge
 
 
 1.2. **Ceres Solver**
+
+> **Update**: In this fork, works with ceres-solver 2.2.0. (only 2.2.0 is tested)
+
 Follow [Ceres Installation](http://ceres-solver.org/installation.html), use **version 1.14.0** and remember to **sudo make install**. (There are compilation issues in Ceres versions 2.0.0 and above.)
 
 ## 2. Build VINS-Mono on ROS
