@@ -1,0 +1,12 @@
+<launch>
+    <arg name="config_path" default = "$(find feature_tracker)/../config/simulation/simulation_config.yaml" />
+	  <arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
+
+    <node pkg="data_generator" name="data_generator" type="data_generator" output="log" />
+
+    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="screen">
+       <param name="config_file" type="string" value="$(arg config_path)" />
+       <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+
+</launch>
