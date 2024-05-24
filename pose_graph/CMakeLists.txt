@@ -16,7 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV)
 find_package(camodocal REQUIRED)
-find_package(Ceres REQUIRED)
+# find_package(Ceres REQUIRED) # TODO Remove because it causes failure due to multiple GLOG. 
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Eigen3)
