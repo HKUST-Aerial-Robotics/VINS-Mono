@@ -26,7 +26,7 @@ set(SOURCES
 )
 
 # Define your library target
-add_library(camodocal SHARED ${SOURCES})
+add_library(camodocal STATIC ${SOURCES})
 target_link_libraries(camodocal PRIVATE ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
 # Set include directories
