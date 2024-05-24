@@ -96,22 +96,27 @@ T NormalizeAngle(const T& angle_degrees) {
   	return angle_degrees;
 };
 
-class AngleLocalParameterization {
- public:
+struct AngleManifoldFunctor
+{
+	template <typename T>
+	bool Plus(const T *theta_radians, const T *delta_theta_radians,
+			  T *theta_radians_plus_delta) const
+	{
+		*theta_radians_plus_delta =
+			NormalizeAngle(*theta_radians + *delta_theta_radians);
 
-  template <typename T>
-  bool operator()(const T* theta_radians, const T* delta_theta_radians,
-                  T* theta_radians_plus_delta) const {
-    *theta_radians_plus_delta =
-        NormalizeAngle(*theta_radians + *delta_theta_radians);
+		return true;
+	}
 
-    return true;
-  }
+	template <typename T>
+	bool Minus(const T *theta_y_radians, const T *theta_x_radians,
+			   T *theta_y_minus_x_radians) const
+	{
+		*theta_y_minus_x_radians =
+			NormalizeAngle(*theta_y_radians - *theta_x_radians);
 
-  static ceres::LocalParameterization* Create() {
-    return (new ceres::AutoDiffLocalParameterization<AngleLocalParameterization,
-                                                     1, 1>);
-  }
+		return true;
+	}
 };
 
 template <typename T> 
