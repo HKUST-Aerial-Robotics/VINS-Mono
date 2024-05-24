@@ -12,3 +12,5 @@ if(NOT TARGET camodocal::camodocal)
         INTERFACE_LINK_LIBRARIES camodocal::camodocal
     )
 endif()
+include(CMakeFindDependencyMacro)
+find_dependency(Ceres REQUIRED)
