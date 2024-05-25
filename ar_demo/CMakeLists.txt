@@ -14,9 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   cv_bridge
   message_filters
-  camera_model
 )
 find_package(OpenCV REQUIRED)
+find_package(camodocal REQUIRED)
 
 catkin_package(
 
@@ -37,7 +37,7 @@ include_directories(
 add_executable(ar_demo_node src/ar_demo_node.cpp)
 
  target_link_libraries(ar_demo_node
-   ${catkin_LIBRARIES} ${OpenCV_LIBS}
+   ${catkin_LIBRARIES} ${OpenCV_LIBS} camodocal
  )
 
 

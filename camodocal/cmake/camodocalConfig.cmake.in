@@ -1,0 +1,16 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/camodocalTargets.cmake")
+
+check_required_components(camodocal)
+
+# Provide the target `camodocal::camodocal`
+# Alias for convenience
+if(NOT TARGET camodocal::camodocal)
+    add_library(camodocal::camodocal INTERFACE IMPORTED)
+    set_target_properties(camodocal::camodocal PROPERTIES
+        INTERFACE_LINK_LIBRARIES camodocal::camodocal
+    )
+endif()
+include(CMakeFindDependencyMacro)
+find_dependency(Ceres REQUIRED)

@@ -10,10 +10,10 @@ find_package(catkin REQUIRED COMPONENTS
     std_msgs
     sensor_msgs
     cv_bridge
-    camera_model
     )
 
 find_package(OpenCV REQUIRED)
+find_package(camodocal REQUIRED)
 
 catkin_package()
 
@@ -34,4 +34,4 @@ add_executable(feature_tracker
     src/feature_tracker.cpp
     )
 
-target_link_libraries(feature_tracker ${catkin_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(feature_tracker ${catkin_LIBRARIES} ${OpenCV_LIBS} camodocal)

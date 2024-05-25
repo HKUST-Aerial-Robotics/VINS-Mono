@@ -10,15 +10,13 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     std_msgs
     nav_msgs
-    camera_model
     cv_bridge
     roslib
     )
 
 find_package(OpenCV)
-
-
-find_package(Ceres REQUIRED)
+find_package(camodocal REQUIRED)
+# find_package(Ceres REQUIRED) # TODO Remove because it causes failure due to multiple GLOG. 
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Eigen3)
@@ -43,5 +41,5 @@ add_executable(pose_graph
     src/ThirdParty/VocabularyBinary.cpp
     )
 
-target_link_libraries(pose_graph ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
+target_link_libraries(pose_graph ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES} camodocal) 
 # message("catkin_lib  ${catkin_LIBRARIES}")
