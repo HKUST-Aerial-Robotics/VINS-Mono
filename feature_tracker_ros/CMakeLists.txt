@@ -15,7 +15,6 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(OpenCV REQUIRED)
 find_package(feature_tracker REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(camodocal REQUIRED)
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
@@ -29,4 +28,4 @@ add_executable(feature_tracker_node
     src/feature_tracker_node.cpp src/ros_parameter_reader.cpp
     )
 
-target_link_libraries(feature_tracker_node ${catkin_LIBRARIES} ${OpenCV_LIBS} feature_tracker camodocal)
+target_link_libraries(feature_tracker_node ${catkin_LIBRARIES} ${OpenCV_LIBS} feature_tracker::feature_tracker)
