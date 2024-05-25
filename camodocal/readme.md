@@ -1,3 +1,8 @@
+# camodocal
+
+This is a version of camodocal, that is extracted from the [VINS-mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono/tree/master/camera_model)
+---
+# Original README
 part of [camodocal](https://github.com/hengli/camodocal)
 
 [Google Ceres](http://ceres-solver.org) is needed.
