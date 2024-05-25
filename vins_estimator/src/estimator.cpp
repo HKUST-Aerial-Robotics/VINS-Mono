@@ -2,21 +2,6 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/fmt/ostr.h"
 
-//TODO: Remove the need for this formatter 
-namespace fmt {
-    template <typename Scalar>
-    struct formatter<Eigen::Matrix<Scalar, 3, 3>> {
-        constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
-
-        template <typename FormatContext>
-        auto format(const Eigen::Matrix<Scalar, 3, 3>& m, FormatContext& ctx) {
-            return format_to(ctx.out(), "[{}, {}, {};\n {}, {}, {};\n {}, {}, {}]",
-                m(0,0), m(0,1), m(0,2),
-                m(1,0), m(1,1), m(1,2),
-                m(2,0), m(2,1), m(2,2));
-        }
-    };
-} 
 Estimator::Estimator() : f_manager{Rs}
 {
     spdlog::info("init begins");
@@ -163,7 +148,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
             if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrations[frame_count]->delta_q, calib_ric))
             {
                 spdlog::warn("initial extrinsic rotation calib success");
-                spdlog::warn("initial extrinsic rotation:\n {}", calib_ric);
+                spdlog::warn("initial extrinsic rotation:\n {}", fmt::streamed(calib_ric));
                 ric[0] = calib_ric;
                 RIC[0] = calib_ric;
                 ESTIMATE_EXTRINSIC = 1;
@@ -450,7 +435,7 @@ bool Estimator::visualInitialAlign()
     std::stringstream ss;
     ss << "g0     " << g.transpose();
     spdlog::debug(ss.str());
-    // spdlog::debug("g0    {}", g.transpose());
+    // spdlog::debug("g0    {}", fmt::streamed(g.transpose()));
     ss << "my R0   " << Utility::R2ypr(Rs[0]).transpose();
     spdlog::debug(ss.str());
 
