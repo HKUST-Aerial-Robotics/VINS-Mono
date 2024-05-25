@@ -1,4 +1,4 @@
-#include "parameters.h"
+#include "ros_parameter_reader.h"
 
 std::string IMAGE_TOPIC;
 std::string IMU_TOPIC;

@@ -6,8 +6,8 @@
 #include <std_msgs/Bool.h>
 #include <cv_bridge/cv_bridge.h>
 #include <message_filters/subscriber.h>
-
-#include "feature_tracker.h"
+#include "feature_tracker/feature_tracker.h"
+#include "ros_parameter_reader.h"
 
 #define SHOW_UNDISTORTION 0
 

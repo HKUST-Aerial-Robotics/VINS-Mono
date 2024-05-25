@@ -1,37 +1,69 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(feature_tracker)
-
-set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++17")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
-
-find_package(catkin REQUIRED COMPONENTS
-    roscpp
-    std_msgs
-    sensor_msgs
-    cv_bridge
-    )
+cmake_minimum_required(VERSION 3.0)
+project(feature_tracker VERSION 1.0)
+set(CMAKE_CXX_FLAGS "-std=c++17 -DEIGEN_DONT_PARALLELIZE")
 
 find_package(OpenCV REQUIRED)
 find_package(camodocal REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(spdlog REQUIRED)
 
-catkin_package()
-
-include_directories(
-    ${catkin_INCLUDE_DIRS}
-    )
-
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Eigen3)
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
+# include_directories(${CERES_INCLUDE_DIRS})
+# Add your source files
+set(SOURCES
+    src/feature_tracker.cpp
+    # Add more source files if needed
 )
 
-add_executable(feature_tracker
-    src/feature_tracker_node.cpp
-    src/parameters.cpp
-    src/feature_tracker.cpp
-    )
+# Define your library target
+add_library(feature_tracker STATIC ${SOURCES})
+target_link_libraries(feature_tracker ${OpenCV_LIBS} ${CERES_LIBRARIES} camodocal spdlog::spdlog_header_only)
 
-target_link_libraries(feature_tracker ${catkin_LIBRARIES} ${OpenCV_LIBS} camodocal)
+# Set include directories
+target_include_directories(feature_tracker
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+
+# Install the library
+include(GNUInstallDirs)
+install(TARGETS feature_tracker
+    EXPORT feature_trackerTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# Install headers
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+# Generate and install CMake package configuration files
+install(EXPORT feature_trackerTargets
+    FILE feature_trackerTargets.cmake
+    NAMESPACE feature_tracker::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/feature_tracker
+)
+
+
+# Generate and install CMake package configuration files
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/feature_trackerConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/feature_trackerConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/feature_trackerConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/feature_tracker
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/feature_trackerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/feature_trackerConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/feature_tracker
+)
