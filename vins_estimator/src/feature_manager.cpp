@@ -258,8 +258,9 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 }
 
 void FeatureManager::removeOutlier()
-{
-    ROS_BREAK();
+{   
+    // This function does not seem to be used anywhere.
+    throw std::runtime_error("Functionality no implemented.");
     int i = -1;
     for (auto it = feature.begin(), it_next = feature.begin();
          it != feature.end(); it = it_next)
