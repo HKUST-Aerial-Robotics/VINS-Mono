@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
     )
 
 find_package(OpenCV REQUIRED)
+find_package(spdlog REQUIRED)
 
 # message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
 
@@ -52,6 +53,6 @@ add_executable(vins_estimator
     )
 
 
-target_link_libraries(vins_estimator ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
+target_link_libraries(vins_estimator ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES} spdlog ) 
 
 
