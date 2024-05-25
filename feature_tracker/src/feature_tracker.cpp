@@ -80,7 +80,7 @@ void FeatureTracker::addPoints()
 }
 
 void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
-{
+{   
     cv::Mat img;
     TicToc t_r;
     cur_time = _cur_time;
@@ -90,7 +90,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         TicToc t_c;
         clahe->apply(_img, img);
-        spdlog::debug("CLAHE costs: %fms", t_c.toc());
+        spdlog::debug("CLAHE costs: {}ms", t_c.toc());
     }
     else
         img = _img;
@@ -122,7 +122,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         reduceVector(ids, status);
         reduceVector(cur_un_pts, status);
         reduceVector(track_cnt, status);
-        spdlog::debug("temporal optical flow costs: %fms", t_o.toc());
+        spdlog::debug("temporal optical flow costs: {}ms", t_o.toc());
     }
 
     for (auto &n : track_cnt)
@@ -134,7 +134,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         spdlog::debug("set mask begins");
         TicToc t_m;
         setMask();
-        spdlog::debug("set mask costs %fms", t_m.toc());
+        spdlog::debug("set mask costs {}ms", t_m.toc());
 
         spdlog::debug("detect feature begins");
         TicToc t_t;
@@ -151,12 +151,12 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         }
         else
             n_pts.clear();
-        spdlog::debug("detect feature costs: %fms", t_t.toc());
+        spdlog::debug("detect feature costs: {}ms", t_t.toc());
 
         spdlog::debug("add feature begins");
         TicToc t_a;
         addPoints();
-        spdlog::debug("selectFeature costs: %fms", t_a.toc());
+        spdlog::debug("selectFeature costs: {}ms", t_a.toc());
     }
     prev_img = cur_img;
     prev_pts = cur_pts;
@@ -197,8 +197,8 @@ void FeatureTracker::rejectWithF()
         reduceVector(cur_un_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
-        spdlog::debug("FM ransac: %d -> %lu: %f", size_a, forw_pts.size(), 1.0 * forw_pts.size() / size_a);
-        spdlog::debug("FM ransac costs: %fms", t_f.toc());
+        spdlog::debug("FM ransac: {0} -> {1}: {2}", size_a, forw_pts.size(), 1.0 * forw_pts.size() / size_a);
+        spdlog::debug("FM ransac costs: {}ms", t_f.toc());
     }
 }
 
@@ -216,7 +216,7 @@ bool FeatureTracker::updateID(unsigned int i)
 
 void FeatureTracker::readIntrinsicParameter(const string &calib_file)
 {
-    spdlog::info("reading paramerter of camera %s", calib_file.c_str());
+    spdlog::info("reading paramerter of camera {}", calib_file.c_str());
     m_camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 
@@ -249,7 +249,7 @@ void FeatureTracker::showUndistortion(const string &name)
         }
         else
         {
-            //spdlog::error("(%f %f) -> (%f %f)", distortedp[i].y, distortedp[i].x, pp.at<float>(1, 0), pp.at<float>(0, 0));
+            //spdlog::error("({0} {1}) -> ({2} {3})", distortedp[i].y, distortedp[i].x, pp.at<float>(1, 0), pp.at<float>(0, 0));
         }
     }
     cv::imshow(name, undistortedImg);
