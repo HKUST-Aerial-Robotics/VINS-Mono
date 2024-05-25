@@ -32,7 +32,7 @@ class Estimator
 
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
-    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
+    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double &timestamp);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
 
     // internal
@@ -80,7 +80,9 @@ class Estimator
 
     Matrix3d back_R0, last_R, last_R0;
     Vector3d back_P0, last_P, last_P0;
-    std_msgs::Header Headers[(WINDOW_SIZE + 1)];
+
+    // TODO consider using something like a queue or linked list 
+    double Timestamps[(WINDOW_SIZE + 1)];
 
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)];
     Vector3d acc_0, gyr_0;

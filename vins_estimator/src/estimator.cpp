@@ -133,7 +133,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     gyr_0 = angular_velocity;
 }
 
-void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header)
+void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double &timestamp_sec)
 {
     spdlog::debug("new image coming ------------------------------------------");
     spdlog::debug("Adding feature points {}", image.size());
@@ -146,11 +146,11 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     spdlog::debug(marginalization_flag ? "Non-keyframe" : "Keyframe");
     spdlog::debug("Solving {}", frame_count);
     spdlog::debug("number of feature: {}", f_manager.getFeatureCount());
-    Headers[frame_count] = header;
+    Timestamps[frame_count] = timestamp_sec;
 
-    ImageFrame imageframe(image, header.stamp.toSec());
+    ImageFrame imageframe(image, timestamp_sec);
     imageframe.pre_integration = tmp_pre_integration;
-    all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
+    all_image_frame.insert(make_pair(timestamp_sec, imageframe));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
     if(ESTIMATE_EXTRINSIC == 2)
@@ -176,10 +176,10 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         if (frame_count == WINDOW_SIZE)
         {
             bool result = false;
-            if( ESTIMATE_EXTRINSIC != 2 && (header.stamp.toSec() - initial_timestamp) > 0.1)
+            if( ESTIMATE_EXTRINSIC != 2 && (timestamp_sec - initial_timestamp) > 0.1)
             {
                 result = initialStructure();
-                initial_timestamp = header.stamp.toSec();
+                initial_timestamp = timestamp_sec;
             }
             if(result)
             {
@@ -306,7 +306,7 @@ bool Estimator::initialStructure()
     {
         // provide initial guess
         cv::Mat r, rvec, t, D, tmp_r;
-        if((frame_it->first) == Headers[i].stamp.toSec())
+        if((frame_it->first) == Timestamps[i])
         {
             frame_it->second.is_key_frame = true;
             frame_it->second.R = Q[i].toRotationMatrix() * RIC[0].transpose();
@@ -314,7 +314,7 @@ bool Estimator::initialStructure()
             i++;
             continue;
         }
-        if((frame_it->first) > Headers[i].stamp.toSec())
+        if((frame_it->first) > Timestamps[i])
         {
             i++;
         }
@@ -390,11 +390,11 @@ bool Estimator::visualInitialAlign()
     // change state
     for (int i = 0; i <= frame_count; i++)
     {
-        Matrix3d Ri = all_image_frame[Headers[i].stamp.toSec()].R;
-        Vector3d Pi = all_image_frame[Headers[i].stamp.toSec()].T;
+        Matrix3d Ri = all_image_frame[Timestamps[i]].R;
+        Vector3d Pi = all_image_frame[Timestamps[i]].T;
         Ps[i] = Pi;
         Rs[i] = Ri;
-        all_image_frame[Headers[i].stamp.toSec()].is_key_frame = true;
+        all_image_frame[Timestamps[i]].is_key_frame = true;
     }
 
     VectorXd dep = f_manager.getDepthVector();
@@ -1020,7 +1020,7 @@ void Estimator::slideWindow()
     TicToc t_margin;
     if (marginalization_flag == MARGIN_OLD)
     {
-        double t_0 = Headers[0].stamp.toSec();
+        double t_0 = Timestamps[0];
         back_R0 = Rs[0];
         back_P0 = Ps[0];
         if (frame_count == WINDOW_SIZE)
@@ -1035,13 +1035,13 @@ void Estimator::slideWindow()
                 linear_acceleration_buf[i].swap(linear_acceleration_buf[i + 1]);
                 angular_velocity_buf[i].swap(angular_velocity_buf[i + 1]);
 
-                Headers[i] = Headers[i + 1];
+                Timestamps[i] = Timestamps[i + 1];
                 Ps[i].swap(Ps[i + 1]);
                 Vs[i].swap(Vs[i + 1]);
                 Bas[i].swap(Bas[i + 1]);
                 Bgs[i].swap(Bgs[i + 1]);
             }
-            Headers[WINDOW_SIZE] = Headers[WINDOW_SIZE - 1];
+            Timestamps[WINDOW_SIZE] = Timestamps[WINDOW_SIZE - 1];
             Ps[WINDOW_SIZE] = Ps[WINDOW_SIZE - 1];
             Vs[WINDOW_SIZE] = Vs[WINDOW_SIZE - 1];
             Rs[WINDOW_SIZE] = Rs[WINDOW_SIZE - 1];
@@ -1092,7 +1092,7 @@ void Estimator::slideWindow()
                 angular_velocity_buf[frame_count - 1].push_back(tmp_angular_velocity);
             }
 
-            Headers[frame_count - 1] = Headers[frame_count];
+            Timestamps[frame_count - 1] = Timestamps[frame_count];
             Ps[frame_count - 1] = Ps[frame_count];
             Vs[frame_count - 1] = Vs[frame_count];
             Rs[frame_count - 1] = Rs[frame_count];
@@ -1147,7 +1147,7 @@ void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vecto
     prev_relo_r = _relo_r;
     for(int i = 0; i < WINDOW_SIZE; i++)
     {
-        if(relo_frame_stamp == Headers[i].stamp.toSec())
+        if(relo_frame_stamp == Timestamps[i])
         {
             relo_frame_local_index = i;
             relocalization_info = 1;
