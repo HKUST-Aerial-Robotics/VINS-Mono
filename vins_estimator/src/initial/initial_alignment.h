@@ -1,10 +1,10 @@
 #pragma once
 #include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <map>
 #include "../factor/imu_factor.h"
 #include "../utility/utility.h"
-#include <ros/ros.h>
-#include <map>
+
 #include "../feature_manager.h"
 
 using namespace Eigen;
