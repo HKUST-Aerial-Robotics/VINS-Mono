@@ -7,16 +7,9 @@ find_package(camodocal REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(spdlog REQUIRED)
 
-# include_directories(${CERES_INCLUDE_DIRS})
-# Add your source files
-set(SOURCES
-    src/feature_tracker.cpp
-    # Add more source files if needed
-)
-
 # Define your library target
-add_library(feature_tracker STATIC ${SOURCES})
-target_link_libraries(feature_tracker ${OpenCV_LIBS} ${CERES_LIBRARIES} camodocal spdlog::spdlog_header_only)
+add_library(feature_tracker STATIC src/feature_tracker.cpp)
+target_link_libraries(feature_tracker PRIVATE ${OpenCV_LIBS} ${CERES_LIBRARIES} spdlog::spdlog_header_only camodocal::camodocal )
 
 # Set include directories
 target_include_directories(feature_tracker
