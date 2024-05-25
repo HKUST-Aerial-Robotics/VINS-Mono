@@ -12,3 +12,6 @@ if(NOT TARGET feature_tracker::feature_tracker)
         INTERFACE_LINK_LIBRARIES feature_tracker::feature_tracker
     )
 endif()
+include(CMakeFindDependencyMacro)
+find_dependency(camodocal REQUIRED)
+find_dependency(spdlog REQUIRED)
