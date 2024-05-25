@@ -36,7 +36,7 @@ catkin_package()
 
 add_executable(vins_estimator
     src/estimator_node.cpp
-    src/parameters.cpp
+    src/parameters_ros.cpp
     src/estimator.cpp
     src/feature_manager.cpp
     src/factor/pose_local_parameterization.cpp

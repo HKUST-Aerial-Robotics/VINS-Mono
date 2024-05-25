@@ -1,4 +1,5 @@
-#include "parameters.h"
+#include "parameters_ros.h"
+#include <ros/ros.h>
 
 double INIT_DEPTH;
 double MIN_PARALLAX;

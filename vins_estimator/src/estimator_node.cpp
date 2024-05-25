@@ -9,7 +9,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "estimator.h"
-#include "parameters.h"
+#include "parameters_ros.h"
 #include "utility/visualization.h"
 
 
