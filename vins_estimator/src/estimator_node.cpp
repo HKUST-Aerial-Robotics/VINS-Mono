@@ -125,13 +125,13 @@ void update()
 {
     TicToc t_predict;
     latest_time = current_time;
-    position_estimated_current = estimator.Ps[WINDOW_SIZE];
-    orientation_estimated_current = estimator.Rs[WINDOW_SIZE];
-    linear_velocity_estimated_current = estimator.Vs[WINDOW_SIZE];
-    imu_linear_acceleration_estimated_bias = estimator.Bas[WINDOW_SIZE];
-    imu_angular_velocity_estimated_bias = estimator.Bgs[WINDOW_SIZE];
-    linear_acceleration_current = estimator.acc_0;
-    angular_velocity_current = estimator.gyr_0;
+    position_estimated_current = estimator.position[WINDOW_SIZE];
+    orientation_estimated_current = estimator.oreintation[WINDOW_SIZE];
+    linear_velocity_estimated_current = estimator.linear_velocity[WINDOW_SIZE];
+    imu_linear_acceleration_estimated_bias = estimator.imu_linear_acceleration_bias[WINDOW_SIZE];
+    imu_angular_velocity_estimated_bias = estimator.imu_angular_velocity_bias[WINDOW_SIZE];
+    linear_acceleration_current = estimator.linear_acceleration;
+    angular_velocity_current = estimator.angular_velocity;
 
     queue<sensor_msgs::ImuConstPtr> tmp_imu_buf = imu_buf;
     for (sensor_msgs::ImuConstPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())

@@ -66,9 +66,9 @@ void printStatistics(const Estimator &estimator, double t)
 {
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
-    printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
-    ROS_DEBUG_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
-    ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
+    printf("position: %f, %f, %f\r", estimator.position[WINDOW_SIZE].x(), estimator.position[WINDOW_SIZE].y(), estimator.position[WINDOW_SIZE].z());
+    ROS_DEBUG_STREAM("position: " << estimator.position[WINDOW_SIZE].transpose());
+    ROS_DEBUG_STREAM("orientation: " << estimator.linear_velocity[WINDOW_SIZE].transpose());
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         //ROS_DEBUG("calibration result for camera %d", i);
@@ -96,8 +96,8 @@ void printStatistics(const Estimator &estimator, double t)
     ROS_DEBUG("vo solver costs: %f ms", t);
     ROS_DEBUG("average of time %f ms", sum_of_time / sum_of_calculation);
 
-    sum_of_path += (estimator.Ps[WINDOW_SIZE] - last_path).norm();
-    last_path = estimator.Ps[WINDOW_SIZE];
+    sum_of_path += (estimator.position[WINDOW_SIZE] - last_path).norm();
+    last_path = estimator.position[WINDOW_SIZE];
     ROS_DEBUG("sum of path %f", sum_of_path);
     if (ESTIMATE_TD)
         ROS_INFO("td %f", estimator.td);
@@ -112,17 +112,17 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         odometry.header.frame_id = "world";
         odometry.child_frame_id = "world";
         Quaterniond tmp_Q;
-        tmp_Q = Quaterniond(estimator.Rs[WINDOW_SIZE]);
-        odometry.pose.pose.position.x = estimator.Ps[WINDOW_SIZE].x();
-        odometry.pose.pose.position.y = estimator.Ps[WINDOW_SIZE].y();
-        odometry.pose.pose.position.z = estimator.Ps[WINDOW_SIZE].z();
+        tmp_Q = Quaterniond(estimator.oreintation[WINDOW_SIZE]);
+        odometry.pose.pose.position.x = estimator.position[WINDOW_SIZE].x();
+        odometry.pose.pose.position.y = estimator.position[WINDOW_SIZE].y();
+        odometry.pose.pose.position.z = estimator.position[WINDOW_SIZE].z();
         odometry.pose.pose.orientation.x = tmp_Q.x();
         odometry.pose.pose.orientation.y = tmp_Q.y();
         odometry.pose.pose.orientation.z = tmp_Q.z();
         odometry.pose.pose.orientation.w = tmp_Q.w();
-        odometry.twist.twist.linear.x = estimator.Vs[WINDOW_SIZE].x();
-        odometry.twist.twist.linear.y = estimator.Vs[WINDOW_SIZE].y();
-        odometry.twist.twist.linear.z = estimator.Vs[WINDOW_SIZE].z();
+        odometry.twist.twist.linear.x = estimator.linear_velocity[WINDOW_SIZE].x();
+        odometry.twist.twist.linear.y = estimator.linear_velocity[WINDOW_SIZE].y();
+        odometry.twist.twist.linear.z = estimator.linear_velocity[WINDOW_SIZE].z();
         pub_odometry.publish(odometry);
 
         geometry_msgs::PoseStamped pose_stamped;
@@ -137,8 +137,8 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         Vector3d correct_t;
         Vector3d correct_v;
         Quaterniond correct_q;
-        correct_t = estimator.drift_correct_r * estimator.Ps[WINDOW_SIZE] + estimator.drift_correct_t;
-        correct_q = estimator.drift_correct_r * estimator.Rs[WINDOW_SIZE];
+        correct_t = estimator.drift_correct_r * estimator.position[WINDOW_SIZE] + estimator.drift_correct_t;
+        correct_q = estimator.drift_correct_r * estimator.oreintation[WINDOW_SIZE];
         odometry.pose.pose.position.x = correct_t.x();
         odometry.pose.pose.position.y = correct_t.y();
         odometry.pose.pose.position.z = correct_t.z();
@@ -159,16 +159,16 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         foutC.precision(0);
         foutC << header.stamp.toSec() * 1e9 << ",";
         foutC.precision(5);
-        foutC << estimator.Ps[WINDOW_SIZE].x() << ","
-              << estimator.Ps[WINDOW_SIZE].y() << ","
-              << estimator.Ps[WINDOW_SIZE].z() << ","
+        foutC << estimator.position[WINDOW_SIZE].x() << ","
+              << estimator.position[WINDOW_SIZE].y() << ","
+              << estimator.position[WINDOW_SIZE].z() << ","
               << tmp_Q.w() << ","
               << tmp_Q.x() << ","
               << tmp_Q.y() << ","
               << tmp_Q.z() << ","
-              << estimator.Vs[WINDOW_SIZE].x() << ","
-              << estimator.Vs[WINDOW_SIZE].y() << ","
-              << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
+              << estimator.linear_velocity[WINDOW_SIZE].x() << ","
+              << estimator.linear_velocity[WINDOW_SIZE].y() << ","
+              << estimator.linear_velocity[WINDOW_SIZE].z() << "," << endl;
         foutC.close();
     }
 }
@@ -214,8 +214,8 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
         int i = idx2;
-        Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
-        Quaterniond R = Quaterniond(estimator.Rs[i] * estimator.ric[0]);
+        Vector3d P = estimator.position[i] + estimator.oreintation[i] * estimator.tic[0];
+        Quaterniond R = Quaterniond(estimator.oreintation[i] * estimator.ric[0]);
 
         nav_msgs::Odometry odometry;
         odometry.header = header;
@@ -254,7 +254,7 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
             continue;
         int imu_i = it_per_id.start_frame;
         Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-        Vector3d w_pts_i = estimator.Rs[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.Ps[imu_i];
+        Vector3d w_pts_i = estimator.oreintation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.position[imu_i];
 
         geometry_msgs::Point32 p;
         p.x = w_pts_i(0);
@@ -283,7 +283,7 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
         {
             int imu_i = it_per_id.start_frame;
             Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-            Vector3d w_pts_i = estimator.Rs[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.Ps[imu_i];
+            Vector3d w_pts_i = estimator.oreintation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.position[imu_i];
 
             geometry_msgs::Point32 p;
             p.x = w_pts_i(0);
@@ -306,8 +306,8 @@ void pubTF(const Estimator &estimator, const std_msgs::Header &header)
     // body frame
     Vector3d correct_t;
     Quaterniond correct_q;
-    correct_t = estimator.Ps[WINDOW_SIZE];
-    correct_q = estimator.Rs[WINDOW_SIZE];
+    correct_t = estimator.position[WINDOW_SIZE];
+    correct_q = estimator.oreintation[WINDOW_SIZE];
 
     transform.setOrigin(tf::Vector3(correct_t(0),
                                     correct_t(1),
@@ -351,9 +351,9 @@ void pubKeyframe(const Estimator &estimator)
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR && estimator.marginalization_flag == 0)
     {
         int i = WINDOW_SIZE - 2;
-        //Vector3d P = estimator.Ps[i] + estimator.Rs[i] * estimator.tic[0];
-        Vector3d P = estimator.Ps[i];
-        Quaterniond R = Quaterniond(estimator.Rs[i]);
+        //Vector3d P = estimator.position[i] + estimator.oreintation[i] * estimator.tic[0];
+        Vector3d P = estimator.position[i];
+        Quaterniond R = Quaterniond(estimator.oreintation[i]);
 
         nav_msgs::Odometry odometry;
         // what about sequence? Although can just set those to 0 usually
@@ -382,8 +382,8 @@ void pubKeyframe(const Estimator &estimator)
 
                 int imu_i = it_per_id.start_frame;
                 Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-                Vector3d w_pts_i = estimator.Rs[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0])
-                                      + estimator.Ps[imu_i];
+                Vector3d w_pts_i = estimator.oreintation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0])
+                                      + estimator.position[imu_i];
                 geometry_msgs::Point32 p;
                 p.x = w_pts_i(0);
                 p.y = w_pts_i(1);
