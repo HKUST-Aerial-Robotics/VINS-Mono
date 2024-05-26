@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>feature_tracker</name>
+  <name>feature_tracker_ros</name>
   <version>0.0.0</version>
   <description>The feature_tracker package</description>
 
@@ -41,10 +41,8 @@
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
-  <build_depend>camera_model</build_depend>
   <build_depend>message_generation</build_depend>
   <run_depend>roscpp</run_depend>
-  <run_depend>camera_model</run_depend>
   <run_depend>message_runtime</run_depend>
 
 

@@ -1,0 +1,17 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/feature_trackerTargets.cmake")
+
+check_required_components(feature_tracker)
+
+# Provide the target `feature_tracker::feature_tracker`
+# Alias for convenience
+if(NOT TARGET feature_tracker::feature_tracker)
+    add_library(feature_tracker::feature_tracker INTERFACE IMPORTED)
+    set_target_properties(feature_tracker::feature_tracker PROPERTIES
+        INTERFACE_LINK_LIBRARIES feature_tracker::feature_tracker
+    )
+endif()
+include(CMakeFindDependencyMacro)
+find_dependency(camodocal REQUIRED)
+find_dependency(spdlog REQUIRED)
