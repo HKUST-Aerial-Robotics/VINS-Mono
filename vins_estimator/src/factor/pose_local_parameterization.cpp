@@ -7,7 +7,7 @@ bool PoseManifold::Plus(const double *x, const double *delta, double *x_plus_del
 
     Eigen::Map<const Eigen::Vector3d> dp(delta);
 
-    Eigen::Quaterniond dq = Utility::deltaQ(Eigen::Map<const Eigen::Vector3d>(delta + 3));
+    Eigen::Quaterniond dq = Utility::deltaQuat(Eigen::Map<const Eigen::Vector3d>(delta + 3));
 
     Eigen::Map<Eigen::Vector3d> p(x_plus_delta);
     Eigen::Map<Eigen::Quaterniond> q(x_plus_delta + 3);

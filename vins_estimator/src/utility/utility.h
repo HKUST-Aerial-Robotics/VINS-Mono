@@ -12,18 +12,36 @@
 class Utility
 {
   public:
+    /**
+     * @brief Computes the quaternion representing a small rotation.
+     *
+     * This function computes the quaternion representing a small rotation
+     * based on the input delta rotation vector. It assumes that the rotation
+     * angle is small and utilizes the small-angle approximation for efficiency.
+     *
+     * @tparam Derived Eigen type for the input delta rotation vector.
+     * @param delta_rotation_vector Input delta rotation vector representing the small rotation.
+     * @return Quaternion representing the small rotation.
+     */
     template <typename Derived>
-    static Eigen::Quaternion<typename Derived::Scalar> deltaQ(const Eigen::MatrixBase<Derived> &theta)
+    static Eigen::Quaternion<typename Derived::Scalar> deltaQuat(const Eigen::MatrixBase<Derived> &delta_rotation_vector)
     {
+        // Define the scalar type used in Eigen objects
         typedef typename Derived::Scalar Scalar_t;
 
+        // Create a quaternion to represent the small rotation
         Eigen::Quaternion<Scalar_t> dq;
-        Eigen::Matrix<Scalar_t, 3, 1> half_theta = theta;
-        half_theta /= static_cast<Scalar_t>(2.0);
+
+        // Divide the input rotation vector by 2
+        Eigen::Matrix<Scalar_t, 3, 1> half_delta_rotation = delta_rotation_vector/ static_cast<Scalar_t>(2.0);;
+
+        // Set quaternion components based on the small rotation
         dq.w() = static_cast<Scalar_t>(1.0);
-        dq.x() = half_theta.x();
-        dq.y() = half_theta.y();
-        dq.z() = half_theta.z();
+        dq.x() = half_delta_rotation.x();
+        dq.y() = half_delta_rotation.y();
+        dq.z() = half_delta_rotation.z();
+
+        // Return the quaternion representing the small rotation
         return dq;
     }
 
