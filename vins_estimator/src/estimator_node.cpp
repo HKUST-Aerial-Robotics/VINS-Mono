@@ -31,9 +31,14 @@ Eigen::Vector3d position_estimated_current;
 Eigen::Vector3d linear_velocity_estimated_current;
 Eigen::Vector3d imu_linear_acceleration_estimated_bias;
 Eigen::Vector3d imu_angular_velocity_estimated_bias;
+Eigen::Quaterniond orientation_estimated_current;
+Eigen::Vector3d linear_acceleration_current;
+Eigen::Vector3d angular_velocity_current;
+
 Eigen::Quaterniond orientation_estimated_previous;
 Eigen::Vector3d linear_acceleration_previous;
 Eigen::Vector3d angular_velocity_previous;
+
 bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
@@ -89,20 +94,24 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     double dt = t - latest_time;
     latest_time = t;
 
-    Eigen::Vector3d current_linear_acceleration{
+    linear_acceleration_previous = linear_acceleration_current;
+    angular_velocity_previous = angular_velocity_current;
+    orientation_estimated_previous = orientation_estimated_current;
+
+    linear_acceleration_current = {
         imu_msg->linear_acceleration.x,
         imu_msg->linear_acceleration.y,
         imu_msg->linear_acceleration.z};
 
-    Eigen::Vector3d current_angular_vel{imu_msg->angular_velocity.x,
+    angular_velocity_current = {imu_msg->angular_velocity.x,
                                         imu_msg->angular_velocity.y,
                                         imu_msg->angular_velocity.z};
 
-    Eigen::Quaterniond curr_predicted_orientation;
 
-    updateCurrentOrientation(current_angular_vel, angular_velocity_previous, imu_angular_velocity_estimated_bias, orientation_estimated_previous, dt, curr_predicted_orientation);
+
+    updateCurrentOrientation(angular_velocity_previous, angular_velocity_current, imu_angular_velocity_estimated_bias, orientation_estimated_previous, dt, orientation_estimated_current);
     updateCurrentPositionAndVelocity(linear_acceleration_previous,
-                                     current_linear_acceleration,
+                                     linear_acceleration_current,
                                      orientation_estimated_previous,
                                      curr_predicted_orientation,
                                      imu_linear_acceleration_estimated_bias,
@@ -110,9 +119,6 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
                                      dt,
                                      position_estimated_current,
                                      linear_velocity_estimated_current);
-
-    linear_acceleration_previous = current_linear_acceleration;
-    angular_velocity_previous = current_angular_vel;
 }
 
 void update()
@@ -120,12 +126,12 @@ void update()
     TicToc t_predict;
     latest_time = current_time;
     position_estimated_current = estimator.Ps[WINDOW_SIZE];
-    orientation_estimated_previous = estimator.Rs[WINDOW_SIZE];
+    orientation_estimated_current = estimator.Rs[WINDOW_SIZE];
     linear_velocity_estimated_current = estimator.Vs[WINDOW_SIZE];
     imu_linear_acceleration_estimated_bias = estimator.Bas[WINDOW_SIZE];
     imu_angular_velocity_estimated_bias = estimator.Bgs[WINDOW_SIZE];
-    linear_acceleration_previous = estimator.acc_0;
-    angular_velocity_previous = estimator.gyr_0;
+    linear_acceleration_current = estimator.acc_0;
+    angular_velocity_current = estimator.gyr_0;
 
     queue<sensor_msgs::ImuConstPtr> tmp_imu_buf = imu_buf;
     for (sensor_msgs::ImuConstPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())
