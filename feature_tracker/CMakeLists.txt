@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 project(feature_tracker VERSION 1.0)
-set(CMAKE_CXX_FLAGS "-std=c++17 -DEIGEN_DONT_PARALLELIZE")
+set(CMAKE_CXX_FLAGS "-std=c++17")
 
 find_package(OpenCV REQUIRED)
 find_package(camodocal REQUIRED)
