@@ -113,7 +113,7 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     updateCurrentPositionAndVelocity(linear_acceleration_previous,
                                      linear_acceleration_current,
                                      orientation_estimated_previous,
-                                     curr_predicted_orientation,
+                                     orientation_estimated_current,
                                      imu_linear_acceleration_estimated_bias,
                                      estimator.g,
                                      dt,
