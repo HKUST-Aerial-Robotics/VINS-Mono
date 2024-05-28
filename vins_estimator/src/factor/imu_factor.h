@@ -1,5 +1,4 @@
 #pragma once
-#include <ros/assert.h>
 #include <iostream>
 #include <eigen3/Eigen/Dense>
 
@@ -8,7 +7,7 @@
 #include "integration_base.h"
 
 #include <ceres/ceres.h>
-
+#include "spdlog/spdlog.h"
 class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 {
   public:
@@ -78,9 +77,10 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
             if (pre_integration->jacobian.maxCoeff() > 1e8 || pre_integration->jacobian.minCoeff() < -1e8)
             {
-                ROS_WARN("numerical unstable in preintegration");
+                spdlog::warn("numerical unstable in preintegration");
                 //std::cout << pre_integration->jacobian << std::endl;
-///                ROS_BREAK();
+                // throw(std::runtime_error("numerical unstable in preintegration"))
+
             }
 
             if (jacobians[0])
@@ -94,7 +94,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 #if 0
             jacobian_pose_i.block<3, 3>(O_R, O_R) = -(Qj.inverse() * Qi).toRotationMatrix();
 #else
-                Eigen::Quaterniond corrected_delta_q = pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->linearized_bg));
+                Eigen::Quaterniond corrected_delta_q = pre_integration->delta_q * Utility::deltaQuat(dq_dbg * (Bgi - pre_integration->linearized_bg));
                 jacobian_pose_i.block<3, 3>(O_R, O_R) = -(Utility::Qleft(Qj.inverse() * Qi) * Utility::Qright(corrected_delta_q)).bottomRightCorner<3, 3>();
 #endif
 
@@ -104,9 +104,9 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
                 if (jacobian_pose_i.maxCoeff() > 1e8 || jacobian_pose_i.minCoeff() < -1e8)
                 {
-                    ROS_WARN("numerical unstable in preintegration");
+                    spdlog::warn("numerical unstable in preintegration");
                     //std::cout << sqrt_info << std::endl;
-                    //ROS_BREAK();
+                    // throw(std::runtime_error("Jacobian exploded. Numerical unstable in preintegration"));
                 }
             }
             if (jacobians[1])
@@ -120,7 +120,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 #if 0
             jacobian_speedbias_i.block<3, 3>(O_R, O_BG - O_V) = -dq_dbg;
 #else
-                //Eigen::Quaterniond corrected_delta_q = pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->linearized_bg));
+                //Eigen::Quaterniond corrected_delta_q = pre_integration->delta_q * Utility::deltaQuat(dq_dbg * (Bgi - pre_integration->linearized_bg));
                 //jacobian_speedbias_i.block<3, 3>(O_R, O_BG - O_V) = -Utility::Qleft(Qj.inverse() * Qi * corrected_delta_q).bottomRightCorner<3, 3>() * dq_dbg;
                 jacobian_speedbias_i.block<3, 3>(O_R, O_BG - O_V) = -Utility::Qleft(Qj.inverse() * Qi * pre_integration->delta_q).bottomRightCorner<3, 3>() * dq_dbg;
 #endif
@@ -135,8 +135,8 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
                 jacobian_speedbias_i = sqrt_info * jacobian_speedbias_i;
 
-                //ROS_ASSERT(fabs(jacobian_speedbias_i.maxCoeff()) < 1e8);
-                //ROS_ASSERT(fabs(jacobian_speedbias_i.minCoeff()) < 1e8);
+                //assert(fabs(jacobian_speedbias_i.maxCoeff()) < 1e8);
+                //assert(fabs(jacobian_speedbias_i.minCoeff()) < 1e8);
             }
             if (jacobians[2])
             {
@@ -148,14 +148,14 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 #if 0
             jacobian_pose_j.block<3, 3>(O_R, O_R) = Eigen::Matrix3d::Identity();
 #else
-                Eigen::Quaterniond corrected_delta_q = pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->linearized_bg));
+                Eigen::Quaterniond corrected_delta_q = pre_integration->delta_q * Utility::deltaQuat(dq_dbg * (Bgi - pre_integration->linearized_bg));
                 jacobian_pose_j.block<3, 3>(O_R, O_R) = Utility::Qleft(corrected_delta_q.inverse() * Qi.inverse() * Qj).bottomRightCorner<3, 3>();
 #endif
 
                 jacobian_pose_j = sqrt_info * jacobian_pose_j;
 
-                //ROS_ASSERT(fabs(jacobian_pose_j.maxCoeff()) < 1e8);
-                //ROS_ASSERT(fabs(jacobian_pose_j.minCoeff()) < 1e8);
+                //assert(fabs(jacobian_pose_j.maxCoeff()) < 1e8);
+                //assert(fabs(jacobian_pose_j.minCoeff()) < 1e8);
             }
             if (jacobians[3])
             {
@@ -170,8 +170,8 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
                 jacobian_speedbias_j = sqrt_info * jacobian_speedbias_j;
 
-                //ROS_ASSERT(fabs(jacobian_speedbias_j.maxCoeff()) < 1e8);
-                //ROS_ASSERT(fabs(jacobian_speedbias_j.minCoeff()) < 1e8);
+                //assert(fabs(jacobian_speedbias_j.maxCoeff()) < 1e8);
+                //assert(fabs(jacobian_speedbias_j.minCoeff()) < 1e8);
             }
         }
 

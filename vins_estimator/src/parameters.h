@@ -1,6 +1,4 @@
 #pragma once
-
-#include <ros/ros.h>
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include "utility/utility.h"
@@ -39,7 +37,7 @@ extern int ROLLING_SHUTTER;
 extern double ROW, COL;
 
 
-void readParameters(ros::NodeHandle &n);
+
 
 enum SIZE_PARAMETERIZATION
 {

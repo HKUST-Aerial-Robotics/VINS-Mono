@@ -9,7 +9,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "estimator.h"
-#include "parameters.h"
+#include "parameters_ros.h"
 #include "utility/visualization.h"
 
 
@@ -64,7 +64,7 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     Eigen::Vector3d un_acc_0 = tmp_Q * (acc_0 - tmp_Ba) - estimator.g;
 
     Eigen::Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - tmp_Bg;
-    tmp_Q = tmp_Q * Utility::deltaQ(un_gyr * dt);
+    tmp_Q = tmp_Q * Utility::deltaQuat(un_gyr * dt);
 
     Eigen::Vector3d un_acc_1 = tmp_Q * (linear_acceleration - tmp_Ba) - estimator.g;
 
@@ -311,7 +311,7 @@ void process()
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
                 image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
             }
-            estimator.processImage(image, img_msg->header);
+            estimator.processImage(image, img_msg->header.stamp.toSec());
 
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);

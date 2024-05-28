@@ -356,7 +356,8 @@ void pubKeyframe(const Estimator &estimator)
         Quaterniond R = Quaterniond(estimator.Rs[i]);
 
         nav_msgs::Odometry odometry;
-        odometry.header = estimator.Headers[WINDOW_SIZE - 2];
+        // what about sequence? Although can just set those to 0 usually
+        odometry.header.stamp = ros::Time(estimator.Timestamps[WINDOW_SIZE - 2]);
         odometry.header.frame_id = "world";
         odometry.pose.pose.position.x = P.x();
         odometry.pose.pose.position.y = P.y();
@@ -371,7 +372,8 @@ void pubKeyframe(const Estimator &estimator)
 
 
         sensor_msgs::PointCloud point_cloud;
-        point_cloud.header = estimator.Headers[WINDOW_SIZE - 2];
+        // what about hedaer. Perhaps based on the full code we will know the header.
+        point_cloud.header.stamp = ros::Time(estimator.Timestamps[WINDOW_SIZE - 2]);
         for (auto &it_per_id : estimator.f_manager.feature)
         {
             int frame_size = it_per_id.feature_per_frame.size();

@@ -221,15 +221,15 @@ void ProjectionTdFactor::check(double **parameters)
         if (a == 0)
             Pi += delta;
         else if (a == 1)
-            Qi = Qi * Utility::deltaQ(delta);
+            Qi = Qi * Utility::deltaQuat(delta);
         else if (a == 2)
             Pj += delta;
         else if (a == 3)
-            Qj = Qj * Utility::deltaQ(delta);
+            Qj = Qj * Utility::deltaQuat(delta);
         else if (a == 4)
             tic += delta;
         else if (a == 5)
-            qic = qic * Utility::deltaQ(delta);
+            qic = qic * Utility::deltaQuat(delta);
         else if (a == 6 && b == 0)
             inv_dep_i += delta.x();
         else if (a == 6 && b == 1)
