@@ -8,4 +8,10 @@ A3_rs/
 A3_rs.launch
 test/
 test.launch
-.vscode/
+**/.vscode/
+**/log/**
+**/build/**
+**/install/**
+**/V1_01_easy/
+output/
+search.txt
