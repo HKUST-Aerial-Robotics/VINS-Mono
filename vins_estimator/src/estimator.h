@@ -69,11 +69,11 @@ class Estimator
     Matrix3d ric[NUM_OF_CAM];
     Vector3d tic[NUM_OF_CAM];
 
-    Vector3d Ps[(WINDOW_SIZE + 1)];
-    Vector3d Vs[(WINDOW_SIZE + 1)];
-    Matrix3d Rs[(WINDOW_SIZE + 1)];
-    Vector3d Bas[(WINDOW_SIZE + 1)];
-    Vector3d Bgs[(WINDOW_SIZE + 1)];
+    Vector3d position[(WINDOW_SIZE + 1)];
+    Vector3d linear_velocity[(WINDOW_SIZE + 1)];
+    Matrix3d orientation[(WINDOW_SIZE + 1)];
+    Vector3d imu_linear_acceleration_bias[(WINDOW_SIZE + 1)];
+    Vector3d imu_angular_velocity_bias[(WINDOW_SIZE + 1)];
     double td;
 
     Matrix3d back_R0, last_R, last_R0;
@@ -83,7 +83,7 @@ class Estimator
     double Timestamps[(WINDOW_SIZE + 1)];
 
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)];
-    Vector3d acc_0, gyr_0;
+    Vector3d linear_acceleration, angular_velocity;
 
     vector<double> dt_buf[(WINDOW_SIZE + 1)];
     vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)];

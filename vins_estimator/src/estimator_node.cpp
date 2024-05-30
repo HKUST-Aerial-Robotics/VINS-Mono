@@ -12,7 +12,6 @@
 #include "parameters_ros.h"
 #include "utility/visualization.h"
 
-
 Estimator estimator;
 
 std::condition_variable con;
@@ -28,16 +27,60 @@ std::mutex i_buf;
 std::mutex m_estimator;
 
 double latest_time;
-Eigen::Vector3d tmp_P;
-Eigen::Quaterniond tmp_Q;
-Eigen::Vector3d tmp_V;
-Eigen::Vector3d tmp_Ba;
-Eigen::Vector3d tmp_Bg;
-Eigen::Vector3d acc_0;
-Eigen::Vector3d gyr_0;
+Eigen::Vector3d position_estimated_current;
+Eigen::Vector3d linear_velocity_estimated_current;
+Eigen::Vector3d imu_linear_acceleration_estimated_bias;
+Eigen::Vector3d imu_angular_velocity_estimated_bias;
+Eigen::Quaterniond orientation_estimated_current;
+Eigen::Vector3d linear_acceleration_current;
+Eigen::Vector3d angular_velocity_current;
+
+Eigen::Quaterniond orientation_estimated_previous;
+Eigen::Vector3d linear_acceleration_previous;
+Eigen::Vector3d angular_velocity_previous;
+
 bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
+
+void updateCurrentOrientation(const Eigen::Vector3d &imu_angular_velocity_current,
+                              const Eigen::Vector3d &imu_angular_velocity_previous,
+                              const Eigen::Vector3d &imu_angular_velocity_bias,
+                              const Eigen::Quaterniond &previous_orientation,
+                              const double &dt,
+                              Eigen::Quaterniond &out_current_orientation)
+{
+    Eigen::Vector3d ave_ang_vel = 0.5 * (imu_angular_velocity_current + imu_angular_velocity_previous) - imu_angular_velocity_bias;
+    Eigen::Vector3d delta_rot_vec = ave_ang_vel * dt;
+    Eigen::Quaterniond delta_quat = Utility::deltaQuat(delta_rot_vec);
+    out_current_orientation = previous_orientation * delta_quat;
+}
+
+void updateUnbiasedAccelerationInWorldFrame(const Eigen::Vector3d &imu_linear_acceleration,
+                                            const Eigen::Vector3d &imu_linear_acceleration_bias,
+                                            const Eigen::Quaterniond &orientation,
+                                            const Eigen::Vector3d &gravity,
+                                            Eigen::Vector3d &out_unbiased_accel_in_world_frame)
+{
+    out_unbiased_accel_in_world_frame = orientation * (imu_linear_acceleration - imu_linear_acceleration_bias) - gravity;
+}
+
+void updateCurrentPositionAndVelocity(const Eigen::Vector3d &imu_linear_acceleration_previous, const Eigen::Vector3d &imu_linear_acceleration_current,
+                                      const Eigen::Quaterniond &previous_orientation, const Eigen::Quaterniond &current_orientation,
+                                      const Eigen::Vector3d &imu_linear_acceleration_bias, const Eigen::Vector3d &gravity,
+                                      const double &dt,
+                                      Eigen::Vector3d &out_position, Eigen::Vector3d &out_velocity)
+{
+    Eigen::Vector3d prev_unbiased_accel;
+    Eigen::Vector3d current_unbiased_accel;
+    Eigen::Vector3d average_unbiased_accel;
+    updateUnbiasedAccelerationInWorldFrame(imu_linear_acceleration_previous, imu_linear_acceleration_bias, previous_orientation, gravity, prev_unbiased_accel);
+    updateUnbiasedAccelerationInWorldFrame(imu_linear_acceleration_current, imu_linear_acceleration_bias, current_orientation, gravity, current_unbiased_accel);
+    average_unbiased_accel = 0.5 * (prev_unbiased_accel + current_unbiased_accel);
+    out_position = out_position + out_velocity * dt + 0.5 * average_unbiased_accel * dt * dt;
+    out_velocity = out_velocity + average_unbiased_accel * dt;
+}
+
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -45,49 +88,50 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     if (init_imu)
     {
         latest_time = t;
-        init_imu = 0;
+        init_imu = false;
         return;
     }
     double dt = t - latest_time;
     latest_time = t;
 
-    double dx = imu_msg->linear_acceleration.x;
-    double dy = imu_msg->linear_acceleration.y;
-    double dz = imu_msg->linear_acceleration.z;
-    Eigen::Vector3d linear_acceleration{dx, dy, dz};
+    linear_acceleration_previous = linear_acceleration_current;
+    angular_velocity_previous = angular_velocity_current;
+    orientation_estimated_previous = orientation_estimated_current;
 
-    double rx = imu_msg->angular_velocity.x;
-    double ry = imu_msg->angular_velocity.y;
-    double rz = imu_msg->angular_velocity.z;
-    Eigen::Vector3d angular_velocity{rx, ry, rz};
+    linear_acceleration_current = {
+        imu_msg->linear_acceleration.x,
+        imu_msg->linear_acceleration.y,
+        imu_msg->linear_acceleration.z};
 
-    Eigen::Vector3d un_acc_0 = tmp_Q * (acc_0 - tmp_Ba) - estimator.g;
+    angular_velocity_current = {imu_msg->angular_velocity.x,
+                                        imu_msg->angular_velocity.y,
+                                        imu_msg->angular_velocity.z};
 
-    Eigen::Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - tmp_Bg;
-    tmp_Q = tmp_Q * Utility::deltaQuat(un_gyr * dt);
 
-    Eigen::Vector3d un_acc_1 = tmp_Q * (linear_acceleration - tmp_Ba) - estimator.g;
 
-    Eigen::Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
-
-    tmp_P = tmp_P + dt * tmp_V + 0.5 * dt * dt * un_acc;
-    tmp_V = tmp_V + dt * un_acc;
-
-    acc_0 = linear_acceleration;
-    gyr_0 = angular_velocity;
+    updateCurrentOrientation(angular_velocity_previous, angular_velocity_current, imu_angular_velocity_estimated_bias, orientation_estimated_previous, dt, orientation_estimated_current);
+    updateCurrentPositionAndVelocity(linear_acceleration_previous,
+                                     linear_acceleration_current,
+                                     orientation_estimated_previous,
+                                     orientation_estimated_current,
+                                     imu_linear_acceleration_estimated_bias,
+                                     estimator.g,
+                                     dt,
+                                     position_estimated_current,
+                                     linear_velocity_estimated_current);
 }
 
 void update()
 {
     TicToc t_predict;
     latest_time = current_time;
-    tmp_P = estimator.Ps[WINDOW_SIZE];
-    tmp_Q = estimator.Rs[WINDOW_SIZE];
-    tmp_V = estimator.Vs[WINDOW_SIZE];
-    tmp_Ba = estimator.Bas[WINDOW_SIZE];
-    tmp_Bg = estimator.Bgs[WINDOW_SIZE];
-    acc_0 = estimator.acc_0;
-    gyr_0 = estimator.gyr_0;
+    position_estimated_current = estimator.position[WINDOW_SIZE];
+    orientation_estimated_current = estimator.orientation[WINDOW_SIZE];
+    linear_velocity_estimated_current = estimator.linear_velocity[WINDOW_SIZE];
+    imu_linear_acceleration_estimated_bias = estimator.imu_linear_acceleration_bias[WINDOW_SIZE];
+    imu_angular_velocity_estimated_bias = estimator.imu_angular_velocity_bias[WINDOW_SIZE];
+    linear_acceleration_current = estimator.linear_acceleration;
+    angular_velocity_current = estimator.angular_velocity;
 
     queue<sensor_msgs::ImuConstPtr> tmp_imu_buf = imu_buf;
     for (sensor_msgs::ImuConstPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())
@@ -157,7 +201,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
         std_msgs::Header header = imu_msg->header;
         header.frame_id = "world";
         if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
-            pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
+            pubLatestOdometry(position_estimated_current, orientation_estimated_previous, linear_velocity_estimated_current, header);
     }
 }
 
@@ -227,7 +271,7 @@ void process()
                 double t = imu_msg->header.stamp.toSec();
                 double img_t = img_msg->header.stamp.toSec() + estimator.td;
                 if (t <= img_t)
-                { 
+                {
                     if (current_time < 0)
                         current_time = t;
                     double dt = t - current_time;
