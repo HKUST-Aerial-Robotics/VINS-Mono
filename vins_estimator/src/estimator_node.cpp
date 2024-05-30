@@ -126,7 +126,7 @@ void update()
     TicToc t_predict;
     latest_time = current_time;
     position_estimated_current = estimator.position[WINDOW_SIZE];
-    orientation_estimated_current = estimator.oreintation[WINDOW_SIZE];
+    orientation_estimated_current = estimator.orientation[WINDOW_SIZE];
     linear_velocity_estimated_current = estimator.linear_velocity[WINDOW_SIZE];
     imu_linear_acceleration_estimated_bias = estimator.imu_linear_acceleration_bias[WINDOW_SIZE];
     imu_angular_velocity_estimated_bias = estimator.imu_angular_velocity_bias[WINDOW_SIZE];

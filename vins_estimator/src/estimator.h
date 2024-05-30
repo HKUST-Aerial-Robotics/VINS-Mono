@@ -71,7 +71,7 @@ class Estimator
 
     Vector3d position[(WINDOW_SIZE + 1)];
     Vector3d linear_velocity[(WINDOW_SIZE + 1)];
-    Matrix3d oreintation[(WINDOW_SIZE + 1)];
+    Matrix3d orientation[(WINDOW_SIZE + 1)];
     Vector3d imu_linear_acceleration_bias[(WINDOW_SIZE + 1)];
     Vector3d imu_angular_velocity_bias[(WINDOW_SIZE + 1)];
     double td;
