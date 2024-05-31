@@ -112,7 +112,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         odometry.header.frame_id = "world";
         odometry.child_frame_id = "world";
         Quaterniond tmp_Q;
-        tmp_Q = Quaterniond(estimator.oreintation[WINDOW_SIZE]);
+        tmp_Q = Quaterniond(estimator.orientation[WINDOW_SIZE]);
         odometry.pose.pose.position.x = estimator.position[WINDOW_SIZE].x();
         odometry.pose.pose.position.y = estimator.position[WINDOW_SIZE].y();
         odometry.pose.pose.position.z = estimator.position[WINDOW_SIZE].z();
@@ -138,7 +138,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         Vector3d correct_v;
         Quaterniond correct_q;
         correct_t = estimator.drift_correct_r * estimator.position[WINDOW_SIZE] + estimator.drift_correct_t;
-        correct_q = estimator.drift_correct_r * estimator.oreintation[WINDOW_SIZE];
+        correct_q = estimator.drift_correct_r * estimator.orientation[WINDOW_SIZE];
         odometry.pose.pose.position.x = correct_t.x();
         odometry.pose.pose.position.y = correct_t.y();
         odometry.pose.pose.position.z = correct_t.z();
@@ -214,8 +214,8 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
         int i = idx2;
-        Vector3d P = estimator.position[i] + estimator.oreintation[i] * estimator.tic[0];
-        Quaterniond R = Quaterniond(estimator.oreintation[i] * estimator.ric[0]);
+        Vector3d P = estimator.position[i] + estimator.orientation[i] * estimator.tic[0];
+        Quaterniond R = Quaterniond(estimator.orientation[i] * estimator.ric[0]);
 
         nav_msgs::Odometry odometry;
         odometry.header = header;
@@ -254,7 +254,7 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
             continue;
         int imu_i = it_per_id.start_frame;
         Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-        Vector3d w_pts_i = estimator.oreintation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.position[imu_i];
+        Vector3d w_pts_i = estimator.orientation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.position[imu_i];
 
         geometry_msgs::Point32 p;
         p.x = w_pts_i(0);
@@ -283,7 +283,7 @@ void pubPointCloud(const Estimator &estimator, const std_msgs::Header &header)
         {
             int imu_i = it_per_id.start_frame;
             Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-            Vector3d w_pts_i = estimator.oreintation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.position[imu_i];
+            Vector3d w_pts_i = estimator.orientation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0]) + estimator.position[imu_i];
 
             geometry_msgs::Point32 p;
             p.x = w_pts_i(0);
@@ -307,7 +307,7 @@ void pubTF(const Estimator &estimator, const std_msgs::Header &header)
     Vector3d correct_t;
     Quaterniond correct_q;
     correct_t = estimator.position[WINDOW_SIZE];
-    correct_q = estimator.oreintation[WINDOW_SIZE];
+    correct_q = estimator.orientation[WINDOW_SIZE];
 
     transform.setOrigin(tf::Vector3(correct_t(0),
                                     correct_t(1),
@@ -351,9 +351,9 @@ void pubKeyframe(const Estimator &estimator)
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR && estimator.marginalization_flag == 0)
     {
         int i = WINDOW_SIZE - 2;
-        //Vector3d P = estimator.position[i] + estimator.oreintation[i] * estimator.tic[0];
+        //Vector3d P = estimator.position[i] + estimator.orientation[i] * estimator.tic[0];
         Vector3d P = estimator.position[i];
-        Quaterniond R = Quaterniond(estimator.oreintation[i]);
+        Quaterniond R = Quaterniond(estimator.orientation[i]);
 
         nav_msgs::Odometry odometry;
         // what about sequence? Although can just set those to 0 usually
@@ -382,7 +382,7 @@ void pubKeyframe(const Estimator &estimator)
 
                 int imu_i = it_per_id.start_frame;
                 Vector3d pts_i = it_per_id.feature_per_frame[0].point * it_per_id.estimated_depth;
-                Vector3d w_pts_i = estimator.oreintation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0])
+                Vector3d w_pts_i = estimator.orientation[imu_i] * (estimator.ric[0] * pts_i + estimator.tic[0])
                                       + estimator.position[imu_i];
                 geometry_msgs::Point32 p;
                 p.x = w_pts_i(0);
