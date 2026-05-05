@@ -1,0 +1,49 @@
+<launch>
+    <!-- VINS-Mono launch for Raspberry Pi setup. Same composition as the
+         user's original local rpi.launch (feature_tracker + vins_estimator
+         + pose_graph) plus the hover-aware vision_pose_bridge that
+         forwards sanitized odometry to /mavros/vision_pose/pose for
+         ArduPilot.
+
+         The rpi.yaml config is copied into config/rpi/ at startup by the
+         host autostart script (vins_docker/rpi.yaml → docker container).
+
+         vision_pose_bridge is launched here so the autostart script does
+         NOT need a separate `rosrun vision_pose_bridge` step. Bridge ROS
+         params are exposed as launch args:
+           bridge_rate, bridge_max_accel, bridge_max_speed,
+           bridge_odom_timeout
+    -->
+    <arg name="config_path" default="$(find feature_tracker)/../config/rpi/rpi.yaml" />
+    <arg name="vins_path"   default="$(find feature_tracker)/../config/../" />
+
+    <arg name="bridge_rate"          default="10.0" />
+    <arg name="bridge_max_accel"     default="40.0" />
+    <arg name="bridge_max_speed"     default="30.0" />
+    <arg name="bridge_odom_timeout"  default="1.0" />
+
+    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
+        <param name="config_file" type="string" value="$(arg config_path)" />
+        <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+
+    <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="screen">
+        <param name="config_file" type="string" value="$(arg config_path)" />
+        <param name="vins_folder" type="string" value="$(arg vins_path)" />
+    </node>
+
+    <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="screen">
+        <param name="config_file" type="string" value="$(arg config_path)" />
+        <param name="visualization_shift_x" type="int" value="0" />
+        <param name="visualization_shift_y" type="int" value="0" />
+        <param name="skip_cnt" type="int" value="0" />
+        <param name="skip_dis" type="double" value="0" />
+    </node>
+
+    <node name="vision_pose_bridge" pkg="vins_estimator" type="vision_pose_bridge" output="screen">
+        <param name="rate"         type="double" value="$(arg bridge_rate)" />
+        <param name="max_accel"    type="double" value="$(arg bridge_max_accel)" />
+        <param name="max_speed"    type="double" value="$(arg bridge_max_speed)" />
+        <param name="odom_timeout" type="double" value="$(arg bridge_odom_timeout)" />
+    </node>
+</launch>

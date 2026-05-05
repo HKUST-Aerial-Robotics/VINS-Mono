@@ -23,6 +23,14 @@ std::string IMU_TOPIC;
 double ROW, COL;
 double TD, TR;
 
+int    ENABLE_ZUPT;
+int    ENABLE_ROTATION_ZUPT;
+int    STATIC_INIT_BIAS_PRIMING;
+int    SOFTEN_FAILURE_ON_HOVER;
+double STATIC_ACC_THR;
+double STATIC_GYR_THR;
+double STATIC_FLOW_THR;
+
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -132,6 +140,43 @@ void readParameters(ros::NodeHandle &n)
     {
         TR = 0;
     }
-    
+
+    // Hover-aware extensions.
+    //
+    // Only four YAML keys are supported here — feature switches. Everything
+    // else is compile-time (see namespace hover in parameters.h) or derived
+    // from the IMU noise floor just below.
+    auto readOrInt = [&](const char *key, int def) -> int {
+        cv::FileNode n = fsSettings[key];
+        if (n.empty() || !n.isInt()) return def;
+        return static_cast<int>(n);
+    };
+
+    ENABLE_ZUPT              = readOrInt("enable_zupt",              1);
+    ENABLE_ROTATION_ZUPT     = readOrInt("enable_rotation_zupt",     1);
+    STATIC_INIT_BIAS_PRIMING = readOrInt("static_init_bias_priming", 1);
+    SOFTEN_FAILURE_ON_HOVER  = readOrInt("soften_failure_on_hover",  1);
+
+    // Derived stationarity thresholds — computed from the just-loaded
+    // calibrated IMU noise values. 15σ absorbs typical motor vibration
+    // without bleeding into real-motion territory.
+    //
+    // Floors ensure we don't pick an absurdly low threshold when a
+    // calibration reports suspiciously clean noise (sub-mg noise on a
+    // consumer IMU is almost always mis-calibrated). Flow threshold is
+    // in normalized-FOCAL pixels/sec and is camera-independent because
+    // feature_tracker normalizes by the real camera intrinsics before
+    // publishing.
+    STATIC_ACC_THR  = std::max(15.0 * ACC_N, 0.3);    // m/s²
+    STATIC_GYR_THR  = std::max(15.0 * GYR_N, 0.03);   // rad/s
+    STATIC_FLOW_THR = 3.0;                            // px/s at FOCAL=460
+
+    ROS_INFO("hover-aware: zupt=%d rot_zupt=%d prime=%d soften=%d",
+             ENABLE_ZUPT, ENABLE_ROTATION_ZUPT, STATIC_INIT_BIAS_PRIMING,
+             SOFTEN_FAILURE_ON_HOVER);
+    ROS_INFO("hover-aware: derived thresholds acc=%.3f m/s² gyr=%.3f rad/s flow=%.1f px/s "
+             "(from ACC_N=%.4f GYR_N=%.5f)",
+             STATIC_ACC_THR, STATIC_GYR_THR, STATIC_FLOW_THR, ACC_N, GYR_N);
+
     fsSettings.release();
 }

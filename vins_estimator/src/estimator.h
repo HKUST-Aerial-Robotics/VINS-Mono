@@ -17,6 +17,8 @@
 #include "factor/projection_factor.h"
 #include "factor/projection_td_factor.h"
 #include "factor/marginalization_factor.h"
+#include "factor/zupt_factor.h"
+#include "utility/motion_detector.h"
 
 #include <unordered_map>
 #include <queue>
@@ -31,7 +33,13 @@ class Estimator
     void setParameter();
 
     // interface
-    void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
+    //
+    // processIMU(dt, t, acc, gyr) — `dt` is the IMU integration step, `t` is
+    // the absolute ROS timestamp (seconds) of this IMU sample. `t` feeds the
+    // MotionDetector on the same timebase as image pushes, so the rolling
+    // window is coherent even when online-td offsets or auto-reset events
+    // shift the estimator's internal clocks.
+    void processIMU(double dt, double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
 
@@ -136,4 +144,41 @@ class Estimator
     Vector3d relo_relative_t;
     Quaterniond relo_relative_q;
     double relo_relative_yaw;
+
+    // Hover-aware state: stationarity detector driving ZUPT, static init
+    // priming, and softened failure detection.
+    MotionDetector motion_detector;
+    double last_image_t;       // absolute ROS timestamp of latest image push
+
+    // Per-frame stationary flag in the window. Set when processImage commits
+    // a frame while MotionDetector reports STATIONARY; allows ZUPT to fire
+    // only for frames that were genuinely still at capture time, not for
+    // frames that happened to be the newest in the window.
+    bool was_stationary[(WINDOW_SIZE + 1)];
+
+    // Safety-reset escalation (hover-aware). Counts how many all_image_frame
+    // overflow resets happened in the current run; used to widen the
+    // tolerance window on each retry so a marginal scene does not bootloop.
+    int  init_safety_reset_count;
+    double last_safety_reset_t;
+
+    // Image rate, used for scaling time-dependent thresholds (e.g. the
+    // all_image_frame overflow cap). Measured from consecutive image pushes.
+    double image_rate_hz;
+
+    // Confidence-based fade from "fork hover-aware" mode toward stock
+    // VINS-Mono behavior (user feedback: hovers ~1 m wider than vanilla
+    // VINS-Mono after the fork's changes — the ZUPT and softened failure
+    // detection actually fight stable in-flight tracking once the state
+    // is well-conditioned).
+    //
+    // post_init_clean_cycles counts consecutive successful optimization()
+    // cycles (frame committed, failureDetection passed). Reset to 0 by
+    // any failure or by initialStructure(). Used by:
+    //   * optimization()      — ZUPT weight scales by exp-fade past 50 cycles
+    //   * failureDetection()  — soften only active for first ~100 cycles
+    //
+    // At 10 Hz image rate: 50 cycles ≈ 5 s (full fork strength), 200 cycles
+    // ≈ 20 s (fully stock VINS-Mono behavior).
+    int post_init_clean_cycles;
 };

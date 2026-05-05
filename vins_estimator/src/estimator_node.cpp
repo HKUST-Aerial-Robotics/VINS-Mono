@@ -149,8 +149,6 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     m_buf.unlock();
     con.notify_one();
 
-    last_imu_t = imu_msg->header.stamp.toSec();
-
     {
         std::lock_guard<std::mutex> lg(m_state);
         predict(imu_msg);
@@ -172,6 +170,14 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     }
     m_buf.lock();
     feature_buf.push(feature_msg);
+    // Previous fork versions capped feature_buf at 3 during INITIAL to avoid
+    // "fast-forward replay" after a long idle. That cap broke init: dropping
+    // feature frames at the producer starves the estimator's processImage()
+    // of the dense timestamp sequence it needs for SfM/IMU alignment, so
+    // initialStructure() fell into a loop of silent failures. The real fix
+    // for the fast-forward symptom is in estimator.cpp — resetting the
+    // estimator (clearState) when all_image_frame grows unbounded during
+    // INITIAL — so no cap is needed here.
     m_buf.unlock();
     con.notify_one();
 }
@@ -227,11 +233,23 @@ void process()
                 double t = imu_msg->header.stamp.toSec();
                 double img_t = img_msg->header.stamp.toSec() + estimator.td;
                 if (t <= img_t)
-                { 
+                {
                     if (current_time < 0)
                         current_time = t;
                     double dt = t - current_time;
-                    ROS_ASSERT(dt >= 0);
+                    // clearState() no longer resets `td`, so the root cause of
+                    // post-reboot dt<0 is fixed (6). Remaining dt<0 cases:
+                    //   a) out-of-order IMU messages on the topic — should
+                    //      never happen on a live stream; log loudly,
+                    //   b) buffer races around m_buf lock — very rare.
+                    // Either way, resync rather than assert — IntegrationBase
+                    // requires dt>=0, so we clamp to 0.
+                    if (dt < 0)
+                    {
+                        ROS_WARN("imu dt<0 (%.6fs); current_time resync (out-of-order IMU?)", dt);
+                        current_time = t;
+                        dt = 0;
+                    }
                     current_time = t;
                     dx = imu_msg->linear_acceleration.x;
                     dy = imu_msg->linear_acceleration.y;
@@ -239,18 +257,34 @@ void process()
                     rx = imu_msg->angular_velocity.x;
                     ry = imu_msg->angular_velocity.y;
                     rz = imu_msg->angular_velocity.z;
-                    estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    //printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
-
+                    // 4-arg form: absolute IMU timestamp feeds MotionDetector
+                    // on the same clock as image header stamps (1.1).
+                    estimator.processIMU(dt, t, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
                 }
                 else
                 {
                     double dt_1 = img_t - current_time;
                     double dt_2 = t - img_t;
+                    // Symmetric handling (6). If either is negative, log and
+                    // skip the sample rather than asserting — node stays up
+                    // and the next IMU will re-sync.
+                    if (dt_1 < 0)
+                    {
+                        ROS_WARN("img dt_1<0 (%.6fs); current_time resync", dt_1);
+                        current_time = img_t;
+                        dt_1 = 0;
+                    }
+                    if (dt_2 < 0)
+                    {
+                        ROS_WARN("img dt_2<0 (%.6fs); skipping sample", dt_2);
+                        continue;
+                    }
                     current_time = img_t;
-                    ROS_ASSERT(dt_1 >= 0);
-                    ROS_ASSERT(dt_2 >= 0);
-                    ROS_ASSERT(dt_1 + dt_2 > 0);
+                    if (dt_1 + dt_2 <= 0)
+                    {
+                        ROS_WARN("dt_1+dt_2<=0; skipping sample");
+                        continue;
+                    }
                     double w1 = dt_2 / (dt_1 + dt_2);
                     double w2 = dt_1 / (dt_1 + dt_2);
                     dx = w1 * dx + w2 * imu_msg->linear_acceleration.x;
@@ -259,8 +293,7 @@ void process()
                     rx = w1 * rx + w2 * imu_msg->angular_velocity.x;
                     ry = w1 * ry + w2 * imu_msg->angular_velocity.y;
                     rz = w1 * rz + w2 * imu_msg->angular_velocity.z;
-                    estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
-                    //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
+                    estimator.processIMU(dt_1, img_t, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
                 }
             }
             // set relocalization frame

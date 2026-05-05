@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
     tf
     cv_bridge
     visualization_msgs
+    mavros_msgs
     )
 
 find_package(OpenCV REQUIRED)
@@ -52,6 +53,13 @@ add_executable(vins_estimator
     )
 
 
-target_link_libraries(vins_estimator ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
+target_link_libraries(vins_estimator ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
-
+# Hover-aware fork: vision_pose_bridge — forwards sanitized VINS odometry to
+# ArduPilot (/mavros/vision_pose/pose) and mirrors it on /vins_bridge/pose.
+# Lives inside vins_estimator so the install has one catkin package instead
+# of two.
+add_executable(vision_pose_bridge
+    src/vision_pose_bridge_node.cpp
+    )
+target_link_libraries(vision_pose_bridge ${catkin_LIBRARIES})

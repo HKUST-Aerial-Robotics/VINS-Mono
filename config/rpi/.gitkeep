@@ -1,0 +1,10 @@
+# rpi calibration config
+
+`rpi.yaml` here is **runtime-generated** — copied into the docker image at startup
+by the host autostart script from `~/vins_docker/rpi.yaml`. The repo intentionally
+does not ship a default `rpi.yaml` so a stale committed version can never override
+a fresh calibration.
+
+If you launch `vins_estimator rpi.launch` and see "Wrong path to settings", check
+that the autostart script's `docker cp` step actually fired (look for "rpi.yaml
+copied from host to container" in `${RUN_DIR}/main.log`).

@@ -42,6 +42,8 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
   <run_depend>roscpp</run_depend>
+  <build_depend>mavros_msgs</build_depend>
+  <run_depend>mavros_msgs</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
