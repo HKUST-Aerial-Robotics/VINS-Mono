@@ -35,7 +35,6 @@ estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trus
                         # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.
 #If you choose 0 or 1, you should write down the following matrix.
 #Rotation from camera frame to imu frame, imu^R_cam (T_ic)
-# Матрица вращения из калибровки Kalibr (транспонирована)
 extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3

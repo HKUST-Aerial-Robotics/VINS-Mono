@@ -1,5 +1,9 @@
 #include "pose_graph.h"
-#include <tf/transform_broadcaster.h>
+
+static builtin_interfaces::msg::Time timeFromSec(double seconds)
+{
+    return rclcpp::Time(static_cast<int64_t>(seconds * 1e9));
+}
 
 PoseGraph::PoseGraph()
 {
@@ -25,16 +29,16 @@ PoseGraph::~PoseGraph()
 	t_optimization.join();
 }
 
-void PoseGraph::registerPub(ros::NodeHandle &n)
+void PoseGraph::registerPub(rclcpp::Node::SharedPtr n)
 {
-    pub_pg_path = n.advertise<nav_msgs::Path>("pose_graph_path", 1000);
-    pub_base_path = n.advertise<nav_msgs::Path>("base_path", 1000);
-    pub_pose_graph = n.advertise<visualization_msgs::MarkerArray>("pose_graph", 1000);
+    pub_pg_path = n->create_publisher<nav_msgs::msg::Path>("/pose_graph/pose_graph_path", 1000);
+    pub_base_path = n->create_publisher<nav_msgs::msg::Path>("/pose_graph/base_path", 1000);
+    pub_pose_graph = n->create_publisher<visualization_msgs::msg::MarkerArray>("/pose_graph/pose_graph", 1000);
     for (int i = 1; i < 10; i++)
-        pub_path[i] = n.advertise<nav_msgs::Path>("path_" + to_string(i), 1000);
+        pub_path[i] = n->create_publisher<nav_msgs::msg::Path>("/pose_graph/path_" + to_string(i), 1000);
 
     // Create TF broadcaster after ros::init is done (registerPub is called after ros::init)
-    tf_broadcaster.reset(new tf::TransformBroadcaster());
+    tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(n);
 }
 
 void PoseGraph::loadVocabulary(std::string voc_path)
@@ -139,8 +143,8 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     R = r_drift * R;
     cur_kf->updatePose(P, R);
     Quaterniond Q{R};
-    geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header.stamp = ros::Time(cur_kf->time_stamp);
+    geometry_msgs::msg::PoseStamped pose_stamped;
+    pose_stamped.header.stamp = timeFromSec(cur_kf->time_stamp);
     pose_stamped.header.frame_id = "world";
     pose_stamped.pose.position.x = P.x() + VISUALIZATION_SHIFT_X;
     pose_stamped.pose.position.y = P.y() + VISUALIZATION_SHIFT_Y;
@@ -153,11 +157,18 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     path[sequence_cnt].header = pose_stamped.header;
 
     // Publish corrected pose to TF (world -> camera_pose_graph)
-    tf::Transform transform;
-    transform.setOrigin(tf::Vector3(P.x(), P.y(), P.z()));
-    transform.setRotation(tf::Quaternion(Q.x(), Q.y(), Q.z(), Q.w()));
+    geometry_msgs::msg::TransformStamped transform;
+    transform.header = pose_stamped.header;
+    transform.child_frame_id = "camera_pose_graph";
+    transform.transform.translation.x = P.x();
+    transform.transform.translation.y = P.y();
+    transform.transform.translation.z = P.z();
+    transform.transform.rotation.x = Q.x();
+    transform.transform.rotation.y = Q.y();
+    transform.transform.rotation.z = Q.z();
+    transform.transform.rotation.w = Q.w();
     if (tf_broadcaster)
-        tf_broadcaster->sendTransform(tf::StampedTransform(transform, pose_stamped.header.stamp, "world", "camera_pose_graph"));
+        tf_broadcaster->sendTransform(transform);
 
     if (SAVE_LOOP_PATH)
     {
@@ -250,8 +261,8 @@ void PoseGraph::loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     Matrix3d R;
     cur_kf->getPose(P, R);
     Quaterniond Q{R};
-    geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header.stamp = ros::Time(cur_kf->time_stamp);
+    geometry_msgs::msg::PoseStamped pose_stamped;
+    pose_stamped.header.stamp = timeFromSec(cur_kf->time_stamp);
     pose_stamped.header.frame_id = "world";
     pose_stamped.pose.position.x = P.x() + VISUALIZATION_SHIFT_X;
     pose_stamped.pose.position.y = P.y() + VISUALIZATION_SHIFT_Y;
@@ -450,7 +461,7 @@ void PoseGraph::optimize4DoF()
             ceres::LossFunction *loss_function;
             loss_function = new ceres::HuberLoss(0.1);
             //loss_function = new ceres::CauchyLoss(1.0);
-            ceres::LocalParameterization* angle_local_parameterization =
+            ceres::Manifold* angle_local_parameterization =
                 AngleLocalParameterization::Create();
 
             list<KeyFrame*>::iterator it;
@@ -478,7 +489,8 @@ void PoseGraph::optimize4DoF()
 
                 sequence_array[i] = (*it)->sequence;
 
-                problem.AddParameterBlock(euler_array[i], 1, angle_local_parameterization);
+                problem.AddParameterBlock(euler_array[i], 1);
+                problem.SetManifold(euler_array[i], angle_local_parameterization);
                 problem.AddParameterBlock(t_array[i], 3);
 
                 if ((*it)->index == first_looped_index || (*it)->sequence == 0)
@@ -615,8 +627,8 @@ void PoseGraph::updatePath()
         Q = R;
 //        printf("path p: %f, %f, %f\n",  P.x(),  P.z(),  P.y() );
 
-        geometry_msgs::PoseStamped pose_stamped;
-        pose_stamped.header.stamp = ros::Time((*it)->time_stamp);
+        geometry_msgs::msg::PoseStamped pose_stamped;
+        pose_stamped.header.stamp = timeFromSec((*it)->time_stamp);
         pose_stamped.header.frame_id = "world";
         pose_stamped.pose.position.x = P.x() + VISUALIZATION_SHIFT_X;
         pose_stamped.pose.position.y = P.y() + VISUALIZATION_SHIFT_Y;
@@ -887,13 +899,13 @@ void PoseGraph::publish()
         //if (sequence_loop[i] == true || i == base_sequence)
         if (1 || i == base_sequence)
         {
-            pub_pg_path.publish(path[i]);
-            pub_path[i].publish(path[i]);
+            pub_pg_path->publish(path[i]);
+            pub_path[i]->publish(path[i]);
             posegraph_visualization->publish_by(pub_pose_graph, path[sequence_cnt].header);
         }
     }
     base_path.header.frame_id = "world";
-    pub_base_path.publish(base_path);
+    pub_base_path->publish(base_path);
     //posegraph_visualization->publish_by(pub_pose_graph, path[sequence_cnt].header);
 }
 

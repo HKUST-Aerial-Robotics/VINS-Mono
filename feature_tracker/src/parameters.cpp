@@ -1,6 +1,8 @@
 #include "parameters.h"
+#include "rclcpp/rclcpp.hpp"
 
 std::string IMAGE_TOPIC;
+std::string IMAGE_INPUT_FORMAT;
 std::string IMU_TOPIC;
 std::vector<std::string> CAM_NAMES;
 std::string FISHEYE_MASK;
@@ -20,6 +22,7 @@ bool PUB_THIS_FRAME;
 int FAST_THRESHOLD;
 int USE_BIDIRECTIONAL_FLOW;
 int USE_ADVANCED_FLOW;
+double GFTT_QUALITY_LEVEL = 0.01;
 
 // Adaptive feature tracking
 double MAX_VELOCITY_THRESHOLD = 5.0;  // m/s
@@ -27,34 +30,25 @@ int VELOCITY_BOOST_FEATURES = 50;     // extra features at high speed
 double MIN_PARALLAX_THRESHOLD = 5.0;  // pixels
 int ENABLE_VELOCITY_CHECK = 1;
 
-template <typename T>
-T readParam(ros::NodeHandle &n, std::string name)
-{
-    T ans;
-    if (n.getParam(name, ans))
-    {
-        ROS_INFO_STREAM("Loaded " << name << ": " << ans);
-    }
-    else
-    {
-        ROS_ERROR_STREAM("Failed to load " << name);
-        n.shutdown();
-    }
-    return ans;
-}
-
-void readParameters(ros::NodeHandle &n)
+void readParameters(rclcpp::Node::SharedPtr &n)
 {
     std::string config_file;
-    config_file = readParam<std::string>(n, "config_file");
+    n->declare_parameter<std::string>("config_file", "");
+    n->get_parameter("config_file", config_file);
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
-    std::string VINS_FOLDER_PATH = readParam<std::string>(n, "vins_folder");
+    std::string VINS_FOLDER_PATH;
+    n->declare_parameter<std::string>("vins_folder", "");
+    n->get_parameter("vins_folder", VINS_FOLDER_PATH);
 
     fsSettings["image_topic"] >> IMAGE_TOPIC;
+    if (!fsSettings["image_input_format"].empty())
+        fsSettings["image_input_format"] >> IMAGE_INPUT_FORMAT;
+    else
+        IMAGE_INPUT_FORMAT = "raw";
     fsSettings["imu_topic"] >> IMU_TOPIC;
     MAX_CNT = fsSettings["max_cnt"];
     MIN_DIST = fsSettings["min_dist"];
@@ -83,6 +77,11 @@ void readParameters(ros::NodeHandle &n)
         USE_ADVANCED_FLOW = fsSettings["use_advanced_flow"];
     else
         USE_ADVANCED_FLOW = 1;
+
+    if (!fsSettings["gftt_quality_level"].empty())
+        GFTT_QUALITY_LEVEL = (double)fsSettings["gftt_quality_level"];
+    else
+        GFTT_QUALITY_LEVEL = 0.01;
     
     // Adaptive tracking parameters
     ENABLE_VELOCITY_CHECK = fsSettings["enable_velocity_check"].empty() ? 1 : (int)fsSettings["enable_velocity_check"];
@@ -94,11 +93,30 @@ void readParameters(ros::NodeHandle &n)
         MIN_PARALLAX_THRESHOLD = (double)fsSettings["min_parallax_threshold"];
     
     if (ENABLE_VELOCITY_CHECK)
-        ROS_INFO("Velocity-adaptive tracking enabled: max_vel=%.1f m/s, boost=%d features",
+        RCLCPP_INFO(n->get_logger(), "Velocity-adaptive tracking enabled: max_vel=%.1f m/s, boost=%d features",
                  MAX_VELOCITY_THRESHOLD, VELOCITY_BOOST_FEATURES);
 
+    RCLCPP_INFO(n->get_logger(), "Image input mode: %s", IMAGE_INPUT_FORMAT.c_str());
+    RCLCPP_INFO(n->get_logger(), "Image topic: %s", IMAGE_TOPIC.c_str());
+    RCLCPP_INFO(n->get_logger(),
+                "Feature detector: %s, quality=%.4f, min_dist=%d, max_cnt=%d",
+                USE_ADVANCED_FLOW ? "AGAST" : "Shi-Tomasi", GFTT_QUALITY_LEVEL,
+                MIN_DIST, MAX_CNT);
+
     if (FISHEYE == 1)
-        FISHEYE_MASK = VINS_FOLDER_PATH + "config/fisheye_mask.jpg";
+    {
+        std::string mask_path;
+        if (!fsSettings["fisheye_mask"].empty())
+            fsSettings["fisheye_mask"] >> mask_path;
+        else
+            mask_path = "config/fisheye_mask.jpg";
+
+        if (!mask_path.empty() && mask_path.front() == '/')
+            FISHEYE_MASK = mask_path;
+        else
+            FISHEYE_MASK = VINS_FOLDER_PATH + mask_path;
+        RCLCPP_INFO(n->get_logger(), "Feature mask: %s", FISHEYE_MASK.c_str());
+    }
     CAM_NAMES.push_back(config_file);
 
     WINDOW_SIZE = 20;

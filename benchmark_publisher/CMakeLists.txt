@@ -1,28 +1,37 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 project(benchmark_publisher)
 
-set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++11 -DEIGEN_DONT_PARALLELIZE")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g -rdynamic")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
 
+if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 
-find_package(catkin REQUIRED COMPONENTS
-    roscpp
-    tf
-    )
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -DEIGEN_DONT_PARALLELIZE")
 
-catkin_package()
-include_directories(${catkin_INCLUDE_DIRS}) 
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Eigen3)
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
-)
+find_package(Eigen3 REQUIRED)
 
 add_executable(benchmark_publisher
     src/benchmark_publisher_node.cpp
     )
 
-target_link_libraries(benchmark_publisher ${catkin_LIBRARIES})
+ament_target_dependencies(benchmark_publisher
+    rclcpp
+    nav_msgs
+    geometry_msgs
+)
+
+target_include_directories(benchmark_publisher PRIVATE ${EIGEN3_INCLUDE_DIR})
+
+install(TARGETS benchmark_publisher
+    DESTINATION lib/${PROJECT_NAME})
+
+ament_package()

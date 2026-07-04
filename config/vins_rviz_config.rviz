@@ -1,51 +1,37 @@
 Panels:
-  - Class: rviz/Displays
+  - Class: rviz_common/Displays
     Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /VIO1/history_point1
-        - /pose_graph1
-        - /pose_graph1/pose_graph_path1
-        - /pose_graph1/Marker1
-      Splitter Ratio: 0.4651159942150116
-    Tree Height: 204
-  - Class: rviz/Selection
+        - /Global Options1
+        - /Status1
+        - /Image1
+      Splitter Ratio: 0.5
+    Tree Height: 140
+  - Class: rviz_common/Selection
     Name: Selection
-  - Class: rviz/Tool Properties
-    Expanded:
-      - /2D Pose Estimate1
-      - /2D Nav Goal1
-      - /Publish Point1
+  - Class: rviz_common/Tool Properties
+    Expanded: ~
     Name: Tool Properties
-    Splitter Ratio: 0.5886790156364441
-  - Class: rviz/Views
+    Splitter Ratio: 0.5
+  - Class: rviz_common/Views
     Expanded:
       - /Current View1
     Name: Views
     Splitter Ratio: 0.5
-  - Class: rviz/Time
+  - Class: rviz_common/Time
+    Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: tracked image
-  - Class: rviz/Displays
-    Help Height: 78
-    Name: Displays
-    Property Tree Widget:
-      Expanded: ~
-      Splitter Ratio: 0.5
-    Tree Height: 363
-Preferences:
-  PromptSaveOnExit: true
-Toolbars:
-  toolButtonStyle: 2
+    SyncSource: feature points
 Visualization Manager:
   Class: ""
   Displays:
     - Alpha: 0.5
       Cell Size: 1
-      Class: rviz/Grid
-      Color: 130; 130; 130
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
       Enabled: true
       Line Style:
         Line Width: 0.029999999329447746
@@ -60,473 +46,270 @@ Visualization Manager:
       Plane Cell Count: 10
       Reference Frame: <Fixed Frame>
       Value: true
-    - Alpha: 1
-      Class: rviz/Axes
-      Enabled: false
-      Length: 1
-      Name: Axes
-      Radius: 0.10000000149011612
-      Reference Frame: <Fixed Frame>
-      Show Trail: false
-      Value: false
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        body:
+          Value: true
+        camera:
+          Value: true
+        world:
+          Value: true
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        world:
+          {}
+      Update Interval: 0
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz_default_plugins/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: vins odometry
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vins_estimator/odometry
+      Value: true
     - Alpha: 1
       Buffer Length: 1
-      Class: rviz/Path
-      Color: 255; 0; 0
+      Class: rviz_default_plugins/Path
+      Color: 0; 255; 0
       Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
       Line Style: Lines
-      Line Width: 0.5
-      Name: ground_truth_path
+      Line Width: 0.029999999329447746
+      Name: vins path
       Offset:
         X: 0
         Y: 0
         Z: 0
       Pose Color: 255; 85; 255
       Pose Style: None
-      Queue Size: 10
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /benchmark_publisher/path
-      Unreliable: false
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vins_estimator/path
       Value: true
-    - Class: rviz/Image
-      Enabled: false
-      Image Topic: /feature_tracker/feature_img
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 255; 0; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: pose graph path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pose_graph/pose_graph_path
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: camera pose visual
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /vins_estimator/camera_pose_visual
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: feature points
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /feature_tracker/feature
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud
+      Color: 255; 255; 255
+      Color Transformer: ""
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: pose graph points
+      Position Transformer: ""
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pose_graph/match_points
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
       Max Value: 1
       Median window: 5
       Min Value: 0
-      Name: tracked image
+      Name: Image
       Normalize Range: true
-      Queue Size: 2
-      Transport Hint: raw
-      Unreliable: false
-      Value: false
-    - Class: rviz/Image
-      Enabled: false
-      Image Topic: /cam0/image_raw
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: raw_image
-      Normalize Range: true
-      Queue Size: 2
-      Transport Hint: raw
-      Unreliable: false
-      Value: false
-    - Class: rviz/Group
-      Displays:
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 0; 255; 0
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: Path
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /vins_estimator/path
-          Unreliable: false
-          Value: true
-        - Class: rviz/MarkerArray
-          Enabled: true
-          Marker Topic: /vins_estimator/camera_pose_visual
-          Name: camera_visual
-          Namespaces:
-            CameraPoseVisualization: true
-          Queue Size: 100
-          Value: true
-        - Alpha: 1
-          Autocompute Intensity Bounds: true
-          Autocompute Value Bounds:
-            Max Value: 10
-            Min Value: -10
-            Value: true
-          Axis: Z
-          Channel Name: intensity
-          Class: rviz/PointCloud
-          Color: 0; 255; 0
-          Color Transformer: FlatColor
-          Decay Time: 0
-          Enabled: true
-          Invert Rainbow: false
-          Max Color: 255; 255; 255
-          Min Color: 0; 0; 0
-          Name: current_point
-          Position Transformer: XYZ
-          Queue Size: 10
-          Selectable: true
-          Size (Pixels): 3
-          Size (m): 0.009999999776482582
-          Style: Points
-          Topic: /vins_estimator/point_cloud
-          Unreliable: false
-          Use Fixed Frame: true
-          Use rainbow: true
-          Value: true
-        - Alpha: 1
-          Autocompute Intensity Bounds: false
-          Autocompute Value Bounds:
-            Max Value: 6.1416425704956055
-            Min Value: 2.903838872909546
-            Value: true
-          Axis: Z
-          Channel Name: intensity
-          Class: rviz/PointCloud
-          Color: 255; 255; 255
-          Color Transformer: FlatColor
-          Decay Time: 3000
-          Enabled: true
-          Invert Rainbow: true
-          Max Color: 0; 0; 0
-          Max Intensity: 4096
-          Min Color: 0; 0; 0
-          Min Intensity: 0
-          Name: history_point
-          Position Transformer: XYZ
-          Queue Size: 10
-          Selectable: true
-          Size (Pixels): 1
-          Size (m): 0.5
-          Style: Points
-          Topic: /vins_estimator/history_cloud
-          Unreliable: false
-          Use Fixed Frame: true
-          Use rainbow: false
-          Value: true
-        - Class: rviz/TF
-          Enabled: true
-          Filter (blacklist): ""
-          Filter (whitelist): ""
-          Frame Timeout: 15
-          Frames:
-            All Enabled: true
-            base_link:
-              Value: true
-            base_link_frd:
-              Value: true
-            body:
-              Value: true
-            camera:
-              Value: true
-            camera_pose_graph:
-              Value: true
-            map:
-              Value: true
-            map_ned:
-              Value: true
-            odom:
-              Value: true
-            odom_ned:
-              Value: true
-            world:
-              Value: true
-          Marker Alpha: 1
-          Marker Scale: 1
-          Name: TF
-          Show Arrows: true
-          Show Axes: true
-          Show Names: true
-          Tree:
-            base_link:
-              base_link_frd:
-                {}
-            map:
-              map_ned:
-                {}
-            odom:
-              odom_ned:
-                {}
-            world:
-              body:
-                camera:
-                  {}
-              camera_pose_graph:
-                {}
-          Update Interval: 0
-          Value: true
-      Enabled: true
-      Name: VIO
-    - Class: rviz/Group
-      Displays:
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 255; 5; 0
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: pose_graph_path
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/pose_graph_path
-          Unreliable: false
-          Value: true
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 255; 170; 0
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: base_path
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/base_path
-          Unreliable: false
-          Value: true
-        - Class: rviz/MarkerArray
-          Enabled: true
-          Marker Topic: /pose_graph/pose_graph
-          Name: loop_visual
-          Namespaces:
-            CameraPoseVisualization: true
-          Queue Size: 100
-          Value: true
-        - Class: rviz/MarkerArray
-          Enabled: true
-          Marker Topic: /pose_graph/camera_pose_visual
-          Name: camera_visual
-          Namespaces:
-            CameraPoseVisualization: true
-          Queue Size: 100
-          Value: true
-        - Class: rviz/Image
-          Enabled: true
-          Image Topic: /pose_graph/match_image
-          Max Value: 1
-          Median window: 5
-          Min Value: 0
-          Name: loop_match_image
-          Normalize Range: true
-          Queue Size: 2
-          Transport Hint: raw
-          Unreliable: false
-          Value: true
-        - Class: rviz/Marker
-          Enabled: true
-          Marker Topic: /pose_graph/key_odometrys
-          Name: Marker
-          Namespaces:
-            key_odometrys: true
-          Queue Size: 100
-          Value: true
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 25; 255; 0
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.30000001192092896
-          Name: Sequence1
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/path_1
-          Unreliable: false
-          Value: true
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 255; 0; 0
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.30000001192092896
-          Name: Sequence2
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/path_2
-          Unreliable: false
-          Value: true
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 0; 85; 255
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.30000001192092896
-          Name: Sequence3
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/path_3
-          Unreliable: false
-          Value: true
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 255; 170; 0
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.30000001192092896
-          Name: Sequence4
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/path_4
-          Unreliable: false
-          Value: true
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 255; 170; 255
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: Sequence5
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/path_5
-          Unreliable: false
-          Value: true
-        - Alpha: 1
-          Buffer Length: 1
-          Class: rviz/Path
-          Color: 25; 255; 0
-          Enabled: true
-          Head Diameter: 0.30000001192092896
-          Head Length: 0.20000000298023224
-          Length: 0.30000001192092896
-          Line Style: Lines
-          Line Width: 0.029999999329447746
-          Name: no_loop_path
-          Offset:
-            X: 0
-            Y: 0
-            Z: 0
-          Pose Color: 255; 85; 255
-          Pose Style: None
-          Queue Size: 10
-          Radius: 0.029999999329447746
-          Shaft Diameter: 0.10000000149011612
-          Shaft Length: 0.10000000149011612
-          Topic: /pose_graph/no_loop_path
-          Unreliable: false
-          Value: true
-      Enabled: true
-      Name: pose_graph
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /feature_tracker/feature_img
+      Value: true
   Enabled: true
   Global Options:
-    Background Color: 0; 0; 0
-    Default Light: true
+    Background Color: 48; 48; 48
     Fixed Frame: world
     Frame Rate: 30
   Name: root
   Tools:
-    - Class: rviz/MoveCamera
-    - Class: rviz/Select
-    - Class: rviz/FocusCamera
-    - Class: rviz/Measure
-    - Class: rviz/SetInitialPose
-      Theta std deviation: 0.2617993950843811
-      Topic: /initialpose
-      X std deviation: 0.5
-      Y std deviation: 0.5
-    - Class: rviz/SetGoal
-      Topic: /move_base_simple/goal
-    - Class: rviz/PublishPoint
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+    - Class: rviz_default_plugins/SetInitialPose
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /initialpose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /goal_pose
+    - Class: rviz_default_plugins/PublishPoint
       Single click: true
-      Topic: /clicked_point
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /clicked_point
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
   Value: true
   Views:
     Current:
-      Class: rviz/XYOrbit
-      Distance: 2.1567115783691406
+      Class: rviz_default_plugins/Orbit
+      Distance: 4.686433792114258
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Field of View: 0.7853981852531433
       Focal Point:
         X: 0
         Y: 0
@@ -536,17 +319,20 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8253982663154602
-      Target Frame: camera_pose_graph
-      Yaw: 2.9503984451293945
+      Pitch: 0.5347966551780701
+      Target Frame: camera
+      Value: Orbit (rviz)
+      Yaw: 3.1854023933410645
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 704
+  Height: 699
   Hide Left Dock: false
-  Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd0000000400000000000001af00000225fc020000000ffb0000000a0049006d00610067006501000000280000013d0000000000000000fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000001200720061007700200049006d0061006700650000000028000000300000000000000000fb00000012007200610077005f0069006d0061006700650000000028000000f90000001600fffffffb00000020006c006f006f0070005f006d0061007400630068005f0069006d006100670065010000003d000001160000001600fffffffb000000100044006900730070006c006100790073010000015900000109000000c900fffffffc0000021f000000c70000000000fffffffa000000000100000001fb0000001200720061007700200049006d0061006700650000000000ffffffff0000000000000000fb0000001000410052005f0069006d0061006700650100000373000000160000000000000000fb0000001200720061007700200069006d006100670065010000038f00000016000000000000000000000001000001be00000225fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc0000003d000002250000000000fffffffa000000010100000004fb0000001a0074007200610063006b0065006400200069006d0061006700650000000000ffffffff000000ad00fffffffb0000001a0074007200610063006b0065006400200069006d0061006700650100000000ffffffff0000000000000000fb000000100044006900730070006c0061007900730000000000ffffffff0000015600fffffffb0000000a00560069006500770073000000023f0000016a0000010000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000005880000003bfc0100000002fb0000000800540069006d0065010000000000000588000003bc00fffffffb0000000800540069006d00650100000000000004500000000000000000000003d30000022500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Right Dock: false
+  Image:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd0000000300000000000001c40000021bfc0200000004fc0000003f000000cc000000cc00fffffffa000000020100000003fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb00000016006d006100740063006800200069006d0061006700650000000000ffffffff0000000000000000fb000000100044006900730070006c0061007900730100000000000001690000015600fffffffb00000016006d0061007400630068005f0069006d00610067006500000001e00000007a0000000000000000fb0000000a0049006d00610067006500000001ac000000ae0000000000000000fb0000000a0049006d0061006700650100000111000001490000001700ffffff00000001000001900000021bfc0200000001fc0000003f0000021b000000c80100001efa000000040100000005fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000001a006600650061007400750072006500200069006d0061006700650000000000ffffffff0000000000000000fb0000001200530065006c0065006300740069006f006e0000000000ffffffff0000007300fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000000ffffffff0000009b00fffffffb0000000a00560069006500770073010000045e000001000000010000ffffff00000003000005b60000003cfc0100000001fb0000000800540069006d00650100000000000005b60000026f00ffffff000002560000021b00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -554,13 +340,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
-  Width: 1416
-  X: 72
-  Y: 27
-  loop_match_image:
     collapsed: false
-  raw_image:
-    collapsed: false
-  tracked image:
-    collapsed: true
+  Width: 1462
+  X: 66
+  Y: 32

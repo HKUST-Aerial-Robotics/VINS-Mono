@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include "utility/utility.h"
@@ -42,7 +42,7 @@ extern int ENABLE_ZUPT;
 extern double ZUPT_VEL_THRESHOLD;
 extern double ZUPT_ACC_THRESHOLD;
 
-void readParameters(ros::NodeHandle &n);
+void readParameters(rclcpp::Node::SharedPtr n);
 
 enum SIZE_PARAMETERIZATION
 {

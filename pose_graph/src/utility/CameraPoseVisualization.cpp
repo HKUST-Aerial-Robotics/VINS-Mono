@@ -9,7 +9,7 @@ const Eigen::Vector3d CameraPoseVisualization::lt1 = Eigen::Vector3d(-0.7, -0.2,
 const Eigen::Vector3d CameraPoseVisualization::lt2 = Eigen::Vector3d(-1.0, -0.2, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::oc = Eigen::Vector3d(0.0, 0.0, 0.0);
 
-void Eigen2Point(const Eigen::Vector3d& v, geometry_msgs::Point& p) {
+void Eigen2Point(const Eigen::Vector3d& v, geometry_msgs::msg::Point& p) {
     p.x = v.x();
     p.y = v.y();
     p.z = v.z();
@@ -50,18 +50,18 @@ void CameraPoseVisualization::setLineWidth(double width) {
     m_line_width = width;
 }
 void CameraPoseVisualization::add_edge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1){
-    visualization_msgs::Marker marker;
+    visualization_msgs::msg::Marker marker;
 
     marker.ns = m_marker_ns;
     marker.id = m_markers.size() + 1;
-    marker.type = visualization_msgs::Marker::LINE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
+    marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+    marker.action = visualization_msgs::msg::Marker::ADD;
     marker.scale.x = 0.01;
 
     marker.color.b = 1.0f;
     marker.color.a = 1.0;
 
-    geometry_msgs::Point point0, point1;
+    geometry_msgs::msg::Point point0, point1;
 
     Eigen2Point(p0, point0);
     Eigen2Point(p1, point1);
@@ -74,16 +74,16 @@ void CameraPoseVisualization::add_edge(const Eigen::Vector3d& p0, const Eigen::V
 
 void CameraPoseVisualization::add_loopedge(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1){
     //m_markers.clear();
-    visualization_msgs::Marker marker;
+    visualization_msgs::msg::Marker marker;
 
     marker.ns = m_marker_ns;
     marker.id = m_markers.size() + 1;
     //tmp_loop_edge_num++;
     //if(tmp_loop_edge_num >= LOOP_EDGE_NUM)
     //  tmp_loop_edge_num = 1;
-    marker.type = visualization_msgs::Marker::LINE_STRIP;
-    marker.action = visualization_msgs::Marker::ADD;
-    marker.lifetime = ros::Duration();
+    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.lifetime = builtin_interfaces::msg::Duration();
     //marker.scale.x = 0.4;
     marker.scale.x = 0.02;
     marker.color.r = 1.0f;
@@ -91,7 +91,7 @@ void CameraPoseVisualization::add_loopedge(const Eigen::Vector3d& p0, const Eige
     //marker.color.b = 1.0f;
     marker.color.a = 1.0;
 
-    geometry_msgs::Point point0, point1;
+    geometry_msgs::msg::Point point0, point1;
 
     Eigen2Point(p0, point0);
     Eigen2Point(p1, point1);
@@ -104,12 +104,12 @@ void CameraPoseVisualization::add_loopedge(const Eigen::Vector3d& p0, const Eige
 
 
 void CameraPoseVisualization::add_pose(const Eigen::Vector3d& p, const Eigen::Quaterniond& q) {
-    visualization_msgs::Marker marker;
+    visualization_msgs::msg::Marker marker;
 
     marker.ns = m_marker_ns;
     marker.id = 0;
-    marker.type = visualization_msgs::Marker::LINE_STRIP;
-    marker.action = visualization_msgs::Marker::ADD;
+    marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    marker.action = visualization_msgs::msg::Marker::ADD;
     marker.scale.x = m_line_width;
 
     marker.pose.position.x = 0.0;
@@ -121,7 +121,7 @@ void CameraPoseVisualization::add_pose(const Eigen::Vector3d& p, const Eigen::Qu
     marker.pose.orientation.z = 0.0;
 
 
-    geometry_msgs::Point pt_lt, pt_lb, pt_rt, pt_rb, pt_oc, pt_lt0, pt_lt1, pt_lt2;
+    geometry_msgs::msg::Point pt_lt, pt_lb, pt_rt, pt_rb, pt_oc, pt_lt0, pt_lt1, pt_lt2;
 
     Eigen2Point(q * (m_scale *imlt) + p, pt_lt);
     Eigen2Point(q * (m_scale *imlb) + p, pt_lb);
@@ -195,8 +195,8 @@ void CameraPoseVisualization::reset() {
     //image.colors.clear();
 }
 
-void CameraPoseVisualization::publish_by( ros::Publisher &pub, const std_msgs::Header &header ) {
-	visualization_msgs::MarkerArray markerArray_msg;
+void CameraPoseVisualization::publish_by(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub, const std_msgs::msg::Header &header) {
+	visualization_msgs::msg::MarkerArray markerArray_msg;
 	//int k = (int)m_markers.size();
   /*
   for (int i = 0; i < 5 && k > 0; i++)
@@ -213,13 +213,13 @@ void CameraPoseVisualization::publish_by( ros::Publisher &pub, const std_msgs::H
 		markerArray_msg.markers.push_back(marker);
 	}
   
-	pub.publish(markerArray_msg);
+	pub->publish(markerArray_msg);
 }
 
-void CameraPoseVisualization::publish_image_by( ros::Publisher &pub, const std_msgs::Header &header ) {
+void CameraPoseVisualization::publish_image_by(rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr pub, const std_msgs::msg::Header &header) {
     image.header = header;
 
-    pub.publish(image);
+    pub->publish(image);
 }
 /*
 void CameraPoseVisualization::add_image(const Eigen::Vector3d& T, const Eigen::Matrix3d& R, const cv::Mat &src)

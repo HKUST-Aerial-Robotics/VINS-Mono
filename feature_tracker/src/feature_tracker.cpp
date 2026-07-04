@@ -1,4 +1,6 @@
 #include "feature_tracker.h"
+#include "rclcpp/rclcpp.hpp"
+#include "tracking_safety.h"
 
 int FeatureTracker::n_id = 0;
 
@@ -13,7 +15,8 @@ bool inBorder(const cv::Point2f &pt)
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
 {
     int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
+    const int safe_size = std::min<int>(v.size(), status.size());
+    for (int i = 0; i < safe_size; i++)
         if (status[i])
             v[j++] = v[i];
     v.resize(j);
@@ -22,7 +25,8 @@ void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
 void reduceVector(vector<int> &v, vector<uchar> status)
 {
     int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
+    const int safe_size = std::min<int>(v.size(), status.size());
+    for (int i = 0; i < safe_size; i++)
         if (status[i])
             v[j++] = v[i];
     v.resize(j);
@@ -38,12 +42,24 @@ FeatureTracker::FeatureTracker()
 
 void FeatureTracker::setMask()
 {
-    mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
+    if (FISHEYE && !fisheye_mask.empty())
+        mask = fisheye_mask.clone();
+    else
+        mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
 
     // prefer to keep features that are tracked for long time
     vector<pair<int, pair<cv::Point2f, int>>> cnt_pts_id;
 
-    for (unsigned int i = 0; i < forw_pts.size(); i++)
+    const size_t aligned_count = tracking_safety::commonSize(
+        {forw_pts.size(), track_cnt.size(), ids.size()});
+    if (aligned_count != forw_pts.size() || aligned_count != track_cnt.size() ||
+        aligned_count != ids.size())
+    {
+        RCLCPP_WARN(rclcpp::get_logger("feature_tracker"),
+                    "[MASK] vector mismatch: points=%zu tracks=%zu ids=%zu; using %zu",
+                    forw_pts.size(), track_cnt.size(), ids.size(), aligned_count);
+    }
+    for (size_t i = 0; i < aligned_count; i++)
         cnt_pts_id.push_back(make_pair(track_cnt[i], make_pair(forw_pts[i], ids[i])));
 
     sort(cnt_pts_id.begin(), cnt_pts_id.end(), [](const pair<int, pair<cv::Point2f, int>> &a, const pair<int, pair<cv::Point2f, int>> &b)
@@ -57,7 +73,17 @@ void FeatureTracker::setMask()
 
     for (auto &it : cnt_pts_id)
     {
-        if (mask.at<uchar>(it.second.first) == 255)
+        const int x = cvRound(it.second.first.x);
+        const int y = cvRound(it.second.first.y);
+        if (!std::isfinite(it.second.first.x) || !std::isfinite(it.second.first.y) ||
+            !tracking_safety::pixelIsInside(x, y, mask.cols, mask.rows))
+        {
+            RCLCPP_WARN(rclcpp::get_logger("feature_tracker"),
+                        "[MASK] rejected invalid feature coordinate x=%.3f y=%.3f",
+                        it.second.first.x, it.second.first.y);
+            continue;
+        }
+        if (mask.at<uchar>(y, x) == 255)
         {
             forw_pts.push_back(it.second.first);
             ids.push_back(it.second.second);
@@ -90,7 +116,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
     {
         TicToc t_c;
         clahe->apply(_img, img);
-        ROS_DEBUG("CLAHE costs: %fms", t_c.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "CLAHE costs: %fms", t_c.toc());
     }
     else
         img = _img;
@@ -125,7 +151,17 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 cv::calcOpticalFlowPyrLK(forw_img, cur_img, forw_pts, reverse_pts, reverse_status, err, cv::Size(21, 21), 3,
                                          cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 40, 0.001));
 
-                for (size_t i = 0; i < status.size(); i++)
+                const size_t flow_count = tracking_safety::commonSize(
+                    {status.size(), reverse_status.size(), cur_pts.size(), reverse_pts.size()});
+                if (flow_count != status.size())
+                {
+                    RCLCPP_WARN(
+                        rclcpp::get_logger("feature_tracker"),
+                        "[FLOW] vector mismatch: forward=%zu reverse=%zu cur=%zu reverse_pts=%zu; rejecting tail",
+                        status.size(), reverse_status.size(), cur_pts.size(), reverse_pts.size());
+                    std::fill(status.begin() + flow_count, status.end(), 0);
+                }
+                for (size_t i = 0; i < flow_count; i++)
                 {
                     if (status[i] && reverse_status[i])
                     {
@@ -187,13 +223,13 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 if (current_velocity > MAX_VELOCITY_THRESHOLD)
                 {
                     adaptive_max_cnt = MAX_CNT + VELOCITY_BOOST_FEATURES;
-                    ROS_WARN_THROTTLE(2.0, "High velocity detected: %.2f m/s, boosting features to %d",
+                    RCLCPP_WARN_SKIPFIRST_THROTTLE(rclcpp::get_logger("feature_tracker"), *(rclcpp::Clock::make_shared()), 2000, "High velocity detected: %.2f m/s, boosting features to %d",
                                       current_velocity, adaptive_max_cnt);
                 }
             }
         }
         
-        ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "temporal optical flow costs: %fms", t_o.toc());
     }
 
     for (auto &n : track_cnt)
@@ -202,12 +238,12 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
     if (PUB_THIS_FRAME)
     {
         rejectWithF();
-        ROS_DEBUG("set mask begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "set mask begins");
         TicToc t_m;
         setMask();
-        ROS_DEBUG("set mask costs %fms", t_m.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "set mask costs %fms", t_m.toc());
 
-        ROS_DEBUG("detect feature begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "detect feature begins");
         TicToc t_t;
         int n_max_cnt = adaptive_max_cnt - static_cast<int>(forw_pts.size());
         if (n_max_cnt > 0)
@@ -232,9 +268,13 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 std::unordered_map<int, cv::KeyPoint> grid_best_features;
 
                 for (const auto& kp : keypoints) {
-                    if (mask.at<uchar>(kp.pt) == 0) continue;
-                    int r = int(kp.pt.y) / grid_size;
-                    int c = int(kp.pt.x) / grid_size;
+                    const int x = cvRound(kp.pt.x);
+                    const int y = cvRound(kp.pt.y);
+                    if (!tracking_safety::pixelIsInside(x, y, mask.cols, mask.rows))
+                        continue;
+                    if (mask.at<uchar>(y, x) == 0) continue;
+                    int r = y / grid_size;
+                    int c = x / grid_size;
                     int idx = r * grid_cols + c;
                     auto it = grid_best_features.find(idx);
                     if (it == grid_best_features.end() || kp.response > it->second.response) {
@@ -262,7 +302,8 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
             else
             {
                 // Original VINS-Fusion style: Shi-Tomasi (goodFeaturesToTrack)
-                cv::goodFeaturesToTrack(forw_img, n_pts, n_max_cnt, 0.01, MIN_DIST, mask);
+                cv::goodFeaturesToTrack(
+                    forw_img, n_pts, n_max_cnt, GFTT_QUALITY_LEVEL, MIN_DIST, mask);
             }
         }
         else
@@ -270,12 +311,12 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
             n_pts.clear();
         }
 
-        ROS_DEBUG("detect feature costs: %fms", t_t.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "detect feature costs: %fms", t_t.toc());
 
-        ROS_DEBUG("add feature begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "add feature begins");
         TicToc t_a;
         addPoints();
-        ROS_DEBUG("selectFeature costs: %fms", t_a.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "selectFeature costs: %fms", t_a.toc());
     }
     prev_img = cur_img;
     prev_pts = cur_pts;
@@ -290,7 +331,7 @@ void FeatureTracker::rejectWithF()
 {
     if (forw_pts.size() >= 8)
     {
-        ROS_DEBUG("FM ransac begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "FM ransac begins");
         TicToc t_f;
         vector<cv::Point2f> un_cur_pts(cur_pts.size()), un_forw_pts(forw_pts.size());
         for (unsigned int i = 0; i < cur_pts.size(); i++)
@@ -309,6 +350,13 @@ void FeatureTracker::rejectWithF()
 
         vector<uchar> status;
         cv::findFundamentalMat(un_cur_pts, un_forw_pts, cv::FM_RANSAC, F_THRESHOLD, 0.99, status);
+        if (status.size() != forw_pts.size())
+        {
+            RCLCPP_WARN(rclcpp::get_logger("feature_tracker"),
+                        "[RANSAC] invalid status size=%zu for points=%zu; keeping current tracks",
+                        status.size(), forw_pts.size());
+            return;
+        }
         int size_a = cur_pts.size();
         reduceVector(prev_pts, status);
         reduceVector(cur_pts, status);
@@ -316,8 +364,8 @@ void FeatureTracker::rejectWithF()
         reduceVector(cur_un_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
-        ROS_DEBUG("FM ransac: %d -> %lu: %f", size_a, forw_pts.size(), 1.0 * forw_pts.size() / size_a);
-        ROS_DEBUG("FM ransac costs: %fms", t_f.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "FM ransac: %d -> %lu: %f", size_a, forw_pts.size(), 1.0 * forw_pts.size() / size_a);
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "FM ransac costs: %fms", t_f.toc());
     }
 }
 
@@ -335,7 +383,7 @@ bool FeatureTracker::updateID(unsigned int i)
 
 void FeatureTracker::readIntrinsicParameter(const string &calib_file)
 {
-    ROS_INFO("reading paramerter of camera %s", calib_file.c_str());
+    RCLCPP_INFO(rclcpp::get_logger("feature_tracker"), "reading paramerter of camera %s", calib_file.c_str());
     m_camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 
@@ -393,6 +441,14 @@ void FeatureTracker::undistortedPoints()
     if (!prev_un_pts_map.empty())
     {
         double dt = cur_time - prev_time;
+        if (!tracking_safety::timestampStepIsValid(prev_time, cur_time))
+        {
+            RCLCPP_WARN(
+                rclcpp::get_logger("feature_tracker"),
+                "[TRACKER] non-increasing image timestamps: previous=%.9f current=%.9f; velocities forced to zero",
+                prev_time, cur_time);
+            dt = 0.0;
+        }
         pts_velocity.clear();
         for (unsigned int i = 0; i < cur_un_pts.size(); i++)
         {
@@ -402,8 +458,8 @@ void FeatureTracker::undistortedPoints()
                 it = prev_un_pts_map.find(ids[i]);
                 if (it != prev_un_pts_map.end())
                 {
-                    double v_x = (cur_un_pts[i].x - it->second.x) / dt;
-                    double v_y = (cur_un_pts[i].y - it->second.y) / dt;
+                    double v_x = dt > 0.0 ? (cur_un_pts[i].x - it->second.x) / dt : 0.0;
+                    double v_y = dt > 0.0 ? (cur_un_pts[i].y - it->second.y) / dt : 0.0;
                     pts_velocity.push_back(cv::Point2f(v_x, v_y));
                 }
                 else
