@@ -7,6 +7,7 @@ std::string IMAGE_INPUT_FORMAT;
 std::string IMU_TOPIC;
 std::vector<std::string> CAM_NAMES;
 std::string FISHEYE_MASK;
+std::string VINS_FOLDER_PATH;
 int MAX_CNT;
 int MIN_DIST;
 int WINDOW_SIZE;
@@ -48,7 +49,6 @@ void readParameters(rclcpp::Node::SharedPtr &n)
     {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
-    std::string VINS_FOLDER_PATH;
     n->declare_parameter<std::string>("vins_folder", "");
     n->get_parameter("vins_folder", VINS_FOLDER_PATH);
 

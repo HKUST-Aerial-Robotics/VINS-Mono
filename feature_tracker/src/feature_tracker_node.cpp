@@ -7,7 +7,12 @@
 #include <execinfo.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <unordered_set>
 #include "rclcpp/rclcpp.hpp"
+#include "rcl_interfaces/msg/floating_point_range.hpp"
+#include "rcl_interfaces/msg/integer_range.hpp"
+#include "rcl_interfaces/msg/parameter_descriptor.hpp"
+#include "rcl_interfaces/msg/set_parameters_result.hpp"
 #include "image_transport/image_transport.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/image_encodings.hpp"
@@ -42,6 +47,212 @@ static int published_feature_count = 0;
 static int published_debug_image_count = 0;
 static std::atomic<const char *> current_stage{"startup"};
 static int crash_log_fd = -1;
+
+static rcl_interfaces::msg::ParameterDescriptor integerDescriptor(
+    const std::string &description, int64_t from, int64_t to)
+{
+    rcl_interfaces::msg::ParameterDescriptor descriptor;
+    descriptor.description = description;
+    rcl_interfaces::msg::IntegerRange range;
+    range.from_value = from;
+    range.to_value = to;
+    range.step = 1;
+    descriptor.integer_range.push_back(range);
+    return descriptor;
+}
+
+static rcl_interfaces::msg::ParameterDescriptor floatingDescriptor(
+    const std::string &description, double from, double to, double step = 0.0)
+{
+    rcl_interfaces::msg::ParameterDescriptor descriptor;
+    descriptor.description = description;
+    rcl_interfaces::msg::FloatingPointRange range;
+    range.from_value = from;
+    range.to_value = to;
+    range.step = step;
+    descriptor.floating_point_range.push_back(range);
+    return descriptor;
+}
+
+static rcl_interfaces::msg::ParameterDescriptor plainDescriptor(const std::string &description)
+{
+    rcl_interfaces::msg::ParameterDescriptor descriptor;
+    descriptor.description = description;
+    return descriptor;
+}
+
+static std::string resolveMaskPath(const std::string &path)
+{
+    if (path.empty() || path.front() == '/') return path;
+    return VINS_FOLDER_PATH + path;
+}
+
+static bool loadFeatureMask(const std::string &path, cv::Mat &loaded, std::string &reason)
+{
+    const std::string resolved = resolveMaskPath(path);
+    loaded = cv::imread(resolved, cv::IMREAD_GRAYSCALE);
+    if (loaded.empty())
+    {
+        reason = "cannot read fisheye_mask: " + resolved;
+        return false;
+    }
+    if (loaded.cols != COL || loaded.rows != ROW)
+    {
+        reason = "fisheye_mask size " + std::to_string(loaded.cols) + "x" +
+            std::to_string(loaded.rows) + " does not match image " +
+            std::to_string(COL) + "x" + std::to_string(ROW);
+        return false;
+    }
+    cv::threshold(loaded, loaded, 127, 255, cv::THRESH_BINARY);
+    return true;
+}
+
+static void declareRuntimeParameters(const rclcpp::Node::SharedPtr &node)
+{
+    MAX_CNT = node->declare_parameter<int>("max_cnt", MAX_CNT,
+        integerDescriptor("Maximum tracked feature count", 8, 5000));
+    MIN_DIST = node->declare_parameter<int>("min_dist", MIN_DIST,
+        integerDescriptor("Minimum feature spacing in pixels", 1, 500));
+    FREQ = node->declare_parameter<int>("freq", FREQ,
+        integerDescriptor("Feature publication and replenishment rate in Hz", 1, 240));
+    F_THRESHOLD = node->declare_parameter<double>("F_threshold", F_THRESHOLD,
+        floatingDescriptor("Fundamental-matrix RANSAC threshold in pixels", 0.1, 10.0, 0.1));
+    GFTT_QUALITY_LEVEL = node->declare_parameter<double>("gftt_quality_level", GFTT_QUALITY_LEVEL,
+        floatingDescriptor("Shi-Tomasi relative quality threshold", 0.0001, 1.0));
+    FAST_THRESHOLD = node->declare_parameter<int>("fast_threshold", FAST_THRESHOLD,
+        integerDescriptor("AGAST response threshold", 1, 255));
+    ENABLE_FEATURE_AUTO_TUNING = node->declare_parameter<bool>(
+        "enable_feature_auto_tuning", ENABLE_FEATURE_AUTO_TUNING != 0,
+        plainDescriptor("Periodically tune the active detector threshold"));
+    FEATURE_AUTO_TUNE_INTERVAL = node->declare_parameter<double>(
+        "feature_auto_tune_interval", FEATURE_AUTO_TUNE_INTERVAL,
+        floatingDescriptor("Auto-tuning interval in seconds", 0.5, 3600.0, 0.5));
+    FEATURE_AUTO_TUNE_LOG = node->declare_parameter<bool>(
+        "feature_auto_tune_log", FEATURE_AUTO_TUNE_LOG != 0,
+        plainDescriptor("Log periodic auto-tuning diagnostics"));
+    FAST_THRESHOLD_MIN = node->declare_parameter<int>("fast_threshold_min", FAST_THRESHOLD_MIN,
+        integerDescriptor("Minimum AGAST auto-tuning threshold", 1, 255));
+    FAST_THRESHOLD_MAX = node->declare_parameter<int>("fast_threshold_max", FAST_THRESHOLD_MAX,
+        integerDescriptor("Maximum AGAST auto-tuning threshold", 1, 255));
+    GFTT_QUALITY_MIN = node->declare_parameter<double>("gftt_quality_min", GFTT_QUALITY_MIN,
+        floatingDescriptor("Minimum Shi-Tomasi auto-tuning threshold", 0.0001, 1.0));
+    GFTT_QUALITY_MAX = node->declare_parameter<double>("gftt_quality_max", GFTT_QUALITY_MAX,
+        floatingDescriptor("Maximum Shi-Tomasi auto-tuning threshold", 0.0001, 1.0));
+    USE_BIDIRECTIONAL_FLOW = node->declare_parameter<bool>(
+        "use_bidirectional_flow", USE_BIDIRECTIONAL_FLOW != 0,
+        plainDescriptor("Enable forward-backward optical-flow validation"));
+    USE_ADVANCED_FLOW = node->declare_parameter<bool>(
+        "use_advanced_flow", USE_ADVANCED_FLOW != 0,
+        plainDescriptor("Use AGAST and advanced LK instead of Shi-Tomasi/basic LK"));
+    SHOW_TRACK = node->declare_parameter<bool>("show_track", SHOW_TRACK != 0,
+        plainDescriptor("Publish the feature visualization image"));
+    EQUALIZE = node->declare_parameter<bool>("equalize", EQUALIZE != 0,
+        plainDescriptor("Apply CLAHE before tracking"));
+    FISHEYE = node->declare_parameter<bool>("fisheye", FISHEYE != 0,
+        plainDescriptor("Apply the feature validity mask"));
+    FISHEYE_MASK = resolveMaskPath(node->declare_parameter<std::string>(
+        "fisheye_mask", FISHEYE_MASK, plainDescriptor("Feature validity mask path")));
+}
+
+static rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr
+registerRuntimeParameterCallback(const rclcpp::Node::SharedPtr &node)
+{
+    return node->add_on_set_parameters_callback(
+        [node](const std::vector<rclcpp::Parameter> &parameters) {
+            static const std::unordered_set<std::string> runtime_names = {
+                "max_cnt", "min_dist", "freq", "F_threshold", "gftt_quality_level",
+                "fast_threshold", "enable_feature_auto_tuning", "feature_auto_tune_interval",
+                "feature_auto_tune_log", "fast_threshold_min", "fast_threshold_max",
+                "gftt_quality_min", "gftt_quality_max", "use_bidirectional_flow",
+                "use_advanced_flow", "show_track", "equalize", "fisheye", "fisheye_mask"};
+            int max_cnt = MAX_CNT, min_dist = MIN_DIST, freq = FREQ;
+            int fast_threshold = FAST_THRESHOLD, fast_min = FAST_THRESHOLD_MIN, fast_max = FAST_THRESHOLD_MAX;
+            double f_threshold = F_THRESHOLD, gftt = GFTT_QUALITY_LEVEL;
+            double tune_interval = FEATURE_AUTO_TUNE_INTERVAL;
+            double gftt_min = GFTT_QUALITY_MIN, gftt_max = GFTT_QUALITY_MAX;
+            int auto_tune = ENABLE_FEATURE_AUTO_TUNING, tune_log = FEATURE_AUTO_TUNE_LOG;
+            int bidirectional = USE_BIDIRECTIONAL_FLOW, advanced = USE_ADVANCED_FLOW;
+            int show_track = SHOW_TRACK, equalize = EQUALIZE, fisheye = FISHEYE;
+            std::string mask_path = FISHEYE_MASK;
+            bool freq_changed = false;
+            bool mask_changed = false;
+            bool has_runtime_parameter = false;
+
+            for (const auto &parameter : parameters)
+            {
+                const auto &name = parameter.get_name();
+                if (runtime_names.count(name) == 0) continue;
+                has_runtime_parameter = true;
+                if (name == "max_cnt") max_cnt = parameter.as_int();
+                else if (name == "min_dist") min_dist = parameter.as_int();
+                else if (name == "freq") { freq = parameter.as_int(); freq_changed = true; }
+                else if (name == "F_threshold") f_threshold = parameter.as_double();
+                else if (name == "gftt_quality_level") gftt = parameter.as_double();
+                else if (name == "fast_threshold") fast_threshold = parameter.as_int();
+                else if (name == "enable_feature_auto_tuning") auto_tune = parameter.as_bool();
+                else if (name == "feature_auto_tune_interval") tune_interval = parameter.as_double();
+                else if (name == "feature_auto_tune_log") tune_log = parameter.as_bool();
+                else if (name == "fast_threshold_min") fast_min = parameter.as_int();
+                else if (name == "fast_threshold_max") fast_max = parameter.as_int();
+                else if (name == "gftt_quality_min") gftt_min = parameter.as_double();
+                else if (name == "gftt_quality_max") gftt_max = parameter.as_double();
+                else if (name == "use_bidirectional_flow") bidirectional = parameter.as_bool();
+                else if (name == "use_advanced_flow") advanced = parameter.as_bool();
+                else if (name == "show_track") show_track = parameter.as_bool();
+                else if (name == "equalize") equalize = parameter.as_bool();
+                else if (name == "fisheye") fisheye = parameter.as_bool();
+                else if (name == "fisheye_mask") { mask_path = parameter.as_string(); mask_changed = true; }
+            }
+
+            rcl_interfaces::msg::SetParametersResult result;
+            if (!has_runtime_parameter)
+            {
+                result.successful = true;
+                return result;
+            }
+            result.successful = false;
+            if (fast_min > fast_max) { result.reason = "fast_threshold_min must be <= fast_threshold_max"; return result; }
+            if (gftt_min > gftt_max) { result.reason = "gftt_quality_min must be <= gftt_quality_max"; return result; }
+            if (min_dist >= std::max(ROW, COL)) { result.reason = "min_dist must be smaller than the image size"; return result; }
+
+            cv::Mat loaded_mask;
+            if (mask_changed || (fisheye && trackerData[0].fisheye_mask.empty()))
+            {
+                if (!loadFeatureMask(mask_path, loaded_mask, result.reason)) return result;
+            }
+
+            MAX_CNT = max_cnt; MIN_DIST = min_dist; FREQ = freq; F_THRESHOLD = f_threshold;
+            FAST_THRESHOLD_MIN = fast_min; FAST_THRESHOLD_MAX = fast_max;
+            GFTT_QUALITY_MIN = gftt_min; GFTT_QUALITY_MAX = gftt_max;
+            FAST_THRESHOLD = std::clamp(fast_threshold, fast_min, fast_max);
+            GFTT_QUALITY_LEVEL = std::clamp(gftt, gftt_min, gftt_max);
+            ENABLE_FEATURE_AUTO_TUNING = auto_tune; FEATURE_AUTO_TUNE_INTERVAL = tune_interval;
+            FEATURE_AUTO_TUNE_LOG = tune_log; USE_BIDIRECTIONAL_FLOW = bidirectional;
+            USE_ADVANCED_FLOW = advanced; SHOW_TRACK = show_track; EQUALIZE = equalize;
+            FISHEYE = fisheye;
+            if (mask_changed)
+            {
+                FISHEYE_MASK = resolveMaskPath(mask_path);
+                for (auto &tracker : trackerData) tracker.fisheye_mask = loaded_mask.clone();
+            }
+            else if (!loaded_mask.empty())
+            {
+                for (auto &tracker : trackerData) tracker.fisheye_mask = loaded_mask.clone();
+            }
+            if (freq_changed)
+            {
+                first_image_time = last_image_time;
+                pub_count = 0;
+            }
+            result.successful = true;
+            result.reason = "applied";
+            RCLCPP_INFO(node->get_logger(),
+                "[RUNTIME_CONFIG] max_cnt=%d min_dist=%d freq=%d detector=%s fast=%d gftt=%.5f auto_tune=%d",
+                MAX_CNT, MIN_DIST, FREQ, USE_ADVANCED_FLOW ? "AGAST" : "Shi-Tomasi",
+                FAST_THRESHOLD, GFTT_QUALITY_LEVEL, ENABLE_FEATURE_AUTO_TUNING);
+            return result;
+        });
+}
 
 static void writeCrashReport(int fd, const char *stage, void *const *frames, int frame_count)
 {
@@ -347,6 +558,7 @@ int main(int argc, char **argv)
     auto node = std::make_shared<rclcpp::Node>("feature_tracker");
     g_clock = node->get_clock();
     readParameters(node);
+    declareRuntimeParameters(node);
     RCLCPP_INFO(
         node->get_logger(),
         "[START] feature_tracker subscribing to image_topic=%s | freq=%d | max_cnt=%d | min_dist=%d | fisheye=%d | show_track=%d",
@@ -391,6 +603,10 @@ int main(int argc, char **argv)
         }
     }
 
+    // Keep the handle alive for the lifetime of the node. rqt and
+    // `ros2 param set` now update the tracker without restarting it.
+    auto runtime_parameter_callback = registerRuntimeParameterCallback(node);
+
     auto sub_img = image_transport::create_subscription(
         node.get(), IMAGE_TOPIC, img_callback, IMAGE_INPUT_FORMAT);
     RCLCPP_INFO(
@@ -410,6 +626,12 @@ int main(int argc, char **argv)
         cv::namedWindow("vis", cv::WINDOW_NORMAL);
     */
     rclcpp::spin(node);
+    sub_img.shutdown();
+    runtime_parameter_callback.reset();
+    pub_restart.reset();
+    pub_match.reset();
+    pub_img.reset();
+    g_clock.reset();
     rclcpp::shutdown();
     return 0;
 }

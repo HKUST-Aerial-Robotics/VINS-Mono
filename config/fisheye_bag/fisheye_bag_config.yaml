@@ -41,16 +41,23 @@ extrinsicTranslation: !!opencv-matrix
 
 
 #feature traker paprameters
-max_cnt: 250            # target number of tracked features for a 1280x1024 frame
-min_dist: 20            # preserve spatial distribution; lower values cluster features
+max_cnt: 450            # target number of tracked features for a 1280x1024 frame
+min_dist: 10            # preserve spatial distribution; lower values cluster features
 freq: 25                # leaves CPU headroom while using most of the 30 Hz camera stream
 F_threshold: 1.0        # stricter geometric outlier rejection for a sharp image
-gftt_quality_level: 0.005 # Shi-Tomasi sensitivity; lower detects weaker usable corners
-fast_threshold: 10      # used only when use_advanced_flow=1 (AGAST)
-use_bidirectional_flow: 0  # used only by advanced flow; disabled in this stable profile
+
 use_advanced_flow: 1        # stable LK + Shi-Tomasi path; AGAST path is experimental
+#andvanced flow parameters
+fast_threshold: 15      # used only when use_advanced_flow=1 (AGAST)
+use_bidirectional_flow: 0  # used only by advanced flow; disabled in this stable profile
+
+#basic tracking parameters
+gftt_quality_level: 0.01 # Shi-Tomasi sensitivity; lower detects weaker usable corners
+
+
 show_track: 1           # publish tracking image as topic
 equalize: 0             # if image is too dark or light, trun on equalize to find enough features
+
 fisheye: 1              # apply a custom valid-pixel mask during feature selection
 fisheye_mask: "config/mask.jpg" # relative to the vins_bringup share directory
 
@@ -66,12 +73,12 @@ gftt_quality_max: 0.05
 
 #adaptive tracking for high-speed navigation
 enable_velocity_check: 0        # enable velocity-based adaptive feature tracking
-max_velocity_threshold: 3.0     # m/s - velocity threshold to trigger feature boost
+max_velocity_threshold: 5.0     # m/s - velocity threshold to trigger feature boost
 velocity_boost_features: 75     # extra features to add when high velocity detected
 min_parallax_threshold: 5.0     # pixels - minimum parallax for quality tracking
 
 #optimization parameters
-max_solver_time: 0.03   # max solver time (s) - reduced for real-time performance
+max_solver_time: 0.01   # max solver time (s) - reduced for real-time performance
 max_num_iterations: 15   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0  # keyframe selection threshold (pixel)
 

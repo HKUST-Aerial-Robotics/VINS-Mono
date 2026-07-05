@@ -14,6 +14,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -31,6 +32,7 @@ add_executable(feature_tracker
 
 ament_target_dependencies(feature_tracker
     rclcpp
+    rcl_interfaces
     std_msgs
     sensor_msgs
     cv_bridge
