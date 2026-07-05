@@ -120,6 +120,34 @@ RViz is recommended for viewing the tracked-feature image. Some versions of
 
 ## Other launch configurations
 
+All supported ROS 2 launch files are owned by `vins_bringup`. The
+`vins_estimator` package contains the estimator executable and algorithm; it is
+not a duplicate bringup package and no longer contains legacy ROS 1 XML launch
+files. Always launch a complete configuration with:
+
+```bash
+ros2 launch vins_bringup <name>.launch.py
+```
+
+For the thermal camera configuration, start the estimator pipeline with:
+
+```bash
+cd ~/ros2_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+ros2 launch vins_bringup termal_cam.launch.py
+```
+
+Then start RViz in another terminal:
+
+```bash
+source ~/ros2_ws/install/setup.bash
+ros2 launch vins_bringup vins_rviz.launch.py
+```
+
+The thermal launch reads `config/termal_cam_config.yaml` and starts
+`feature_tracker`, `vins_estimator`, and `pose_graph` together.
+
 ```bash
 ros2 launch vins_bringup euroc.launch.py
 ros2 launch vins_bringup euroc_no_extrinsic_param.launch.py
