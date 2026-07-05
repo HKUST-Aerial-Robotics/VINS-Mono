@@ -441,13 +441,10 @@ void process()
                 vector<cv::Point2f> point_2d_normal;
                 vector<double> point_id;
 
-                bool channels_valid = point_msg->channels.size() >= 5;
+                bool channels_valid = point_msg->channels.size() >= point_msg->points.size();
                 if (channels_valid)
-                {
-                    for (size_t channel = 0; channel < 5; ++channel)
-                        channels_valid = channels_valid &&
-                            point_msg->channels[channel].values.size() >= point_msg->points.size();
-                }
+                    for (size_t i = 0; i < point_msg->points.size(); ++i)
+                        channels_valid = channels_valid && point_msg->channels[i].values.size() >= 5;
                 if (!channels_valid)
                 {
                     RCLCPP_ERROR(rclcpp::get_logger("pose_graph"),
@@ -466,11 +463,11 @@ void process()
 
                     cv::Point2f p_2d_uv, p_2d_normal;
                     double p_id;
-                    p_2d_normal.x = point_msg->channels[0].values[i];
-                    p_2d_normal.y = point_msg->channels[1].values[i];
-                    p_2d_uv.x = point_msg->channels[2].values[i];
-                    p_2d_uv.y = point_msg->channels[3].values[i];
-                    p_id = point_msg->channels[4].values[i];
+                    p_2d_normal.x = point_msg->channels[i].values[0];
+                    p_2d_normal.y = point_msg->channels[i].values[1];
+                    p_2d_uv.x = point_msg->channels[i].values[2];
+                    p_2d_uv.y = point_msg->channels[i].values[3];
+                    p_id = point_msg->channels[i].values[4];
                     point_2d_normal.push_back(p_2d_normal);
                     point_2d_uv.push_back(p_2d_uv);
                     point_id.push_back(p_id);

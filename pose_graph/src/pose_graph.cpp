@@ -49,6 +49,9 @@ void PoseGraph::loadVocabulary(std::string voc_path)
 
 void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
 {
+    static uint64_t loop_query_count = 0;
+    static uint64_t loop_candidate_count = 0;
+    static uint64_t loop_accepted_count = 0;
     //shift to base frame
     Vector3d vio_P_cur;
     Matrix3d vio_R_cur;
@@ -74,7 +77,12 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     if (flag_detect_loop)
     {
         TicToc tmp_t;
+        loop_query_count++;
         loop_index = detectLoop(cur_kf, cur_kf->index);
+        if (loop_query_count == 1 || loop_query_count % 100 == 0)
+            RCLCPP_INFO(rclcpp::get_logger("pose_graph"),
+                        "[LOOP] queried %lu keyframes, candidates=%lu, accepted=%lu",
+                        loop_query_count, loop_candidate_count, loop_accepted_count);
     }
     else
     {
@@ -82,11 +90,18 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
     }
 	if (loop_index != -1)
 	{
-        //printf(" %d detect loop with %d \n", cur_kf->index, loop_index);
+        loop_candidate_count++;
+        RCLCPP_INFO(rclcpp::get_logger("pose_graph"),
+                    "[LOOP] DBoW candidate: current=%d previous=%d",
+                    cur_kf->index, loop_index);
         KeyFrame* old_kf = getKeyFrame(loop_index);
 
         if (cur_kf->findConnection(old_kf))
         {
+            loop_accepted_count++;
+            RCLCPP_WARN(rclcpp::get_logger("pose_graph"),
+                        "[LOOP] accepted #%lu: current=%d previous=%d",
+                        loop_accepted_count, cur_kf->index, loop_index);
             if (earliest_loop_index > loop_index || earliest_loop_index == -1)
                 earliest_loop_index = loop_index;
 
@@ -133,6 +148,12 @@ void PoseGraph::addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop)
             m_optimize_buf.lock();
             optimize_buf.push(cur_kf->index);
             m_optimize_buf.unlock();
+        }
+        else
+        {
+            RCLCPP_INFO(rclcpp::get_logger("pose_graph"),
+                        "[LOOP] candidate rejected by geometric verification: current=%d previous=%d",
+                        cur_kf->index, loop_index);
         }
 	}
 	m_keyframelist.lock();

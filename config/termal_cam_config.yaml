@@ -3,7 +3,8 @@
 #common parameters
 imu_topic: "/mavros/imu/data"
 image_topic: "/thermal_cam/image_raw"
-output_path: "/home/op/output/"
+image_input_format: "raw"
+output_path: "/tmp/vins_thermal_output/"
 
 #camera calibration 
 model_type: PINHOLE
@@ -60,8 +61,9 @@ min_dist: 15            # min distance between features (larger spacing = fewer 
 freq: 0                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 2.0        # ransac threshold (thermal: more tolerance for noise)
 fast_threshold: 20      # threshold for AGAST corner detector (higher = fewer but stronger features)
-use_bidirectional_flow: 1  # DISABLED for speed (forward-only tracking)
-use_advanced_flow: 1        # 1 = advanced LK (term crit + optional backward check), 0 = basic LK
+gftt_quality_level: 0.01 # Shi-Tomasi sensitivity used by the stable tracker
+use_bidirectional_flow: 0  # used only by advanced flow
+use_advanced_flow: 1        # stable LK + Shi-Tomasi; AGAST mode is experimental
 show_track: 1           # publish tracking image as topic
 equalize: 1             # if image is too dark or light, trun on equalize to find enough features
 fisheye: 0  
@@ -86,13 +88,13 @@ gyr_w: 0.001       # gyroscope bias random work noise standard deviation.
 g_norm: 9.805       #
 
 #loop closure parameters
-loop_closure: 1                    # start loop closure (ОТКЛЮЧЕНО - может вызывать скачки при движении)
+loop_closure: 1                    # enable loop closure and pose graph
 load_previous_pose_graph: 0        # load and reuse previous pose graph
 fast_relocalization: 0             # useful in real-time and large project
-pose_graph_save_path: "/home/op/output/pose_graph/" # save and load path
+pose_graph_save_path: "/tmp/vins_thermal_output/pose_graph/" # save and load path
 
 #unsynchronization parameters
-estimate_td: 1                      # online estimate time offset between camera and imu (DISABLED for stability)
+estimate_td: 1                      # online estimate time offset between camera and IMU
 estimate_td_period: 7.0             # seconds between td optimization bursts
 td: -0.1                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
@@ -106,15 +108,15 @@ visualize_imu_forward: 0        # output imu forward propogation to achieve low 
 visualize_camera_size: 0.4      # size of camera marker in RVIZ
 
 #zero velocity update (ZUPT) parameters
-enable_zupt: 1                  # enable zero velocity update to prevent drift when stationary
+enable_zupt: 0                  # enable zero velocity update to prevent drift when stationary
 zupt_vel_threshold: 0.15        # velocity threshold (thermal: more sensitive to catch stationary state)
 zupt_acc_threshold: 0.25         # acceleration deviation threshold (thermal: tighter threshold)
 
 #imu filtering parameters
-enable_imu_acc_filter: 1        # enable accelerometer outlier rejection and smoothing
+enable_imu_acc_filter: 0        # enable accelerometer outlier rejection and smoothing
 imu_acc_max_change: 3.0        # maximum allowed acceleration change (thermal: slightly more tolerance)
 imu_acc_filter_alpha: 0.75       # exponential filter coefficient (thermal: slightly less smoothing for responsiveness)
 
 #altitude scale correction parameters
-enable_altitude_scale_correction: 1  # enable scale correction using MAVLink altitude
+enable_altitude_scale_correction: 0  # bag has no /mavros/local_position/velocity_local topic
 altitude_correction_factor: 0.1      # correction strength (0.0-1.0, lower = gentler correction)

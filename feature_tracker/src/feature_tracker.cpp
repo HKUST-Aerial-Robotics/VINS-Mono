@@ -3,6 +3,7 @@
 #include "tracking_safety.h"
 
 int FeatureTracker::n_id = 0;
+static rclcpp::Clock tracker_log_clock(RCL_STEADY_TIME);
 
 bool inBorder(const cv::Point2f &pt)
 {
@@ -223,7 +224,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 if (current_velocity > MAX_VELOCITY_THRESHOLD)
                 {
                     adaptive_max_cnt = MAX_CNT + VELOCITY_BOOST_FEATURES;
-                    RCLCPP_WARN_SKIPFIRST_THROTTLE(rclcpp::get_logger("feature_tracker"), *(rclcpp::Clock::make_shared()), 2000, "High velocity detected: %.2f m/s, boosting features to %d",
+                    RCLCPP_WARN_SKIPFIRST_THROTTLE(rclcpp::get_logger("feature_tracker"), tracker_log_clock, 2000, "High velocity detected: %.2f m/s, boosting features to %d",
                                       current_velocity, adaptive_max_cnt);
                 }
             }

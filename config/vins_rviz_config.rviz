@@ -6,9 +6,12 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /feature points1
+        - /pose graph points1
         - /Image1
+        - /Image2
       Splitter Ratio: 0.5
-    Tree Height: 140
+    Tree Height: 304
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -57,6 +60,8 @@ Visualization Manager:
           Value: true
         camera:
           Value: true
+        camera_pose_graph:
+          Value: true
         world:
           Value: true
       Marker Scale: 1
@@ -66,7 +71,11 @@ Visualization Manager:
       Show Names: false
       Tree:
         world:
-          {}
+          body:
+            camera:
+              {}
+          camera_pose_graph:
+            {}
       Update Interval: 0
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -86,7 +95,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: true
+      Enabled: false
       Keep: 100
       Name: vins odometry
       Position Tolerance: 0.10000000149011612
@@ -107,7 +116,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /vins_estimator/odometry
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path
@@ -162,13 +171,13 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /pose_graph/pose_graph_path
+        Value: /pose_graph/path_1
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
       Name: camera pose visual
       Namespaces:
-        {}
+        CameraPoseVisualization: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -199,14 +208,14 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic:
         Depth: 5
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /feature_tracker/feature
+        Value: /vins_estimator/keyframe_point
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -219,8 +228,8 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud
-      Color: 255; 255; 255
-      Color Transformer: ""
+      Color: 246; 211; 45
+      Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -229,18 +238,18 @@ Visualization Manager:
       Min Color: 0; 0; 0
       Min Intensity: 0
       Name: pose graph points
-      Position Transformer: ""
+      Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.009999999776482582
-      Style: Flat Squares
+      Style: Points
       Topic:
         Depth: 5
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /pose_graph/match_points
+        Value: /vins_estimator/point_cloud
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -257,6 +266,20 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /feature_tracker/feature_img
+      Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /pose_graph/match_image
       Value: true
   Enabled: true
   Global Options:
@@ -304,7 +327,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 4.686433792114258
+      Distance: 10.185945510864258
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -319,10 +342,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5347966551780701
+      Pitch: 0.6397964358329773
       Target Frame: camera
       Value: Orbit (rviz)
-      Yaw: 3.1854023933410645
+      Yaw: 0.3403957486152649
     Saved: ~
 Window Geometry:
   Displays:
@@ -332,7 +355,7 @@ Window Geometry:
   Hide Right Dock: false
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000300000000000001c40000021bfc0200000004fc0000003f000000cc000000cc00fffffffa000000020100000003fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb00000016006d006100740063006800200069006d0061006700650000000000ffffffff0000000000000000fb000000100044006900730070006c0061007900730100000000000001690000015600fffffffb00000016006d0061007400630068005f0069006d00610067006500000001e00000007a0000000000000000fb0000000a0049006d00610067006500000001ac000000ae0000000000000000fb0000000a0049006d0061006700650100000111000001490000001700ffffff00000001000001900000021bfc0200000001fc0000003f0000021b000000c80100001efa000000040100000005fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000001a006600650061007400750072006500200069006d0061006700650000000000ffffffff0000000000000000fb0000001200530065006c0065006300740069006f006e0000000000ffffffff0000007300fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000000ffffffff0000009b00fffffffb0000000a00560069006500770073010000045e000001000000010000ffffff00000003000005b60000003cfc0100000001fb0000000800540069006d00650100000000000005b60000026f00ffffff000002560000021b00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000300000000000001560000021bfc0200000005fc0000003f00000170000000cc00fffffffa000000020100000003fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb00000016006d006100740063006800200069006d0061006700650000000000ffffffff0000000000000000fb000000100044006900730070006c0061007900730100000000000001690000015600fffffffb00000016006d0061007400630068005f0069006d00610067006500000001e00000007a0000000000000000fb0000000a0049006d00610067006500000001ac000000ae0000000000000000fb0000000a0049006d0061006700650100000111000001490000000000000000fb0000000a0049006d00610067006501000001b5000000a50000001700ffffff00000001000001820000021bfc0200000002fb0000000a0049006d006100670065010000003f000000b40000001700fffffffc000000f900000161000000c80100001efa000000040100000005fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000001a006600650061007400750072006500200069006d0061006700650000000000ffffffff0000000000000000fb0000001200530065006c0065006300740069006f006e0000000000ffffffff0000007300fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000000ffffffff0000009b00fffffffb0000000a00560069006500770073010000045e000001000000010000ffffff00000003000005b60000003cfc0100000001fb0000000800540069006d00650100000000000005b60000026f00ffffff000002d20000021b00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
