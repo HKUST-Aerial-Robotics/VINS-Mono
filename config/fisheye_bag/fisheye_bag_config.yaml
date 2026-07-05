@@ -7,20 +7,21 @@ image_input_format: "compressed"
 output_path: "/tmp/vins_fisheye_output/"
 
 #camera calibration
-model_type: PINHOLE
+# Recalibrated with OpenCV fisheye model (Kannala-Brandt)
+# RMS reprojection error: 0.676, mean view error: 0.389, frames: 130
+model_type: KANNALA_BRANDT
 camera_name: camera
 image_width: 1280
 image_height: 1024
-distortion_parameters:
-   k1: -6.336867
-   k2: 30.691356
-   p1: 0.001819
-   p2: -0.032622
 projection_parameters:
-   fx: 3958.590124
-   fy: 2551.591353
-   cx: 660.230959
-   cy: 449.091769
+   k2: -0.024036232663034018   # OpenCV dist_coeffs[0] (k1)
+   k3: -0.002794445348728834   # OpenCV dist_coeffs[1] (k2)
+   k4: 0.0011798140355741464   # OpenCV dist_coeffs[2] (k3)
+   k5: -0.00057002774959145452 # OpenCV dist_coeffs[3] (k4)
+   mu: 472.88439456353871       # fx
+   mv: 472.20758450689351       # fy
+   u0: 615.40978596261721       # cx
+   v0: 518.71597814251959       # cy
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0
@@ -40,18 +41,28 @@ extrinsicTranslation: !!opencv-matrix
 
 
 #feature traker paprameters
-max_cnt: 350            # target number of tracked features for a 1280x1024 frame
-min_dist: 30            # preserve spatial distribution; lower values cluster features
+max_cnt: 250            # target number of tracked features for a 1280x1024 frame
+min_dist: 20            # preserve spatial distribution; lower values cluster features
 freq: 25                # leaves CPU headroom while using most of the 30 Hz camera stream
 F_threshold: 1.0        # stricter geometric outlier rejection for a sharp image
-gftt_quality_level: 0.05 # Shi-Tomasi sensitivity; lower detects weaker usable corners
-fast_threshold: 15      # used only when use_advanced_flow=1 (AGAST)
+gftt_quality_level: 0.005 # Shi-Tomasi sensitivity; lower detects weaker usable corners
+fast_threshold: 10      # used only when use_advanced_flow=1 (AGAST)
 use_bidirectional_flow: 0  # used only by advanced flow; disabled in this stable profile
 use_advanced_flow: 1        # stable LK + Shi-Tomasi path; AGAST path is experimental
 show_track: 1           # publish tracking image as topic
-equalize: 1             # if image is too dark or light, trun on equalize to find enough features
+equalize: 0             # if image is too dark or light, trun on equalize to find enough features
 fisheye: 1              # apply a custom valid-pixel mask during feature selection
 fisheye_mask: "config/mask.jpg" # relative to the vins_bringup share directory
+
+#autotune filter
+enable_feature_auto_tuning: 0 # adapt active detector to texture and motion blur
+feature_auto_tune_interval: 5.0 # seconds between adaptation/diagnostic reports
+feature_auto_tune_log: 0       # print [AUTO_TUNE] values to ROS console and log
+fast_threshold_min: 7          # safe AGAST tuning range
+fast_threshold_max: 45
+gftt_quality_min: 0.001        # used only when use_advanced_flow=0
+gftt_quality_max: 0.05
+
 
 #adaptive tracking for high-speed navigation
 enable_velocity_check: 0        # enable velocity-based adaptive feature tracking
@@ -73,14 +84,14 @@ gyr_w: 0.001       # gyroscope bias random work noise standard deviation.
 g_norm: 9.805       #
 
 #loop closure parameters
-loop_closure: 1                    # start loop closure (ОТКЛЮЧЕНО - может вызывать скачки при движении)
+loop_closure: 0                    # start loop closure (ОТКЛЮЧЕНО - может вызывать скачки при движении)
 load_previous_pose_graph: 0        # load and reuse previous pose graph
-fast_relocalization: 0             # useful in real-time and large project
+fast_relocalization: 1             # useful in real-time and large project
 pose_graph_save_path: "/tmp/vins_fisheye_output/pose_graph/" # save and load path
 
 #unsynchronization parameters
 estimate_td: 1                      # online estimate time offset between camera and imu (ОТКЛЮЧЕНО для стабильности)
-estimate_td_period: 5.0             # seconds between td optimization bursts
+estimate_td_period: 10.0             # seconds between td optimization bursts
 td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
 
 #rolling shutter parameters
@@ -88,7 +99,7 @@ rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutt
 rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per frame (from data sheet)
 
 #visualization parameters
-save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
+save_image: 0                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
 visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
 visualize_camera_size: 0.4      # size of camera marker in RVIZ
 

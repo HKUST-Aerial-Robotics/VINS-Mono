@@ -46,6 +46,8 @@ class FeatureTracker
     void rejectWithF();
 
     void undistortedPoints();
+    void updateAutoTuning(size_t tracked_before, size_t tracked_after,
+                          size_t detector_candidates);
 
     cv::Mat mask;
     cv::Mat fisheye_mask;
@@ -66,6 +68,11 @@ class FeatureTracker
     // Adaptive tracking state
     double current_velocity;   // estimated velocity magnitude (m/s)
     int adaptive_max_cnt;      // dynamically adjusted feature count
+    double auto_tune_last_time;
+    double auto_tune_retention_sum;
+    double auto_tune_fill_sum;
+    double auto_tune_candidate_sum;
+    int auto_tune_samples;
 
     static int n_id;
 };

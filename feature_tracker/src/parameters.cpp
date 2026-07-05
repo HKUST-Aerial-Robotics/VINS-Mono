@@ -1,5 +1,6 @@
 #include "parameters.h"
 #include "rclcpp/rclcpp.hpp"
+#include <algorithm>
 
 std::string IMAGE_TOPIC;
 std::string IMAGE_INPUT_FORMAT;
@@ -23,6 +24,13 @@ int FAST_THRESHOLD;
 int USE_BIDIRECTIONAL_FLOW;
 int USE_ADVANCED_FLOW;
 double GFTT_QUALITY_LEVEL = 0.01;
+int ENABLE_FEATURE_AUTO_TUNING = 0;
+double FEATURE_AUTO_TUNE_INTERVAL = 5.0;
+int FEATURE_AUTO_TUNE_LOG = 1;
+int FAST_THRESHOLD_MIN = 5;
+int FAST_THRESHOLD_MAX = 60;
+double GFTT_QUALITY_MIN = 0.001;
+double GFTT_QUALITY_MAX = 0.05;
 
 // Adaptive feature tracking
 double MAX_VELOCITY_THRESHOLD = 5.0;  // m/s
@@ -82,6 +90,19 @@ void readParameters(rclcpp::Node::SharedPtr &n)
         GFTT_QUALITY_LEVEL = (double)fsSettings["gftt_quality_level"];
     else
         GFTT_QUALITY_LEVEL = 0.01;
+
+    ENABLE_FEATURE_AUTO_TUNING = fsSettings["enable_feature_auto_tuning"].empty() ? 0 : (int)fsSettings["enable_feature_auto_tuning"];
+    FEATURE_AUTO_TUNE_INTERVAL = fsSettings["feature_auto_tune_interval"].empty() ? 5.0 : (double)fsSettings["feature_auto_tune_interval"];
+    FEATURE_AUTO_TUNE_LOG = fsSettings["feature_auto_tune_log"].empty() ? 1 : (int)fsSettings["feature_auto_tune_log"];
+    FAST_THRESHOLD_MIN = fsSettings["fast_threshold_min"].empty() ? 5 : (int)fsSettings["fast_threshold_min"];
+    FAST_THRESHOLD_MAX = fsSettings["fast_threshold_max"].empty() ? 60 : (int)fsSettings["fast_threshold_max"];
+    GFTT_QUALITY_MIN = fsSettings["gftt_quality_min"].empty() ? 0.001 : (double)fsSettings["gftt_quality_min"];
+    GFTT_QUALITY_MAX = fsSettings["gftt_quality_max"].empty() ? 0.05 : (double)fsSettings["gftt_quality_max"];
+    FEATURE_AUTO_TUNE_INTERVAL = std::max(0.5, FEATURE_AUTO_TUNE_INTERVAL);
+    if (FAST_THRESHOLD_MIN > FAST_THRESHOLD_MAX) std::swap(FAST_THRESHOLD_MIN, FAST_THRESHOLD_MAX);
+    if (GFTT_QUALITY_MIN > GFTT_QUALITY_MAX) std::swap(GFTT_QUALITY_MIN, GFTT_QUALITY_MAX);
+    FAST_THRESHOLD = std::clamp(FAST_THRESHOLD, FAST_THRESHOLD_MIN, FAST_THRESHOLD_MAX);
+    GFTT_QUALITY_LEVEL = std::clamp(GFTT_QUALITY_LEVEL, GFTT_QUALITY_MIN, GFTT_QUALITY_MAX);
     
     // Adaptive tracking parameters
     ENABLE_VELOCITY_CHECK = fsSettings["enable_velocity_check"].empty() ? 1 : (int)fsSettings["enable_velocity_check"];
@@ -102,6 +123,11 @@ void readParameters(rclcpp::Node::SharedPtr &n)
                 "Feature detector: %s, quality=%.4f, min_dist=%d, max_cnt=%d",
                 USE_ADVANCED_FLOW ? "AGAST" : "Shi-Tomasi", GFTT_QUALITY_LEVEL,
                 MIN_DIST, MAX_CNT);
+    if (ENABLE_FEATURE_AUTO_TUNING)
+        RCLCPP_INFO(n->get_logger(),
+                    "Feature auto-tuning enabled: interval=%.1fs, detector=%s, logging=%s",
+                    FEATURE_AUTO_TUNE_INTERVAL, USE_ADVANCED_FLOW ? "AGAST" : "Shi-Tomasi",
+                    FEATURE_AUTO_TUNE_LOG ? "on" : "off");
 
     if (FISHEYE == 1)
     {

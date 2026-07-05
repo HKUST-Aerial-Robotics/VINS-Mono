@@ -2,6 +2,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "tracking_safety.h"
 
+#include <algorithm>
+#include <cmath>
+
 int FeatureTracker::n_id = 0;
 static rclcpp::Clock tracker_log_clock(RCL_STEADY_TIME);
 
@@ -39,6 +42,27 @@ FeatureTracker::FeatureTracker()
     clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
     current_velocity = 0.0;
     adaptive_max_cnt = MAX_CNT;
+    auto_tune_last_time = -1.0;
+    auto_tune_retention_sum = 0.0;
+    auto_tune_fill_sum = 0.0;
+    auto_tune_candidate_sum = 0.0;
+    auto_tune_samples = 0;
+}
+
+namespace
+{
+int spatialBucket(const cv::Point2f &pt, int target, int width, int height,
+                  int &bucket_cols, int &bucket_rows)
+{
+    const double aspect = height > 0 ? static_cast<double>(width) / height : 1.0;
+    // Keep the number of buckets <= target. Therefore the complete first
+    // spatial pass always runs before any bucket receives a second point.
+    bucket_cols = std::max(1, static_cast<int>(std::floor(std::sqrt(std::max(1, target) * aspect))));
+    bucket_rows = std::max(1, static_cast<int>(std::floor(static_cast<double>(std::max(1, target)) / bucket_cols)));
+    const int col = std::clamp(static_cast<int>(pt.x * bucket_cols / std::max(1, width)), 0, bucket_cols - 1);
+    const int row = std::clamp(static_cast<int>(pt.y * bucket_rows / std::max(1, height)), 0, bucket_rows - 1);
+    return row * bucket_cols + col;
+}
 }
 
 void FeatureTracker::setMask()
@@ -63,17 +87,37 @@ void FeatureTracker::setMask()
     for (size_t i = 0; i < aligned_count; i++)
         cnt_pts_id.push_back(make_pair(track_cnt[i], make_pair(forw_pts[i], ids[i])));
 
-    sort(cnt_pts_id.begin(), cnt_pts_id.end(), [](const pair<int, pair<cv::Point2f, int>> &a, const pair<int, pair<cv::Point2f, int>> &b)
-         {
-            return a.first > b.first;
-         });
+    // Keep old IDs, but choose them round-robin across the full image. This
+    // makes a reduced max_cnt spatially balanced and temporally stable.
+    int bucket_cols = 1, bucket_rows = 1;
+    vector<vector<pair<int, pair<cv::Point2f, int>>>> buckets;
+    for (const auto &item : cnt_pts_id)
+    {
+        const int bucket = spatialBucket(item.second.first, adaptive_max_cnt, mask.cols, mask.rows,
+                                         bucket_cols, bucket_rows);
+        if (buckets.empty()) buckets.resize(bucket_cols * bucket_rows);
+        buckets[bucket].push_back(item);
+    }
+    for (auto &bucket : buckets)
+        sort(bucket.begin(), bucket.end(), [](const auto &a, const auto &b) {
+            if (a.first != b.first) return a.first > b.first;
+            return a.second.second < b.second.second;
+        });
 
     forw_pts.clear();
     ids.clear();
     track_cnt.clear();
 
-    for (auto &it : cnt_pts_id)
+    size_t depth = 0;
+    bool have_candidates = true;
+    while (have_candidates && static_cast<int>(forw_pts.size()) < adaptive_max_cnt)
     {
+      have_candidates = false;
+      for (const auto &bucket : buckets)
+      {
+        if (depth >= bucket.size()) continue;
+        have_candidates = true;
+        const auto &it = bucket[depth];
         const int x = cvRound(it.second.first.x);
         const int y = cvRound(it.second.first.y);
         if (!std::isfinite(it.second.first.x) || !std::isfinite(it.second.first.y) ||
@@ -91,6 +135,9 @@ void FeatureTracker::setMask()
             track_cnt.push_back(it.first);
             cv::circle(mask, it.second.first, MIN_DIST, 0, -1);
         }
+        if (static_cast<int>(forw_pts.size()) >= adaptive_max_cnt) break;
+      }
+      ++depth;
     }
 }
 
@@ -133,6 +180,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
 
     forw_pts.clear();
 
+    const size_t tracked_before = cur_pts.size();
     if (cur_pts.size() > 0)
     {
         TicToc t_o;
@@ -247,6 +295,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "detect feature begins");
         TicToc t_t;
         int n_max_cnt = adaptive_max_cnt - static_cast<int>(forw_pts.size());
+        size_t detector_candidates = 0;
         if (n_max_cnt > 0)
         {
             if(mask.empty())
@@ -263,6 +312,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 // AGAST + grid selection (current enhanced method)
                 vector<cv::KeyPoint> keypoints;
                 cv::AGAST(forw_img, keypoints, FAST_THRESHOLD, true);
+                detector_candidates = keypoints.size();
 
                 int grid_size = MIN_DIST; 
                 int grid_cols = COL / grid_size + 1;
@@ -283,9 +333,35 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                     }
                 }
 
-                for (const auto& grid_cell : grid_best_features) {
-                    n_pts.push_back(grid_cell.second.pt);
-                    if (int(n_pts.size()) >= n_max_cnt) break;
+                vector<vector<cv::KeyPoint>> spatial_buckets;
+                int coarse_cols = 1, coarse_rows = 1;
+                for (const auto &grid_cell : grid_best_features)
+                {
+                    const auto &kp = grid_cell.second;
+                    const int bucket = spatialBucket(kp.pt, n_max_cnt, mask.cols, mask.rows,
+                                                     coarse_cols, coarse_rows);
+                    if (spatial_buckets.empty()) spatial_buckets.resize(coarse_cols * coarse_rows);
+                    spatial_buckets[bucket].push_back(kp);
+                }
+                for (auto &bucket : spatial_buckets)
+                    sort(bucket.begin(), bucket.end(), [](const auto &a, const auto &b) {
+                        if (a.response != b.response) return a.response > b.response;
+                        if (a.pt.y != b.pt.y) return a.pt.y < b.pt.y;
+                        return a.pt.x < b.pt.x;
+                    });
+                size_t bucket_depth = 0;
+                bool have_spatial_candidates = true;
+                while (have_spatial_candidates && static_cast<int>(n_pts.size()) < n_max_cnt)
+                {
+                    have_spatial_candidates = false;
+                    for (const auto &bucket : spatial_buckets)
+                    {
+                        if (bucket_depth >= bucket.size()) continue;
+                        have_spatial_candidates = true;
+                        n_pts.push_back(bucket[bucket_depth].pt);
+                        if (static_cast<int>(n_pts.size()) >= n_max_cnt) break;
+                    }
+                    ++bucket_depth;
                 }
 
                 if (!n_pts.empty())
@@ -305,6 +381,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 // Original VINS-Fusion style: Shi-Tomasi (goodFeaturesToTrack)
                 cv::goodFeaturesToTrack(
                     forw_img, n_pts, n_max_cnt, GFTT_QUALITY_LEVEL, MIN_DIST, mask);
+                detector_candidates = n_pts.size();
             }
         }
         else
@@ -317,6 +394,7 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "add feature begins");
         TicToc t_a;
         addPoints();
+        updateAutoTuning(tracked_before, forw_pts.size() - n_pts.size(), detector_candidates);
         RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "selectFeature costs: %fms", t_a.toc());
     }
     prev_img = cur_img;
@@ -326,6 +404,51 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
     cur_pts = forw_pts;
     undistortedPoints();
     prev_time = cur_time;
+}
+
+void FeatureTracker::updateAutoTuning(size_t tracked_before, size_t tracked_after,
+                                      size_t detector_candidates)
+{
+    if (!ENABLE_FEATURE_AUTO_TUNING) return;
+    if (auto_tune_last_time < 0.0) auto_tune_last_time = cur_time;
+
+    const double retention = tracked_before > 0
+        ? static_cast<double>(tracked_after) / tracked_before : 1.0;
+    const double fill = static_cast<double>(forw_pts.size()) / std::max(1, adaptive_max_cnt);
+    auto_tune_retention_sum += std::clamp(retention, 0.0, 1.0);
+    auto_tune_fill_sum += std::clamp(fill, 0.0, 2.0);
+    auto_tune_candidate_sum += detector_candidates;
+    ++auto_tune_samples;
+
+    if (cur_time - auto_tune_last_time < FEATURE_AUTO_TUNE_INTERVAL) return;
+    const double mean_retention = auto_tune_retention_sum / std::max(1, auto_tune_samples);
+    const double mean_fill = auto_tune_fill_sum / std::max(1, auto_tune_samples);
+    const double mean_candidates = auto_tune_candidate_sum / std::max(1, auto_tune_samples);
+
+    if (USE_ADVANCED_FLOW)
+    {
+        if (mean_fill < 0.90)
+            FAST_THRESHOLD = std::max(FAST_THRESHOLD_MIN, FAST_THRESHOLD - 2);
+        else if (mean_fill > 0.98 && mean_candidates > adaptive_max_cnt * 2.0 && mean_retention < 0.75)
+            FAST_THRESHOLD = std::min(FAST_THRESHOLD_MAX, FAST_THRESHOLD + 2);
+    }
+    else
+    {
+        if (mean_fill < 0.90)
+            GFTT_QUALITY_LEVEL = std::max(GFTT_QUALITY_MIN, GFTT_QUALITY_LEVEL * 0.8);
+        else if (mean_fill > 0.98 && mean_retention < 0.75)
+            GFTT_QUALITY_LEVEL = std::min(GFTT_QUALITY_MAX, GFTT_QUALITY_LEVEL * 1.2);
+    }
+
+    if (FEATURE_AUTO_TUNE_LOG)
+        RCLCPP_INFO(rclcpp::get_logger("feature_tracker"),
+                    "[AUTO_TUNE] fill=%.1f%% retention=%.1f%% candidates=%.0f; fast_threshold=%d gftt_quality=%.5f",
+                    mean_fill * 100.0, mean_retention * 100.0, mean_candidates,
+                    FAST_THRESHOLD, GFTT_QUALITY_LEVEL);
+
+    auto_tune_last_time = cur_time;
+    auto_tune_retention_sum = auto_tune_fill_sum = auto_tune_candidate_sum = 0.0;
+    auto_tune_samples = 0;
 }
 
 void FeatureTracker::rejectWithF()

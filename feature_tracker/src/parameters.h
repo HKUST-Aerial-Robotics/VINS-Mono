@@ -27,6 +27,13 @@ extern int FAST_THRESHOLD;
 extern int USE_BIDIRECTIONAL_FLOW;
 extern int USE_ADVANCED_FLOW;
 extern double GFTT_QUALITY_LEVEL;
+extern int ENABLE_FEATURE_AUTO_TUNING;
+extern double FEATURE_AUTO_TUNE_INTERVAL;
+extern int FEATURE_AUTO_TUNE_LOG;
+extern int FAST_THRESHOLD_MIN;
+extern int FAST_THRESHOLD_MAX;
+extern double GFTT_QUALITY_MIN;
+extern double GFTT_QUALITY_MAX;
 
 // Adaptive feature tracking for high-speed scenarios
 extern double MAX_VELOCITY_THRESHOLD;  // m/s - threshold to detect high-speed motion
