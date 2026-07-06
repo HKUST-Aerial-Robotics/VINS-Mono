@@ -2,6 +2,7 @@
 
 #include <eigen3/Eigen/Dense>
 #include <ceres/ceres.h>
+#include "camodocal/gpl/ceres_local_parameterization_compat.h"
 #include "../utility/utility.h"
 
 class PoseLocalParameterization : public ceres::LocalParameterization

@@ -8,8 +8,7 @@
 #include "initial/initial_sfm.h"
 #include "initial/initial_alignment.h"
 #include "initial/initial_ex_rotation.h"
-#include <std_msgs/Header.h>
-#include <std_msgs/Float32.h>
+#include <std_msgs/msg/header.hpp>
 
 #include <ceres/ceres.h>
 #include "factor/imu_factor.h"
@@ -32,8 +31,21 @@ class Estimator
 
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
-    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
+    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::msg::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
+    void correctScaleWithAltitude(double mavlink_altitude, double mavlink_vz);
+    void initializeWithLidarOdom(const Vector3d &lidar_pos, const Matrix3d &lidar_rot,
+                                  double lidar_time, double vins_time);
+    void correctScaleWithLidarOdom(const Vector3d &lidar_pos, double lidar_time, double vins_time);
+    bool getLidarInitStatus();
+
+    // Lidar-assisted initialization (deep integration)
+    void setLidarOdomBuffer(const std::vector<Vector3d> &lidar_positions,
+                            const std::vector<Matrix3d> &lidar_rotations,
+                            const std::vector<double> &lidar_timestamps);
+    double estimateScaleFromLidar();
+    void applyLidarScalePrior(double scale);
+    void softAlignWithLidar();
 
     // internal
     void clearState();
@@ -80,7 +92,7 @@ class Estimator
 
     Matrix3d back_R0, last_R, last_R0;
     Vector3d back_P0, last_P, last_P0;
-    std_msgs::Header Headers[(WINDOW_SIZE + 1)];
+    std_msgs::msg::Header Headers[(WINDOW_SIZE + 1)];
 
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)];
     Vector3d acc_0, gyr_0;
@@ -114,6 +126,10 @@ class Estimator
     double para_Td[1][1];
     double para_Tr[1][1];
 
+    // Time offset estimation gating
+    double last_td_opt_time;   // wall time of last td optimization (seconds)
+    bool td_updated;           // flag: td was optimized in current frame
+
     int loop_window_index;
 
     MarginalizationInfo *last_marginalization_info;
@@ -136,4 +152,22 @@ class Estimator
     Vector3d relo_relative_t;
     Quaterniond relo_relative_q;
     double relo_relative_yaw;
+
+    // Lidar odometry initialization & scale correction
+    bool lidar_init_done;           // true after initial pose/scale set from lidar
+    Vector3d lidar_init_pos;        // lidar position at the moment of VINS init
+    Matrix3d lidar_init_rot;        // lidar rotation at the moment of VINS init
+    double lidar_init_time;         // timestamp of lidar init sample
+    Vector3d vins_init_pos;         // VINS position when lidar init was applied
+    Matrix3d vins_init_rot;         // VINS rotation when lidar init was applied
+    double vins_init_time;          // VINS timestamp when lidar init was applied
+    bool lidar_init_pose_applied;   // true after initial coordinate alignment applied
+
+    // Lidar-assisted deep init: buffer of lidar poses for scale/pose estimation
+    std::vector<Vector3d> lidar_pos_buf;    // lidar positions over time
+    std::vector<Matrix3d> lidar_rot_buf;   // lidar rotations over time
+    std::vector<double> lidar_time_buf;     // lidar timestamps
+    double lidar_scale_estimate;           // scale estimated from lidar (gt/vins displacement)
+    bool lidar_scale_valid;                // true if lidar_scale_estimate is reliable
+    int lidar_init_samples;               // number of lidar samples collected before VINS init
 };

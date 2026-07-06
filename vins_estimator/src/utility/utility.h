@@ -8,6 +8,13 @@
 #include <cassert>
 #include <cstring>
 #include <eigen3/Eigen/Dense>
+#include <builtin_interfaces/msg/time.hpp>
+
+// Helper: convert builtin_interfaces::Time to seconds (replaces ROS1 stamp.toSec())
+static inline double stampToSec(const builtin_interfaces::msg::Time &stamp)
+{
+    return static_cast<double>(stamp.sec) + static_cast<double>(stamp.nanosec) * 1e-9;
+}
 
 class Utility
 {

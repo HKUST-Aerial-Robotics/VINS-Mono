@@ -9,3 +9,20 @@ A3_rs.launch
 test/
 test.launch
 .vscode/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ROS 2 / colcon and runtime logs
+/log/
+/logs/
+*.log
+feature_tracker_crash.log
+
+# colcon build artifacts
+build/
+install/
+log/

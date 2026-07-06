@@ -10,8 +10,9 @@ using namespace std;
 #include <eigen3/Eigen/Dense>
 using namespace Eigen;
 
-#include <ros/console.h>
-#include <ros/assert.h>
+#include <cassert>
+
+#include "rclcpp/rclcpp.hpp"
 
 #include "parameters.h"
 
@@ -90,6 +91,7 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier();
+    void scaleDepth(double scale);
     list<FeaturePerId> feature;
     int last_track_num;
 

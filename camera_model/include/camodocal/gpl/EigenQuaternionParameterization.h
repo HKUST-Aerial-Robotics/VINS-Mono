@@ -1,7 +1,7 @@
 #ifndef EIGENQUATERNIONPARAMETERIZATION_H
 #define EIGENQUATERNIONPARAMETERIZATION_H
 
-#include "ceres/local_parameterization.h"
+#include "camodocal/gpl/ceres_local_parameterization_compat.h"
 
 namespace camodocal
 {

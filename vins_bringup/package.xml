@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>vins_bringup</name>
+  <version>0.0.0</version>
+  <description>Launch package for VINS-Mono ROS2 bringup.</description>
+
+  <maintainer email="qintonguav@gmail.com">qintong</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>image_transport</exec_depend>
+  <exec_depend>compressed_image_transport</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>feature_tracker</exec_depend>
+  <exec_depend>vins_estimator</exec_depend>
+  <exec_depend>pose_graph</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

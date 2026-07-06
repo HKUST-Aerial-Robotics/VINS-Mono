@@ -1,37 +1,32 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 project(vins_estimator)
 
-set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++11")
-#-DEIGEN_USE_MKL_ALL")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
 
-find_package(catkin REQUIRED COMPONENTS
-    roscpp
-    std_msgs
-    geometry_msgs
-    nav_msgs
-    tf
-    cv_bridge
-    visualization_msgs
-    )
+if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
+
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(camera_model REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 find_package(OpenCV REQUIRED)
-
-# message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
-
 find_package(Ceres REQUIRED)
-
-include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS})
-
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-find_package(Eigen3)
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
-)
-
-catkin_package()
+find_package(Eigen3 REQUIRED)
 
 add_executable(vins_estimator
     src/estimator_node.cpp
@@ -51,7 +46,28 @@ add_executable(vins_estimator
     src/initial/initial_ex_rotation.cpp
     )
 
+ament_target_dependencies(vins_estimator
+    rclcpp
+    std_msgs
+    geometry_msgs
+    nav_msgs
+    sensor_msgs
+    visualization_msgs
+    tf2_ros
+    tf2_geometry_msgs
+    cv_bridge
+    camera_model
+)
 
-target_link_libraries(vins_estimator ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
+target_link_libraries(vins_estimator camera_model::camera_model ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
+target_include_directories(vins_estimator PRIVATE
+    ${EIGEN3_INCLUDE_DIR}
+    ${camera_model_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS})
+
+install(TARGETS vins_estimator
+    DESTINATION lib/${PROJECT_NAME})
+
+ament_package()
 

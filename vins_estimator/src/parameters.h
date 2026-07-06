@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ros/ros.h>
+#include "rclcpp/rclcpp.hpp"
 #include <vector>
 #include <eigen3/Eigen/Dense>
 #include "utility/utility.h"
@@ -35,11 +35,28 @@ extern std::string IMU_TOPIC;
 extern double TD;
 extern double TR;
 extern int ESTIMATE_TD;
+extern double TD_ESTIMATION_PERIOD; // seconds between td optimization bursts
 extern int ROLLING_SHUTTER;
 extern double ROW, COL;
+extern int ENABLE_ZUPT;
+extern double ZUPT_VEL_THRESHOLD;
+extern double ZUPT_ACC_THRESHOLD;
 
+// Altitude scale correction (MAVLink)
+extern int ENABLE_ALTITUDE_SCALE_CORRECTION;
+extern double ALTITUDE_CORRECTION_FACTOR;
 
-void readParameters(ros::NodeHandle &n);
+// Lidar odometry initialization & scale correction
+extern int ENABLE_LIDAR_INIT;
+extern std::string LIDAR_ODOM_TOPIC;
+extern double LIDAR_INIT_TIMEOUT;          // seconds to wait for lidar odom at startup
+extern double LIDAR_INIT_POS_THRESHOLD;    // min displacement (m) before using lidar for scale init
+extern double LIDAR_SCALE_CORRECTION_FACTOR; // gentle ongoing scale correction strength
+extern double LIDAR_SYNC_MAX_DT;           // max time diff (s) for lidar-vins sync
+
+extern std::string WORLD_FRAME_ID;        // TF/frame_id for published odometry and visualization
+
+void readParameters(rclcpp::Node::SharedPtr n);
 
 enum SIZE_PARAMETERIZATION
 {

@@ -1,6 +1,12 @@
 #include "feature_tracker.h"
+#include "rclcpp/rclcpp.hpp"
+#include "tracking_safety.h"
+
+#include <algorithm>
+#include <cmath>
 
 int FeatureTracker::n_id = 0;
+static rclcpp::Clock tracker_log_clock(RCL_STEADY_TIME);
 
 bool inBorder(const cv::Point2f &pt)
 {
@@ -13,7 +19,8 @@ bool inBorder(const cv::Point2f &pt)
 void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
 {
     int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
+    const int safe_size = std::min<int>(v.size(), status.size());
+    for (int i = 0; i < safe_size; i++)
         if (status[i])
             v[j++] = v[i];
     v.resize(j);
@@ -22,7 +29,8 @@ void reduceVector(vector<cv::Point2f> &v, vector<uchar> status)
 void reduceVector(vector<int> &v, vector<uchar> status)
 {
     int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
+    const int safe_size = std::min<int>(v.size(), status.size());
+    for (int i = 0; i < safe_size; i++)
         if (status[i])
             v[j++] = v[i];
     v.resize(j);
@@ -31,40 +39,105 @@ void reduceVector(vector<int> &v, vector<uchar> status)
 
 FeatureTracker::FeatureTracker()
 {
+    clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
+    current_velocity = 0.0;
+    adaptive_max_cnt = MAX_CNT;
+    auto_tune_last_time = -1.0;
+    auto_tune_retention_sum = 0.0;
+    auto_tune_fill_sum = 0.0;
+    auto_tune_candidate_sum = 0.0;
+    auto_tune_samples = 0;
+}
+
+namespace
+{
+int spatialBucket(const cv::Point2f &pt, int target, int width, int height,
+                  int &bucket_cols, int &bucket_rows)
+{
+    const double aspect = height > 0 ? static_cast<double>(width) / height : 1.0;
+    // Keep the number of buckets <= target. Therefore the complete first
+    // spatial pass always runs before any bucket receives a second point.
+    bucket_cols = std::max(1, static_cast<int>(std::floor(std::sqrt(std::max(1, target) * aspect))));
+    bucket_rows = std::max(1, static_cast<int>(std::floor(static_cast<double>(std::max(1, target)) / bucket_cols)));
+    const int col = std::clamp(static_cast<int>(pt.x * bucket_cols / std::max(1, width)), 0, bucket_cols - 1);
+    const int row = std::clamp(static_cast<int>(pt.y * bucket_rows / std::max(1, height)), 0, bucket_rows - 1);
+    return row * bucket_cols + col;
+}
 }
 
 void FeatureTracker::setMask()
 {
-    if(FISHEYE)
+    if (FISHEYE && !fisheye_mask.empty())
         mask = fisheye_mask.clone();
     else
         mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
-    
 
     // prefer to keep features that are tracked for long time
     vector<pair<int, pair<cv::Point2f, int>>> cnt_pts_id;
 
-    for (unsigned int i = 0; i < forw_pts.size(); i++)
+    const size_t aligned_count = tracking_safety::commonSize(
+        {forw_pts.size(), track_cnt.size(), ids.size()});
+    if (aligned_count != forw_pts.size() || aligned_count != track_cnt.size() ||
+        aligned_count != ids.size())
+    {
+        RCLCPP_WARN(rclcpp::get_logger("feature_tracker"),
+                    "[MASK] vector mismatch: points=%zu tracks=%zu ids=%zu; using %zu",
+                    forw_pts.size(), track_cnt.size(), ids.size(), aligned_count);
+    }
+    for (size_t i = 0; i < aligned_count; i++)
         cnt_pts_id.push_back(make_pair(track_cnt[i], make_pair(forw_pts[i], ids[i])));
 
-    sort(cnt_pts_id.begin(), cnt_pts_id.end(), [](const pair<int, pair<cv::Point2f, int>> &a, const pair<int, pair<cv::Point2f, int>> &b)
-         {
-            return a.first > b.first;
-         });
+    // Keep old IDs, but choose them round-robin across the full image. This
+    // makes a reduced max_cnt spatially balanced and temporally stable.
+    int bucket_cols = 1, bucket_rows = 1;
+    vector<vector<pair<int, pair<cv::Point2f, int>>>> buckets;
+    for (const auto &item : cnt_pts_id)
+    {
+        const int bucket = spatialBucket(item.second.first, adaptive_max_cnt, mask.cols, mask.rows,
+                                         bucket_cols, bucket_rows);
+        if (buckets.empty()) buckets.resize(bucket_cols * bucket_rows);
+        buckets[bucket].push_back(item);
+    }
+    for (auto &bucket : buckets)
+        sort(bucket.begin(), bucket.end(), [](const auto &a, const auto &b) {
+            if (a.first != b.first) return a.first > b.first;
+            return a.second.second < b.second.second;
+        });
 
     forw_pts.clear();
     ids.clear();
     track_cnt.clear();
 
-    for (auto &it : cnt_pts_id)
+    size_t depth = 0;
+    bool have_candidates = true;
+    while (have_candidates && static_cast<int>(forw_pts.size()) < adaptive_max_cnt)
     {
-        if (mask.at<uchar>(it.second.first) == 255)
+      have_candidates = false;
+      for (const auto &bucket : buckets)
+      {
+        if (depth >= bucket.size()) continue;
+        have_candidates = true;
+        const auto &it = bucket[depth];
+        const int x = cvRound(it.second.first.x);
+        const int y = cvRound(it.second.first.y);
+        if (!std::isfinite(it.second.first.x) || !std::isfinite(it.second.first.y) ||
+            !tracking_safety::pixelIsInside(x, y, mask.cols, mask.rows))
+        {
+            RCLCPP_WARN(rclcpp::get_logger("feature_tracker"),
+                        "[MASK] rejected invalid feature coordinate x=%.3f y=%.3f",
+                        it.second.first.x, it.second.first.y);
+            continue;
+        }
+        if (mask.at<uchar>(y, x) == 255)
         {
             forw_pts.push_back(it.second.first);
             ids.push_back(it.second.second);
             track_cnt.push_back(it.first);
             cv::circle(mask, it.second.first, MIN_DIST, 0, -1);
         }
+        if (static_cast<int>(forw_pts.size()) >= adaptive_max_cnt) break;
+      }
+      ++depth;
     }
 }
 
@@ -83,13 +156,15 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
     cv::Mat img;
     TicToc t_r;
     cur_time = _cur_time;
+    
+    // Always initialize with default feature count
+    adaptive_max_cnt = MAX_CNT;
 
     if (EQUALIZE)
     {
-        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
         TicToc t_c;
         clahe->apply(_img, img);
-        ROS_DEBUG("CLAHE costs: %fms", t_c.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "CLAHE costs: %fms", t_c.toc());
     }
     else
         img = _img;
@@ -105,12 +180,59 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
 
     forw_pts.clear();
 
+    const size_t tracked_before = cur_pts.size();
     if (cur_pts.size() > 0)
     {
         TicToc t_o;
         vector<uchar> status;
         vector<float> err;
-        cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
+
+        if (USE_ADVANCED_FLOW)
+        {
+            // Advanced LK: stricter termination and optional forward-backward consistency
+            cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3,
+                                     cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 40, 0.001));
+
+            if (USE_BIDIRECTIONAL_FLOW)
+            {
+                vector<uchar> reverse_status;
+                vector<cv::Point2f> reverse_pts = cur_pts;
+                cv::calcOpticalFlowPyrLK(forw_img, cur_img, forw_pts, reverse_pts, reverse_status, err, cv::Size(21, 21), 3,
+                                         cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 40, 0.001));
+
+                const size_t flow_count = tracking_safety::commonSize(
+                    {status.size(), reverse_status.size(), cur_pts.size(), reverse_pts.size()});
+                if (flow_count != status.size())
+                {
+                    RCLCPP_WARN(
+                        rclcpp::get_logger("feature_tracker"),
+                        "[FLOW] vector mismatch: forward=%zu reverse=%zu cur=%zu reverse_pts=%zu; rejecting tail",
+                        status.size(), reverse_status.size(), cur_pts.size(), reverse_pts.size());
+                    std::fill(status.begin() + flow_count, status.end(), 0);
+                }
+                for (size_t i = 0; i < flow_count; i++)
+                {
+                    if (status[i] && reverse_status[i])
+                    {
+                        cv::Point2f dist_pt = cur_pts[i] - reverse_pts[i];
+                        float dist = (dist_pt.x * dist_pt.x + dist_pt.y * dist_pt.y);
+                        if (dist > 0.5) // 0.5 pixel squared error threshold (approx 0.7 px distance)
+                        {
+                            status[i] = 0;
+                        }
+                    }
+                    else
+                    {
+                        status[i] = 0;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Basic LK flow (original behavior) without advanced termination or backward check
+            cv::calcOpticalFlowPyrLK(cur_img, forw_img, cur_pts, forw_pts, status, err, cv::Size(21, 21), 3);
+        }
 
         for (int i = 0; i < int(forw_pts.size()); i++)
             if (status[i] && !inBorder(forw_pts[i]))
@@ -121,7 +243,42 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
         reduceVector(ids, status);
         reduceVector(cur_un_pts, status);
         reduceVector(track_cnt, status);
-        ROS_DEBUG("temporal optical flow costs: %fms", t_o.toc());
+        
+        // Estimate velocity based on optical flow magnitude (adaptive_max_cnt already initialized above)
+        if (ENABLE_VELOCITY_CHECK && cur_pts.size() > 10)
+        {
+            double total_flow = 0.0;
+            int valid_count = 0;
+            for (size_t i = 0; i < cur_pts.size(); i++)
+            {
+                cv::Point2f diff = forw_pts[i] - cur_pts[i];
+                double flow_mag = sqrt(diff.x * diff.x + diff.y * diff.y);
+                if (flow_mag < 100.0)  // sanity check: ignore outliers
+                {
+                    total_flow += flow_mag;
+                    valid_count++;
+                }
+            }
+            
+            if (valid_count > 0)
+            {
+                double avg_flow = total_flow / valid_count;
+                // Rough estimate: flow (pixels/frame) * focal_length_scale → velocity
+                // Assuming ~30fps and depth ~3m: pixel_flow * 0.01 ≈ velocity
+                double dt = cur_time - prev_time;
+                current_velocity = (dt > 0.001) ? (avg_flow / (FOCAL_LENGTH * dt)) * 3.0 : 0.0;
+                
+                // Adaptive feature count based on velocity
+                if (current_velocity > MAX_VELOCITY_THRESHOLD)
+                {
+                    adaptive_max_cnt = MAX_CNT + VELOCITY_BOOST_FEATURES;
+                    RCLCPP_WARN_SKIPFIRST_THROTTLE(rclcpp::get_logger("feature_tracker"), tracker_log_clock, 2000, "High velocity detected: %.2f m/s, boosting features to %d",
+                                      current_velocity, adaptive_max_cnt);
+                }
+            }
+        }
+        
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "temporal optical flow costs: %fms", t_o.toc());
     }
 
     for (auto &n : track_cnt)
@@ -130,32 +287,115 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
     if (PUB_THIS_FRAME)
     {
         rejectWithF();
-        ROS_DEBUG("set mask begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "set mask begins");
         TicToc t_m;
         setMask();
-        ROS_DEBUG("set mask costs %fms", t_m.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "set mask costs %fms", t_m.toc());
 
-        ROS_DEBUG("detect feature begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "detect feature begins");
         TicToc t_t;
-        int n_max_cnt = MAX_CNT - static_cast<int>(forw_pts.size());
+        int n_max_cnt = adaptive_max_cnt - static_cast<int>(forw_pts.size());
+        size_t detector_candidates = 0;
         if (n_max_cnt > 0)
         {
             if(mask.empty())
                 cout << "mask is empty " << endl;
-            if (mask.type() != CV_8UC1)
+            if(mask.type() != CV_8UC1)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
-            cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+
+            n_pts.clear();
+
+            if (USE_ADVANCED_FLOW)
+            {
+                // AGAST + grid selection (current enhanced method)
+                vector<cv::KeyPoint> keypoints;
+                cv::AGAST(forw_img, keypoints, FAST_THRESHOLD, true);
+                detector_candidates = keypoints.size();
+
+                int grid_size = MIN_DIST; 
+                int grid_cols = COL / grid_size + 1;
+                std::unordered_map<int, cv::KeyPoint> grid_best_features;
+
+                for (const auto& kp : keypoints) {
+                    const int x = cvRound(kp.pt.x);
+                    const int y = cvRound(kp.pt.y);
+                    if (!tracking_safety::pixelIsInside(x, y, mask.cols, mask.rows))
+                        continue;
+                    if (mask.at<uchar>(y, x) == 0) continue;
+                    int r = y / grid_size;
+                    int c = x / grid_size;
+                    int idx = r * grid_cols + c;
+                    auto it = grid_best_features.find(idx);
+                    if (it == grid_best_features.end() || kp.response > it->second.response) {
+                        grid_best_features[idx] = kp;
+                    }
+                }
+
+                vector<vector<cv::KeyPoint>> spatial_buckets;
+                int coarse_cols = 1, coarse_rows = 1;
+                for (const auto &grid_cell : grid_best_features)
+                {
+                    const auto &kp = grid_cell.second;
+                    const int bucket = spatialBucket(kp.pt, n_max_cnt, mask.cols, mask.rows,
+                                                     coarse_cols, coarse_rows);
+                    if (spatial_buckets.empty()) spatial_buckets.resize(coarse_cols * coarse_rows);
+                    spatial_buckets[bucket].push_back(kp);
+                }
+                for (auto &bucket : spatial_buckets)
+                    sort(bucket.begin(), bucket.end(), [](const auto &a, const auto &b) {
+                        if (a.response != b.response) return a.response > b.response;
+                        if (a.pt.y != b.pt.y) return a.pt.y < b.pt.y;
+                        return a.pt.x < b.pt.x;
+                    });
+                size_t bucket_depth = 0;
+                bool have_spatial_candidates = true;
+                while (have_spatial_candidates && static_cast<int>(n_pts.size()) < n_max_cnt)
+                {
+                    have_spatial_candidates = false;
+                    for (const auto &bucket : spatial_buckets)
+                    {
+                        if (bucket_depth >= bucket.size()) continue;
+                        have_spatial_candidates = true;
+                        n_pts.push_back(bucket[bucket_depth].pt);
+                        if (static_cast<int>(n_pts.size()) >= n_max_cnt) break;
+                    }
+                    ++bucket_depth;
+                }
+
+                if (!n_pts.empty())
+                {
+                    // Subpixel refine strongest points only
+                    int refine_count = std::min(50, (int)n_pts.size());
+                    if (refine_count > 0) {
+                        vector<cv::Point2f> pts_to_refine(n_pts.begin(), n_pts.begin() + refine_count);
+                        cv::TermCriteria criteria = cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 40, 0.001);
+                        cv::cornerSubPix(forw_img, pts_to_refine, cv::Size(5, 5), cv::Size(-1, -1), criteria);
+                        std::copy(pts_to_refine.begin(), pts_to_refine.end(), n_pts.begin());
+                    }
+                }
+            }
+            else
+            {
+                // Original VINS-Fusion style: Shi-Tomasi (goodFeaturesToTrack)
+                cv::goodFeaturesToTrack(
+                    forw_img, n_pts, n_max_cnt, GFTT_QUALITY_LEVEL, MIN_DIST, mask);
+                detector_candidates = n_pts.size();
+            }
         }
         else
+        {
             n_pts.clear();
-        ROS_DEBUG("detect feature costs: %fms", t_t.toc());
+        }
 
-        ROS_DEBUG("add feature begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "detect feature costs: %fms", t_t.toc());
+
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "add feature begins");
         TicToc t_a;
         addPoints();
-        ROS_DEBUG("selectFeature costs: %fms", t_a.toc());
+        updateAutoTuning(tracked_before, forw_pts.size() - n_pts.size(), detector_candidates);
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "selectFeature costs: %fms", t_a.toc());
     }
     prev_img = cur_img;
     prev_pts = cur_pts;
@@ -166,11 +406,56 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
     prev_time = cur_time;
 }
 
+void FeatureTracker::updateAutoTuning(size_t tracked_before, size_t tracked_after,
+                                      size_t detector_candidates)
+{
+    if (!ENABLE_FEATURE_AUTO_TUNING) return;
+    if (auto_tune_last_time < 0.0) auto_tune_last_time = cur_time;
+
+    const double retention = tracked_before > 0
+        ? static_cast<double>(tracked_after) / tracked_before : 1.0;
+    const double fill = static_cast<double>(forw_pts.size()) / std::max(1, adaptive_max_cnt);
+    auto_tune_retention_sum += std::clamp(retention, 0.0, 1.0);
+    auto_tune_fill_sum += std::clamp(fill, 0.0, 2.0);
+    auto_tune_candidate_sum += detector_candidates;
+    ++auto_tune_samples;
+
+    if (cur_time - auto_tune_last_time < FEATURE_AUTO_TUNE_INTERVAL) return;
+    const double mean_retention = auto_tune_retention_sum / std::max(1, auto_tune_samples);
+    const double mean_fill = auto_tune_fill_sum / std::max(1, auto_tune_samples);
+    const double mean_candidates = auto_tune_candidate_sum / std::max(1, auto_tune_samples);
+
+    if (USE_ADVANCED_FLOW)
+    {
+        if (mean_fill < 0.90)
+            FAST_THRESHOLD = std::max(FAST_THRESHOLD_MIN, FAST_THRESHOLD - 2);
+        else if (mean_fill > 0.98 && mean_candidates > adaptive_max_cnt * 2.0 && mean_retention < 0.75)
+            FAST_THRESHOLD = std::min(FAST_THRESHOLD_MAX, FAST_THRESHOLD + 2);
+    }
+    else
+    {
+        if (mean_fill < 0.90)
+            GFTT_QUALITY_LEVEL = std::max(GFTT_QUALITY_MIN, GFTT_QUALITY_LEVEL * 0.8);
+        else if (mean_fill > 0.98 && mean_retention < 0.75)
+            GFTT_QUALITY_LEVEL = std::min(GFTT_QUALITY_MAX, GFTT_QUALITY_LEVEL * 1.2);
+    }
+
+    if (FEATURE_AUTO_TUNE_LOG)
+        RCLCPP_INFO(rclcpp::get_logger("feature_tracker"),
+                    "[AUTO_TUNE] fill=%.1f%% retention=%.1f%% candidates=%.0f; fast_threshold=%d gftt_quality=%.5f",
+                    mean_fill * 100.0, mean_retention * 100.0, mean_candidates,
+                    FAST_THRESHOLD, GFTT_QUALITY_LEVEL);
+
+    auto_tune_last_time = cur_time;
+    auto_tune_retention_sum = auto_tune_fill_sum = auto_tune_candidate_sum = 0.0;
+    auto_tune_samples = 0;
+}
+
 void FeatureTracker::rejectWithF()
 {
     if (forw_pts.size() >= 8)
     {
-        ROS_DEBUG("FM ransac begins");
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "FM ransac begins");
         TicToc t_f;
         vector<cv::Point2f> un_cur_pts(cur_pts.size()), un_forw_pts(forw_pts.size());
         for (unsigned int i = 0; i < cur_pts.size(); i++)
@@ -189,6 +474,13 @@ void FeatureTracker::rejectWithF()
 
         vector<uchar> status;
         cv::findFundamentalMat(un_cur_pts, un_forw_pts, cv::FM_RANSAC, F_THRESHOLD, 0.99, status);
+        if (status.size() != forw_pts.size())
+        {
+            RCLCPP_WARN(rclcpp::get_logger("feature_tracker"),
+                        "[RANSAC] invalid status size=%zu for points=%zu; keeping current tracks",
+                        status.size(), forw_pts.size());
+            return;
+        }
         int size_a = cur_pts.size();
         reduceVector(prev_pts, status);
         reduceVector(cur_pts, status);
@@ -196,8 +488,8 @@ void FeatureTracker::rejectWithF()
         reduceVector(cur_un_pts, status);
         reduceVector(ids, status);
         reduceVector(track_cnt, status);
-        ROS_DEBUG("FM ransac: %d -> %lu: %f", size_a, forw_pts.size(), 1.0 * forw_pts.size() / size_a);
-        ROS_DEBUG("FM ransac costs: %fms", t_f.toc());
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "FM ransac: %d -> %lu: %f", size_a, forw_pts.size(), 1.0 * forw_pts.size() / size_a);
+        RCLCPP_DEBUG(rclcpp::get_logger("feature_tracker"), "FM ransac costs: %fms", t_f.toc());
     }
 }
 
@@ -215,7 +507,7 @@ bool FeatureTracker::updateID(unsigned int i)
 
 void FeatureTracker::readIntrinsicParameter(const string &calib_file)
 {
-    ROS_INFO("reading paramerter of camera %s", calib_file.c_str());
+    RCLCPP_INFO(rclcpp::get_logger("feature_tracker"), "reading paramerter of camera %s", calib_file.c_str());
     m_camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 
@@ -273,6 +565,14 @@ void FeatureTracker::undistortedPoints()
     if (!prev_un_pts_map.empty())
     {
         double dt = cur_time - prev_time;
+        if (!tracking_safety::timestampStepIsValid(prev_time, cur_time))
+        {
+            RCLCPP_WARN(
+                rclcpp::get_logger("feature_tracker"),
+                "[TRACKER] non-increasing image timestamps: previous=%.9f current=%.9f; velocities forced to zero",
+                prev_time, cur_time);
+            dt = 0.0;
+        }
         pts_velocity.clear();
         for (unsigned int i = 0; i < cur_un_pts.size(); i++)
         {
@@ -282,8 +582,8 @@ void FeatureTracker::undistortedPoints()
                 it = prev_un_pts_map.find(ids[i]);
                 if (it != prev_un_pts_map.end())
                 {
-                    double v_x = (cur_un_pts[i].x - it->second.x) / dt;
-                    double v_y = (cur_un_pts[i].y - it->second.y) / dt;
+                    double v_x = dt > 0.0 ? (cur_un_pts[i].x - it->second.x) / dt : 0.0;
+                    double v_y = dt > 0.0 ? (cur_un_pts[i].y - it->second.y) / dt : 0.0;
                     pts_velocity.push_back(cv::Point2f(v_x, v_y));
                 }
                 else

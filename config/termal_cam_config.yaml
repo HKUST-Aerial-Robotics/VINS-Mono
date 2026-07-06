@@ -1,0 +1,122 @@
+%YAML:1.0
+
+#common parameters
+imu_topic: "/mavros/imu/data"
+image_topic: "/thermal_cam/image_raw"
+image_input_format: "raw"
+output_path: "/tmp/vins_thermal_output/"
+
+#camera calibration 
+model_type: PINHOLE
+camera_name: termal_camera
+image_width: 384
+image_height: 288
+distortion_parameters:
+   k1: -0.41373247158445464
+   k2: 0.16183802909949693
+   p1: -0.0004056243478585802
+   p2: -0.0022150821156080806
+projection_parameters:
+   fx: 382.1655349116403
+   fy: 381.916045874893
+   cx: 177.59980485848902
+   cy: 137.17607935580716
+
+# Extrinsic parameter between IMU and Camera.
+# Полученно из калибровки Kalibr
+# 
+# Kalibr выдал T_ci (imu to cam):
+# [[-0.99853052 -0.04402128 -0.03160572]
+#  [ 0.03392303 -0.05292855 -0.99802194]
+#  [ 0.04226135 -0.99762753  0.0543441 ]]
+# 
+# Нам нужна T_ic (cam to imu) = T_ci^T
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+                        # 2  Don't know anything about extrinsic parameters. You don't need to give R,T. We will try to calibrate it. Do some rotation movement at beginning.
+#If you choose 0 or 1, you should write down the following matrix.
+#Rotation from camera frame to imu frame, imu^R_cam (T_ic)
+extrinsicRotation: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   # data: [-0.99853052, 0.03392303, 0.04226135,
+   #        -0.04402128, -0.05292855, -0.99762753,
+   #        -0.03160572, -0.99802194, 0.0543441]
+
+   data: [0., 0., 1.,
+          -1., 0., 0.,
+          0., -1., 0.]
+#Translation from camera frame to imu frame, imu^T_cam
+# Из калибровки Kalibr
+extrinsicTranslation: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [0.00, 0.000, 0.00]
+
+#feature traker paprameters
+max_cnt: 150            # max feature number (reduced for faster processing)
+min_dist: 15            # min distance between features (larger spacing = fewer features)
+freq: 20                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
+F_threshold: 2.0        # ransac threshold (thermal: more tolerance for noise)
+fast_threshold: 20      # threshold for AGAST corner detector (higher = fewer but stronger features)
+gftt_quality_level: 0.01 # Shi-Tomasi sensitivity used by the stable tracker
+use_bidirectional_flow: 0  # used only by advanced flow
+use_advanced_flow: 1        # stable LK + Shi-Tomasi; AGAST mode is experimental
+show_track: 1           # publish tracking image as topic
+equalize: 1             # if image is too dark or light, trun on equalize to find enough features
+fisheye: 0  
+
+#adaptive tracking for high-speed navigation
+enable_velocity_check: 0        # enable velocity-based adaptive feature tracking
+max_velocity_threshold: 2.5     # m/s - higher threshold to avoid unnecessary boosting
+velocity_boost_features: 50    # reduced boost for speed
+min_parallax_threshold: 3.0     # pixels - minimum parallax (thermal: higher due to lower resolution)
+
+#optimization parameters
+max_solver_time: 0.03   # max solver time (s) - reduced for real-time performance
+max_num_iterations: 15   # reduced iterations for speed
+keyframe_parallax: 10.0  # higher threshold = fewer keyframes = less computation
+
+
+#imu parameters       The more accurate parameters you provide, the better performance
+acc_n: 0.15          # accelerometer measurement noise standard deviation.
+gyr_n: 0.015         # gyroscope measurement noise standard deviation.
+acc_w: 0.003        # accelerometer bias random work noise standard deviation.
+gyr_w: 0.001       # gyroscope bias random work noise standard deviation.
+g_norm: 9.805       #
+
+#loop closure parameters
+loop_closure: 1                    # enable loop closure and pose graph
+load_previous_pose_graph: 0        # load and reuse previous pose graph
+fast_relocalization: 0             # useful in real-time and large project
+pose_graph_save_path: "/tmp/vins_thermal_output/pose_graph/" # save and load path
+
+#unsynchronization parameters
+estimate_td: 1                      # online estimate time offset between camera and IMU
+estimate_td_period: 7.0             # seconds between td optimization bursts
+td: -0.1                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#rolling shutter parameters
+rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutter camera (отключено - улучшает результаты)
+rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per frame (from data sheet)
+
+#visualization parameters
+save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
+visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
+visualize_camera_size: 0.4      # size of camera marker in RVIZ
+
+#zero velocity update (ZUPT) parameters
+enable_zupt: 0                  # enable zero velocity update to prevent drift when stationary
+zupt_vel_threshold: 0.15        # velocity threshold (thermal: more sensitive to catch stationary state)
+zupt_acc_threshold: 0.25         # acceleration deviation threshold (thermal: tighter threshold)
+
+#imu filtering parameters
+enable_imu_acc_filter: 0        # enable accelerometer outlier rejection and smoothing
+imu_acc_max_change: 3.0        # maximum allowed acceleration change (thermal: slightly more tolerance)
+imu_acc_filter_alpha: 0.75       # exponential filter coefficient (thermal: slightly less smoothing for responsiveness)
+
+#altitude scale correction parameters
+enable_altitude_scale_correction: 0  # bag has no /mavros/local_position/velocity_local topic
+altitude_correction_factor: 0.1      # correction strength (0.0-1.0, lower = gentler correction)
