@@ -215,41 +215,41 @@ The mask must have the same width and height as the configured camera. White
 pixels enable feature detection and black pixels exclude an area. This mask
 does not select or replace the camera projection model.
 
-## Параметры feature tracker
+## Feature tracker parameters
 
-Эти параметры задаются в конфигурационном YAML камеры. Они управляют
-детектированием углов и их сопровождением оптическим потоком. Это не параметры
-BRIEF-дескриптора: BRIEF используется отдельно модулем `pose_graph` для loop
+These parameters are set in the camera YAML configuration file. They control
+corner detection and optical-flow tracking. These are not BRIEF descriptor
+parameters: BRIEF is used separately by the `pose_graph` module for loop
 closure.
 
-Диапазоны ниже являются практическими начальными диапазонами для изображения
-1280×1024 с частотой около 30 FPS, а не жёсткими ограничениями кода. Для другой
-разрешающей способности `max_cnt` разумно масштабировать примерно по площади
-кадра, а `min_dist` — по линейному размеру. Окончательный выбор следует делать
-по загрузке CPU и строкам `[AUTO_TUNE]`: желательно иметь `fill` не ниже 90% и
-стабильный `retention` выше 70–80% на участках без сильного размытия.
+The ranges below are practical starting ranges for a 1280×1024 image at
+~30 FPS, not hard limits enforced by code. For other resolutions, `max_cnt`
+should scale roughly with frame area and `min_dist` with linear size. The final
+choice should be guided by CPU load and `[AUTO_TUNE]` output: aim for `fill`
+above 90% and stable `retention` above 70–80% on segments without heavy motion
+blur.
 
-| Параметр | Назначение и влияние | Практический диапазон / старт |
+| Parameter | Purpose and effect | Practical range / starting point |
 |---|---|---|
-| `max_cnt` | Целевое максимальное число сопровождаемых точек в кадре. Уже существующие треки сохраняются с приоритетом и равномерно распределяются по изображению, свободные места заполняются новыми точками. Большее значение обычно повышает устойчивость, но увеличивает нагрузку на CPU, RANSAC и оптимизатор. Это верхняя граница, а не гарантия фактического количества точек. | Для 1280×1024: `150–800`; начинать с `250–400`. Выше `500–600` имеет смысл только при достаточной производительности и текстуре. |
-| `min_dist` | Минимальное пространственное расстояние между выбранными точками, в пикселях. Большое значение даёт более редкое и равномерное покрытие; слишком большое не позволит набрать `max_cnt`. Малое значение позволяет набрать больше точек, но повышает вероятность кластеров на одной текстурной области. | `8–40 px`; старт `15–25 px`. Для `max_cnt: 250` допустимы `10–25 px`. |
-| `freq` | Целевая частота публикации и пополнения набора признаков, в Гц. Входные изображения продолжают использоваться оптическим потоком, но RANSAC, детектирование новых точек и публикация выполняются только для выбранных кадров. `0` в конфиге заменяется значением `100`. | `10–30 Hz`; старт `20–25 Hz`. Обычно не задавать выше реальной частоты камеры. |
-| `F_threshold` | Порог ошибки RANSAC при проверке фундаментальной матрицей, в пикселях виртуального недисторсированного изображения. Меньшее значение строже удаляет выбросы, но при шуме и размытии может удалить хорошие треки. Большее сохраняет больше точек, включая потенциальные выбросы. | `0.5–2.0 px`; старт `1.0 px`. Для резкой картинки пробовать `0.7–1.0`, для шумной/размытой — `1.0–1.5`. |
-| `gftt_quality_level` | Относительный порог качества Shi–Tomasi `goodFeaturesToTrack`, математически допустимый диапазон `(0, 1]`. Используется для новых точек только при `use_advanced_flow: 0`. Меньше — больше слабых углов; больше — меньше, но обычно качественнее. | Рабочий `0.001–0.03`; старт `0.005–0.01`. Значения выше `0.05` часто дают слишком мало точек. |
-| `fast_threshold` | Порог AGAST для новых точек. Используется только при `use_advanced_flow: 1`. Меньше — больше кандидатов, включая слабые и шумные; больше — меньше кандидатов с более выраженным контрастом. | `7–40`; старт `15–20`. Для слабоконтрастного/теплового изображения часто `7–15`, для шумного — `20–30`. |
-| `enable_feature_auto_tuning` | Включает (`1`) периодическую корректировку порога активного детектора. Для AGAST меняется `fast_threshold`, для Shi–Tomasi — `gftt_quality_level`. `max_cnt`, `min_dist`, `F_threshold` и параметры оптического потока автоматически не меняются. | Только `0` или `1`; начинать с `0` для ручной базовой настройки, затем проверить `1` на полном наборе данных. |
-| `feature_auto_tune_interval` | Интервал автоподбора в секундах; минимально допустимое значение — `0.5`. Статистика заполнения и сохранения треков накапливается между обновлениями. Действует только при включённом автоподборе. | `2–30 s`; старт `5–10 s`. Меньше `2 s` может вызывать лишние колебания порога. |
-| `feature_auto_tune_log` | При значении `1` выводит после каждого интервала строку `[AUTO_TUNE]` в ROS-консоль и лог. В ней указаны заполнение (`fill`), доля сохранившихся треков (`retention`), число кандидатов и текущие пороги. Не включает сам автоподбор. | Только `0` или `1`; рекомендуемое значение при настройке — `1`. |
-| `fast_threshold_min`, `fast_threshold_max` | Нижняя и верхняя границы, между которыми автоподбор может менять порог AGAST. При выключенном автоподборе границы не изменяют `fast_threshold`, кроме начального ограничения значения допустимым диапазоном при чтении конфигурации. | Общий безопасный диапазон `3–60`; стартовая пара `7` и `40–45`. Разница между границами желательно не менее `10`. |
-| `gftt_quality_min`, `gftt_quality_max` | Нижняя и верхняя границы автоматического изменения `gftt_quality_level` для Shi–Tomasi. При `use_advanced_flow: 1` этот диапазон не участвует в выборе новых точек. | Минимум `0.0005–0.005`, максимум `0.02–0.10`; стартовая пара `0.001` и `0.03–0.05`. |
-| `use_bidirectional_flow` | При `1` после прямого LK-потока выполняет обратный поток и удаляет точки с плохой согласованностью. Повышает надёжность, но почти удваивает стоимость оптического потока. Реализован только в ветке `use_advanced_flow: 1`. | Только `0` или `1`; `1` для качества, `0` при нехватке CPU. |
-| `use_advanced_flow` | Выбирает режим трекера. `1`: AGAST, пространственный отбор, уточнение части точек до субпиксельной точности и расширенные настройки LK. `0`: Shi–Tomasi и базовый LK. Этот параметр одновременно определяет, какой порог регулирует автоподбор. | Только `0` или `1`; для текущего равномерного AGAST-отбора использовать `1`. |
-| `show_track` | При `1` публикует изображение с визуализацией треков в `/feature_tracker/feature_img`. Не отключает публикацию самих признаков в `/feature_tracker/feature`. Визуализация добавляет расход CPU и пропускной способности ROS. | Только `0` или `1`; `1` при настройке, `0` для минимальной нагрузки. |
-| `equalize` | При `1` применяет CLAHE к каждому серому кадру перед сопровождением и детектированием. Помогает при слабом или неравномерном освещении, но может усилить шум и добавляет вычислительную нагрузку. | Только `0` или `1`; для тёмной/тепловой камеры начать с `1`, при хорошем стабильном освещении сравнить с `0`. |
-| `fisheye` | При `1` включает применение `fisheye_mask` к выбору точек. Параметр не выбирает модель камеры и не включает коррекцию fisheye-дисторсии; модель задаётся отдельно через `model_type`. | Только `0` или `1`; `1`, если маска действительно нужна и соответствует кадру. |
-| `fisheye_mask` | Путь к одноканальной маске размера изображения. Белые пиксели разрешают признаки, чёрные запрещают. Относительный путь разрешается относительно каталога пакета `vins_bringup`; абсолютный используется напрямую. | Не числовой параметр. Размер обязан совпадать с `image_width × image_height`; белая полезная область обычно должна занимать достаточно кадра для набора `max_cnt`. |
+| `max_cnt` | Target maximum number of tracked points per frame. Existing tracks are kept with priority and distributed evenly across the image; free slots are filled with new points. A higher value generally improves robustness but increases CPU load, RANSAC cost, and optimizer load. This is an upper bound, not a guarantee of the actual point count. | For 1280×1024: `150–800`; start at `250–400`. Above `500–600` only makes sense with sufficient CPU and texture. |
+| `min_dist` | Minimum spatial distance between selected points, in pixels. A larger value gives sparser, more uniform coverage; too large prevents reaching `max_cnt`. A small value allows more points but increases the risk of clusters on a single textured region. | `8–40 px`; start at `15–25 px`. For `max_cnt: 250`, `10–25 px` is acceptable. |
+| `freq` | Target rate for feature set publication and replenishment, in Hz. Incoming images are still used for optical flow, but RANSAC, new-point detection, and publication run only on selected frames. `0` in the config is replaced with `100`. | `10–30 Hz`; start at `20–25 Hz`. Generally do not set above the actual camera rate. |
+| `F_threshold` | RANSAC error threshold for the fundamental-matrix check, in pixels on the virtual undistorted image. A lower value rejects outliers more aggressively but may drop good tracks under noise or blur. A higher value keeps more points, including potential outliers. | `0.5–2.0 px`; start at `1.0 px`. For sharp images try `0.7–1.0`; for noisy/blurry ones `1.0–1.5`. |
+| `gftt_quality_level` | Relative quality threshold for Shi–Tomasi `goodFeaturesToTrack`; mathematically valid range `(0, 1]`. Used for new points only when `use_advanced_flow: 0`. Lower = more weak corners; higher = fewer but usually better. | Working range `0.001–0.03`; start at `0.005–0.01`. Values above `0.05` often yield too few points. |
+| `fast_threshold` | AGAST threshold for new points. Used only when `use_advanced_flow: 1`. Lower = more candidates including weak and noisy ones; higher = fewer candidates with stronger contrast. | `7–40`; start at `15–20`. For low-contrast/thermal images often `7–15`; for noisy ones `20–30`. |
+| `enable_feature_auto_tuning` | Enables (`1`) periodic adjustment of the active detector threshold. For AGAST it adjusts `fast_threshold`; for Shi–Tomasi it adjusts `gftt_quality_level`. `max_cnt`, `min_dist`, `F_threshold`, and optical-flow parameters are not changed automatically. | `0` or `1` only; start with `0` for manual baseline tuning, then try `1` on the full dataset. |
+| `feature_auto_tune_interval` | Auto-tune interval in seconds; minimum allowed value is `0.5`. Fill and retention statistics are accumulated between updates. Active only when auto-tuning is enabled. | `2–30 s`; start at `5–10 s`. Below `2 s` may cause unnecessary threshold oscillation. |
+| `feature_auto_tune_log` | When `1`, prints an `[AUTO_TUNE]` line to the ROS console and log after each interval. It reports fill, retention, candidate count, and current thresholds. Does not enable auto-tuning itself. | `0` or `1` only; recommended `1` during tuning. |
+| `fast_threshold_min`, `fast_threshold_max` | Lower and upper bounds within which auto-tuning may change the AGAST threshold. When auto-tuning is off, the bounds do not modify `fast_threshold` except for initial clamping at config load. | General safe range `3–60`; starting pair `7` and `40–45`. The gap between bounds should be at least `10`. |
+| `gftt_quality_min`, `gftt_quality_max` | Lower and upper bounds for automatic adjustment of `gftt_quality_level` (Shi–Tomasi). When `use_advanced_flow: 1`, this range is not used for new-point selection. | Minimum `0.0005–0.005`, maximum `0.02–0.10`; starting pair `0.001` and `0.03–0.05`. |
+| `use_bidirectional_flow` | When `1`, runs a reverse LK pass after the forward flow and rejects points with poor forward-backward consistency. Improves robustness but nearly doubles optical-flow cost. Only implemented in the `use_advanced_flow: 1` branch. | `0` or `1` only; `1` for quality, `0` when CPU is limited. |
+| `use_advanced_flow` | Selects the tracker mode. `1`: AGAST, spatial selection, subpixel refinement of a subset, and extended LK settings. `0`: Shi–Tomasi and basic LK. This parameter also determines which threshold auto-tuning adjusts. | `0` or `1` only; use `1` for the current uniform AGAST-based selection. |
+| `show_track` | When `1`, publishes an image with track visualization on `/feature_tracker/feature_img`. Does not disable publication of the feature points themselves on `/feature_tracker/feature`. Visualization adds CPU and ROS bandwidth cost. | `0` or `1` only; `1` during tuning, `0` for minimal overhead. |
+| `equalize` | When `1`, applies CLAHE to each grayscale frame before tracking and detection. Helps with low or uneven lighting but may amplify noise and adds computational cost. | `0` or `1` only; for dark/thermal cameras start with `1`; with good stable lighting compare against `0`. |
+| `fisheye` | When `1`, enables applying `fisheye_mask` to point selection. This parameter does not select the camera model or enable fisheye distortion correction; the model is set separately via `model_type`. | `0` or `1` only; `1` if a mask is actually needed and matches the frame. |
+| `fisheye_mask` | Path to a single-channel mask matching the image size. White pixels allow features, black pixels exclude regions. Relative paths are resolved against the `vins_bringup` package share directory; absolute paths are used as-is. | Non-numeric. Size must match `image_width × image_height`; the white usable area should be large enough to reach `max_cnt`. |
 
-Пример ручного режима AGAST:
+Example manual AGAST configuration:
 
 ```yaml
 max_cnt: 250
@@ -259,24 +259,158 @@ use_advanced_flow: 1
 enable_feature_auto_tuning: 0
 ```
 
-В этом режиме `gftt_quality_level`, `gftt_quality_min` и `gftt_quality_max` не
-влияют на детектирование новых точек. `feature_auto_tune_interval` и
-`feature_auto_tune_log` начнут действовать только после установки
+In this mode `gftt_quality_level`, `gftt_quality_min`, and `gftt_quality_max`
+do not affect new-point detection. `feature_auto_tune_interval` and
+`feature_auto_tune_log` take effect only after setting
 `enable_feature_auto_tuning: 1`.
 
-### Изменение параметров во время работы
+### `use_advanced_flow: 1` pipeline (AGAST + LK)
 
-Все параметры из таблицы объявлены как динамические ROS 2 parameters. После
-запуска `feature_tracker` откройте интерфейс:
+When `use_advanced_flow: 1` is set, the feature tracker uses an enhanced
+processing pipeline instead of the basic Shi-Tomasi path. The full per-frame
+pipeline is described below.
+
+```mermaid
+flowchart TD
+    A["Input: new frame<br/>+ timestamp"] --> B{"EQUALIZE?"}
+    B -->|Yes| C["CLAHE<br/>clipLimit=3.0, grid=8x8"]
+    B -->|No| D["Use as-is"]
+    C --> E["forw_img = frame"]
+    D --> E
+
+    E --> F{"Existing tracks<br/>from prev frame?"}
+    F -->|No| G["Skip LK"]
+    F -->|Yes| H["LK optical flow<br/>cur_img → forw_img<br/>window 21x21, pyr=3<br/>TermCriteria COUNT+EPS 40/0.001"]
+
+    H --> I{"use_bidirectional_flow?"}
+    I -->|Yes| J["Reverse LK<br/>forw_img → cur_img<br/>reject if dist² > 0.5 px²"]
+    I -->|No| K["Skip"]
+    J --> L["Border check<br/>reject edge points"]
+    K --> L
+
+    L --> M["reduceVector<br/>remove rejected"]
+    M --> N{"ENABLE_VELOCITY_CHECK?"}
+    N -->|Yes| O["Estimate velocity<br/>from optical flow"]
+    O --> P{"vel > threshold?"}
+    P -->|Yes| Q["adaptive_max_cnt += boost"]
+    P -->|No| R["adaptive_max_cnt = MAX_CNT"]
+    N -->|No| R
+
+    R --> S["track_cnt++ for all"]
+    S --> T{"PUB_THIS_FRAME?<br/>freq throttle"}
+    T -->|No| Z["End of frame"]
+    T -->|Yes| U["rejectWithF()<br/>RANSAC F-matrix<br/>F_THRESHOLD, conf=0.99<br/>on undistorted points"]
+
+    U --> V["setMask()<br/>fisheye_mask + MIN_DIST<br/>spatial bucketing<br/>round-robin selection"]
+    V --> W["Detect new points"]
+    W --> X["AGAST<br/>threshold = fast_threshold"]
+    X --> Y["Grid filter<br/>cells MIN_DIST x MIN_DIST<br/>strongest response per cell"]
+    Y --> AA["Spatial bucketing<br/>round-robin across buckets<br/>until n_max_cnt filled"]
+    AA --> BB["cornerSubPix<br/>top-50 points<br/>window 5x5, EPS+COUNT 40/0.001"]
+    BB --> CC["addPoints()<br/>new points → forw_pts"]
+    CC --> DD["updateAutoTuning()<br/>fill/retention stats<br/>adjust fast_threshold"]
+    DD --> EE["undistortedPoints()<br/>liftProjective → normalized<br/>compute pts_velocity"]
+    EE --> Z
+```
+
+#### Step-by-step description
+
+1. **Preprocessing** — optional CLAHE equalization (`equalize: 1`) for dark
+   or unevenly lit scenes. Applied before tracking and detection.
+
+2. **LK optical flow** — `cv::calcOpticalFlowPyrLK` tracks points from the
+   previous frame into the current one. Parameters:
+   - Window: 21×21 pixels
+   - Pyramid levels: 3
+   - Termination criteria: 40 iterations or ε = 0.001
+
+3. **Bidirectional check** (optional, `use_bidirectional_flow: 1`) — reverse
+   LK flow from the current frame back to the previous one. A point is rejected
+   if the squared distance between the original and reverse position exceeds
+   0.5 px² (≈ 0.7 px). Doubles LK cost but sharply reduces drift on repetitive
+   textures.
+
+4. **Border check** — reject points that moved outside the image border
+   (1 px margin).
+
+5. **Velocity-adaptive boost** (optional, `enable_velocity_check: 1`) —
+   estimates velocity from average optical flow. When `vel >
+   max_velocity_threshold`, `velocity_boost_features` extra points are added.
+
+6. **RANSAC F-matrix rejection** (`rejectWithF`) — on frames selected for
+   publication (by `freq`), points are checked via the fundamental matrix.
+   Uses undistorted normalized coordinates (via the camera model's
+   `liftProjective`). Threshold `F_threshold`, confidence 0.99.
+
+7. **setMask** — builds a mask for new-point selection:
+   - Base: `fisheye_mask` (if `fisheye: 1`) or all-white
+   - Existing tracks are marked with circles of radius `MIN_DIST` (prevents
+     clustering)
+   - Spatial bucketing: round-robin across buckets for uniform coverage
+
+8. **AGAST detection** — `cv::AGAST` with threshold `fast_threshold`. Returns
+   keypoints with response values.
+
+9. **Grid filter** — the image is divided into cells of `MIN_DIST × MIN_DIST`.
+   Only the keypoint with the highest response is kept per cell. This provides
+   spatial distribution without a separate NMS step.
+
+10. **Spatial bucketing** — round-robin across coarse buckets (as in setMask)
+    until `n_max_cnt = adaptive_max_cnt - tracked_count` is filled.
+
+11. **Subpixel refinement** — `cv::cornerSubPix` for the top-50 points
+    (window 5×5, criteria EPS+COUNT 40/0.001). Improves accuracy to subpixel
+    level.
+
+12. **Auto-tuning** (`enable_feature_auto_tuning: 1`) — accumulates `fill`
+    (fill ratio) and `retention` (fraction of tracks kept) statistics over the
+    `feature_auto_tune_interval`. Adjusts `fast_threshold`:
+    - `fill < 0.90` → threshold −2 (more points)
+    - `fill > 0.98 && retention < 0.75` → threshold +2 (fewer but better)
+
+13. **Undistortion** — the camera model's `liftProjective` converts pixel
+    coordinates to normalized ones (x/z, y/z). Point velocities
+    (`pts_velocity`) are computed for the estimator.
+
+#### Parameters affecting the pipeline
+
+| Parameter | Stage | Effect |
+|---|---|---|
+| `equalize` | 1. Preprocessing | CLAHE for dark scenes |
+| `use_bidirectional_flow` | 3. LK | Reject inconsistent tracks |
+| `F_threshold` | 6. RANSAC | Geometric outlier rejection strictness |
+| `max_cnt` | 7-10. Detection | Target point count |
+| `min_dist` | 7-9. Mask/Grid | Spatial distribution |
+| `fast_threshold` | 8. AGAST | Corner detector threshold |
+| `enable_feature_auto_tuning` | 12. Auto-tune | Threshold adaptation |
+| `fisheye` / `fisheye_mask` | 7. setMask | Restrict working area |
+| `freq` | 6. RANSAC | Publication and replenishment rate |
+
+#### Comparison with `use_advanced_flow: 0`
+
+| Property | `use_advanced_flow: 1` | `use_advanced_flow: 0` |
+|---|---|---|
+| Detector | AGAST + grid + subpixel | Shi-Tomasi (`goodFeaturesToTrack`) |
+| LK parameters | Stricter TermCriteria | Basic |
+| Bidirectional | Optional | Not available |
+| Subpixel refine | Yes (top-50) | No |
+| Spatial bucketing | Round-robin across buckets | No |
+| Auto-tune | Adjusts `fast_threshold` | Adjusts `gftt_quality_level` |
+| CPU cost | Higher (AGAST + refine) | Lower |
+
+### Changing parameters at runtime
+
+All parameters in the table are declared as dynamic ROS 2 parameters. After
+launching `feature_tracker`, open the GUI:
 
 ```bash
 source ~/ros2_ws/install/setup.bash
 rqt_reconfigure
 ```
 
-В дереве выберите `/feature_tracker`. Числовые поля имеют допустимые границы,
-а изменения применяются без перезапуска узла. То же самое можно выполнить из
-терминала:
+Select `/feature_tracker` in the tree. Numeric fields have valid bounds, and
+changes are applied without restarting the node. The same can be done from the
+terminal:
 
 ```bash
 ros2 param set /feature_tracker max_cnt 350
@@ -287,20 +421,20 @@ ros2 param get /feature_tracker fast_threshold
 ros2 param dump /feature_tracker
 ```
 
-Связанные границы меняйте в безопасном порядке, иначе промежуточная комбинация
-будет отклонена. Например, при расширении диапазона сначала увеличьте максимум,
-затем уменьшите минимум:
+Change related bounds in a safe order, otherwise the intermediate combination
+will be rejected. For example, when widening the range, increase the maximum
+first, then decrease the minimum:
 
 ```bash
 ros2 param set /feature_tracker fast_threshold_max 45
 ros2 param set /feature_tracker fast_threshold_min 7
 ```
 
-Узел проверяет `*_min <= *_max`, размер `fisheye_mask` и остальные допустимые
-диапазоны. Принятое изменение отмечается строкой `[RUNTIME_CONFIG]` в логе.
-Runtime-изменения не записываются обратно в конфигурационный YAML и будут
-потеряны после перезапуска. Чтобы сохранить найденные значения, перенесите их
-в YAML вручную или сохраните вывод `ros2 param dump`.
+The node validates `*_min <= *_max`, `fisheye_mask` size, and other valid
+ranges. Accepted changes are logged with a `[RUNTIME_CONFIG]` line. Runtime
+changes are not written back to the YAML config and will be lost on restart.
+To persist tuned values, copy them into the YAML manually or save the output of
+`ros2 param dump`.
 
 ## Calibration notes
 
