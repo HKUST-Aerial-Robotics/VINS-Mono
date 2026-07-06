@@ -9,6 +9,7 @@
 #include "cv_bridge/cv_bridge.hpp"
 #include <opencv2/opencv.hpp>
 #include "geometry_msgs/msg/twist_stamped.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/point_cloud.hpp"
 #include "std_msgs/msg/bool.hpp"
@@ -60,6 +61,18 @@ double mavlink_altitude = 0.0;
 double mavlink_vz = 0.0;
 bool mavlink_odom_received = false;
 std::mutex m_odom;
+
+// Lidar odometry initialization & scale correction
+struct LidarOdomSample
+{
+    double time;
+    Eigen::Vector3d pos;
+    Eigen::Matrix3d rot;
+};
+std::queue<LidarOdomSample> lidar_odom_buf;
+std::mutex m_lidar;
+bool lidar_odom_received = false;
+double lidar_first_recv_time = -1.0;
 
 static inline double stamp_to_sec(const builtin_interfaces::msg::Time &stamp)
 {
@@ -293,6 +306,69 @@ void mavlink_velocity_callback(const geometry_msgs::msg::TwistStamped::ConstShar
     m_odom.unlock();
 }
 
+void lidar_odom_callback(const nav_msgs::msg::Odometry::ConstSharedPtr &odom_msg)
+{
+    LidarOdomSample sample;
+    sample.time = stamp_to_sec(odom_msg->header.stamp);
+    sample.pos = Eigen::Vector3d(
+        odom_msg->pose.pose.position.x,
+        odom_msg->pose.pose.position.y,
+        odom_msg->pose.pose.position.z);
+    Eigen::Quaterniond q(
+        odom_msg->pose.pose.orientation.w,
+        odom_msg->pose.pose.orientation.x,
+        odom_msg->pose.pose.orientation.y,
+        odom_msg->pose.pose.orientation.z);
+    sample.rot = q.toRotationMatrix();
+
+    m_lidar.lock();
+    lidar_odom_buf.push(sample);
+    // Keep buffer bounded — store at most 200 samples (~20 s at 10 Hz)
+    while (lidar_odom_buf.size() > 200)
+        lidar_odom_buf.pop();
+    if (lidar_first_recv_time < 0)
+        lidar_first_recv_time = sample.time;
+    lidar_odom_received = true;
+    m_lidar.unlock();
+}
+
+// Find the lidar odometry sample closest to the given timestamp.
+// Returns true if a sample within LIDAR_SYNC_MAX_DT was found and removes older samples.
+bool getLidarOdomAtTime(double query_time, LidarOdomSample &out)
+{
+    std::lock_guard<std::mutex> lk(m_lidar);
+    if (lidar_odom_buf.empty())
+        return false;
+
+    // Drop samples that are older than the query time minus the sync window
+    while (!lidar_odom_buf.empty() && lidar_odom_buf.front().time < query_time - LIDAR_SYNC_MAX_DT)
+        lidar_odom_buf.pop();
+
+    if (lidar_odom_buf.empty())
+        return false;
+
+    // Find the closest sample in the remaining buffer
+    LidarOdomSample best = lidar_odom_buf.front();
+    double best_dt = std::abs(best.time - query_time);
+    std::queue<LidarOdomSample> tmp = lidar_odom_buf;
+    while (!tmp.empty())
+    {
+        double dt = std::abs(tmp.front().time - query_time);
+        if (dt < best_dt)
+        {
+            best = tmp.front();
+            best_dt = dt;
+        }
+        tmp.pop();
+    }
+
+    if (best_dt > LIDAR_SYNC_MAX_DT)
+        return false;
+
+    out = best;
+    return true;
+}
+
 // thread: visual-inertial odometry
 void process()
 {
@@ -436,10 +512,33 @@ void process()
             }
             m_odom.unlock();
 
+            // Lidar odometry: initial pose/scale alignment + ongoing scale correction
+            if (ENABLE_LIDAR_INIT && lidar_odom_received && estimator.solver_flag == Estimator::NON_LINEAR)
+            {
+                double vins_time = stamp_to_sec(img_msg->header.stamp);
+                LidarOdomSample lidar_sample;
+                if (getLidarOdomAtTime(vins_time, lidar_sample))
+                {
+                    if (!estimator.getLidarInitStatus())
+                    {
+                        // One-time initial pose & coordinate alignment
+                        estimator.initializeWithLidarOdom(
+                            lidar_sample.pos, lidar_sample.rot,
+                            lidar_sample.time, vins_time);
+                    }
+                    else
+                    {
+                        // Ongoing gentle scale correction against lidar reference
+                        estimator.correctScaleWithLidarOdom(
+                            lidar_sample.pos, lidar_sample.time, vins_time);
+                    }
+                }
+            }
+
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
             std_msgs::msg::Header header = img_msg->header;
-            header.frame_id = "world";
+            header.frame_id = WORLD_FRAME_ID;
 
             pubOdometry(estimator, header);
             pubKeyPoses(estimator, header);
@@ -488,8 +587,10 @@ int main(int argc, char **argv)
         "/pose_graph/match_points", 2000, relocalization_callback);
     auto sub_mavlink_vel = node->create_subscription<geometry_msgs::msg::TwistStamped>(
         "/mavros/local_position/velocity_local", 100, mavlink_velocity_callback);
-    RCLCPP_INFO(node->get_logger(), "[START] subscribed IMU=%s | feature=/feature_tracker/feature | relo=/pose_graph/match_points",
-                IMU_TOPIC.c_str());
+    auto sub_lidar_odom = node->create_subscription<nav_msgs::msg::Odometry>(
+        LIDAR_ODOM_TOPIC, rclcpp::QoS(200).best_effort(), lidar_odom_callback);
+    RCLCPP_INFO(node->get_logger(), "[START] subscribed IMU=%s | feature=/feature_tracker/feature | relo=/pose_graph/match_points | lidar=%s",
+                IMU_TOPIC.c_str(), LIDAR_ODOM_TOPIC.c_str());
 
     std::thread measurement_process{process};
     rclcpp::spin(node);

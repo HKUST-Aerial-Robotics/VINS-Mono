@@ -42,6 +42,20 @@ extern int ENABLE_ZUPT;
 extern double ZUPT_VEL_THRESHOLD;
 extern double ZUPT_ACC_THRESHOLD;
 
+// Altitude scale correction (MAVLink)
+extern int ENABLE_ALTITUDE_SCALE_CORRECTION;
+extern double ALTITUDE_CORRECTION_FACTOR;
+
+// Lidar odometry initialization & scale correction
+extern int ENABLE_LIDAR_INIT;
+extern std::string LIDAR_ODOM_TOPIC;
+extern double LIDAR_INIT_TIMEOUT;          // seconds to wait for lidar odom at startup
+extern double LIDAR_INIT_POS_THRESHOLD;    // min displacement (m) before using lidar for scale init
+extern double LIDAR_SCALE_CORRECTION_FACTOR; // gentle ongoing scale correction strength
+extern double LIDAR_SYNC_MAX_DT;           // max time diff (s) for lidar-vins sync
+
+extern std::string WORLD_FRAME_ID;        // TF/frame_id for published odometry and visualization
+
 void readParameters(rclcpp::Node::SharedPtr n);
 
 enum SIZE_PARAMETERIZATION

@@ -84,6 +84,16 @@ void Estimator::clearState()
     drift_correct_t = Vector3d::Zero();
 
     last_td_opt_time = -1.0;
+
+    // Lidar odometry initialization state
+    lidar_init_done = false;
+    lidar_init_pose_applied = false;
+    lidar_init_pos = Vector3d::Zero();
+    lidar_init_rot = Matrix3d::Identity();
+    lidar_init_time = -1.0;
+    vins_init_pos = Vector3d::Zero();
+    vins_init_rot = Matrix3d::Identity();
+    vins_init_time = -1.0;
 }
 
 void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
@@ -1224,4 +1234,106 @@ void Estimator::correctScaleWithAltitude(double mavlink_altitude, double mavlink
     f_manager.scaleDepth(correction);
     
     RCLCPP_DEBUG(rclcpp::get_logger("vins_estimator"), "Corrected VINS altitude: %.2f m, velocity: %.2f m/s", Ps[WINDOW_SIZE].z(), Vs[WINDOW_SIZE].z());
+}
+
+void Estimator::initializeWithLidarOdom(const Vector3d &lidar_pos, const Matrix3d &lidar_rot,
+                                          double lidar_time, double vins_time)
+{
+    // Apply initial pose and scale from lidar odometry once, right after VINS initialization completes.
+    // This aligns the VINS coordinate frame with the lidar odometry frame so both outputs match.
+    if (solver_flag != NON_LINEAR)
+        return;
+
+    if (lidar_init_done)
+        return;
+
+    // Record the lidar and VINS poses at the moment of initialization
+    lidar_init_pos = lidar_pos;
+    lidar_init_rot = lidar_rot;
+    lidar_init_time = lidar_time;
+    vins_init_pos = Ps[WINDOW_SIZE];
+    vins_init_rot = Rs[WINDOW_SIZE];
+    vins_init_time = vins_time;
+
+    // Compute the rigid transform that maps VINS frame to lidar frame:
+    //   P_lidar = R_align * P_vins + t_align
+    // We set R_align so that the VINS yaw is corrected to match the lidar yaw,
+    // and t_align so that the current VINS position maps to the lidar position.
+    Matrix3d R_align = lidar_init_rot * vins_init_rot.transpose();
+    Vector3d t_align = lidar_init_pos - R_align * vins_init_pos;
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_INIT] Aligning VINS to lidar odom: t=[%.3f, %.3f, %.3f], yaw_diff=%.1f deg",
+        t_align.x(), t_align.y(), t_align.z(),
+        Utility::R2ypr(R_align).x() * 180.0 / M_PI);
+
+    // Apply the alignment transform to all states in the sliding window
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+    {
+        Ps[i] = R_align * Ps[i] + t_align;
+        Rs[i] = R_align * Rs[i];
+        Vs[i] = R_align * Vs[i];
+    }
+
+    lidar_init_done = true;
+    lidar_init_pose_applied = true;
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_INIT] Initial pose set from lidar odom: pos=[%.3f, %.3f, %.3f]",
+        Ps[WINDOW_SIZE].x(), Ps[WINDOW_SIZE].y(), Ps[WINDOW_SIZE].z());
+}
+
+void Estimator::correctScaleWithLidarOdom(const Vector3d &lidar_pos, double lidar_time, double vins_time)
+{
+    // Ongoing gentle scale correction using lidar odometry as a drift-free reference.
+    // Compares the displacement since initialization between VINS and lidar to estimate scale drift.
+    if (solver_flag != NON_LINEAR)
+        return;
+    if (!lidar_init_done)
+        return;
+
+    // Displacement since initialization
+    Vector3d vins_disp = Ps[WINDOW_SIZE] - vins_init_pos;
+    Vector3d lidar_disp = lidar_pos - lidar_init_pos;
+
+    double vins_norm = vins_disp.norm();
+    double lidar_norm = lidar_disp.norm();
+
+    // Need sufficient motion to estimate scale reliably
+    if (lidar_norm < LIDAR_INIT_POS_THRESHOLD)
+        return;
+    if (vins_norm < 0.5)
+        return;
+
+    double scale_ratio = lidar_norm / vins_norm;
+
+    // Reject unreasonable scale ratios
+    if (scale_ratio < 0.8 || scale_ratio > 1.2)
+    {
+        RCLCPP_WARN(rclcpp::get_logger("vins_estimator"),
+            "[LIDAR_SCALE] Ratio out of bounds: %.3f (lidar: %.2f m, vins: %.2f m), skipping",
+            scale_ratio, lidar_norm, vins_norm);
+        return;
+    }
+
+    // Gentle correction
+    double correction = 1.0 + (scale_ratio - 1.0) * LIDAR_SCALE_CORRECTION_FACTOR;
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_SCALE] Scale correction: %.4f (lidar: %.2f m, vins: %.2f m)",
+        correction, lidar_norm, vins_norm);
+
+    // Apply scale correction about the initialization origin so the initial pose stays fixed
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+    {
+        Ps[i] = vins_init_pos + correction * (Ps[i] - vins_init_pos);
+        Vs[i] = Vs[i] * correction;
+    }
+
+    f_manager.scaleDepth(correction);
+}
+
+bool Estimator::getLidarInitStatus()
+{
+    return lidar_init_done;
 }

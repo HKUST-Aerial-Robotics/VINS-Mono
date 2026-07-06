@@ -27,6 +27,19 @@ int ENABLE_ZUPT;
 double ZUPT_VEL_THRESHOLD;
 double ZUPT_ACC_THRESHOLD;
 
+// Altitude scale correction (MAVLink)
+int ENABLE_ALTITUDE_SCALE_CORRECTION;
+double ALTITUDE_CORRECTION_FACTOR;
+
+// Lidar odometry initialization & scale correction
+int ENABLE_LIDAR_INIT;
+std::string LIDAR_ODOM_TOPIC;
+double LIDAR_INIT_TIMEOUT;
+double LIDAR_INIT_POS_THRESHOLD;
+double LIDAR_SCALE_CORRECTION_FACTOR;
+double LIDAR_SYNC_MAX_DT;
+std::string WORLD_FRAME_ID;
+
 template <typename T>
 T readParam(rclcpp::Node::SharedPtr &n, std::string name)
 {
@@ -139,6 +152,30 @@ void readParameters(rclcpp::Node::SharedPtr n)
     ZUPT_ACC_THRESHOLD = fsSettings["zupt_acc_threshold"].empty() ? 0.1 : (double)fsSettings["zupt_acc_threshold"];
     if (ENABLE_ZUPT)
         RCLCPP_INFO_STREAM(n->get_logger(), "Zero Velocity Update enabled, vel_threshold: " << ZUPT_VEL_THRESHOLD << ", acc_threshold: " << ZUPT_ACC_THRESHOLD);
-    
+
+    // Altitude scale correction (MAVLink)
+    ENABLE_ALTITUDE_SCALE_CORRECTION = fsSettings["enable_altitude_scale_correction"].empty() ? 0 : (int)fsSettings["enable_altitude_scale_correction"];
+    ALTITUDE_CORRECTION_FACTOR = fsSettings["altitude_correction_factor"].empty() ? 0.1 : (double)fsSettings["altitude_correction_factor"];
+    if (ENABLE_ALTITUDE_SCALE_CORRECTION)
+        RCLCPP_INFO_STREAM(n->get_logger(), "Altitude scale correction enabled, factor: " << ALTITUDE_CORRECTION_FACTOR);
+
+    // Lidar odometry initialization & scale correction
+    ENABLE_LIDAR_INIT = fsSettings["enable_lidar_init"].empty() ? 0 : (int)fsSettings["enable_lidar_init"];
+    fsSettings["lidar_odom_topic"] >> LIDAR_ODOM_TOPIC;
+    if (LIDAR_ODOM_TOPIC.empty()) LIDAR_ODOM_TOPIC = "/lio/odom";
+    LIDAR_INIT_TIMEOUT = fsSettings["lidar_init_timeout"].empty() ? 30.0 : (double)fsSettings["lidar_init_timeout"];
+    LIDAR_INIT_POS_THRESHOLD = fsSettings["lidar_init_pos_threshold"].empty() ? 1.0 : (double)fsSettings["lidar_init_pos_threshold"];
+    LIDAR_SCALE_CORRECTION_FACTOR = fsSettings["lidar_scale_correction_factor"].empty() ? 0.05 : (double)fsSettings["lidar_scale_correction_factor"];
+    LIDAR_SYNC_MAX_DT = fsSettings["lidar_sync_max_dt"].empty() ? 0.1 : (double)fsSettings["lidar_sync_max_dt"];
+    if (ENABLE_LIDAR_INIT)
+        RCLCPP_INFO_STREAM(n->get_logger(), "Lidar odometry init enabled, topic: " << LIDAR_ODOM_TOPIC
+            << ", timeout: " << LIDAR_INIT_TIMEOUT << "s, pos_threshold: " << LIDAR_INIT_POS_THRESHOLD
+            << "m, scale_factor: " << LIDAR_SCALE_CORRECTION_FACTOR << ", sync_dt: " << LIDAR_SYNC_MAX_DT << "s");
+
+    // World frame ID for published odometry and visualization
+    fsSettings["world_frame_id"] >> WORLD_FRAME_ID;
+    if (WORLD_FRAME_ID.empty()) WORLD_FRAME_ID = "world";
+    RCLCPP_INFO_STREAM(n->get_logger(), "World frame_id: " << WORLD_FRAME_ID);
+
     fsSettings.release();
 }

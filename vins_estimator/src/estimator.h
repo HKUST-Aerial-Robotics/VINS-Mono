@@ -34,6 +34,10 @@ class Estimator
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::msg::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
     void correctScaleWithAltitude(double mavlink_altitude, double mavlink_vz);
+    void initializeWithLidarOdom(const Vector3d &lidar_pos, const Matrix3d &lidar_rot,
+                                  double lidar_time, double vins_time);
+    void correctScaleWithLidarOdom(const Vector3d &lidar_pos, double lidar_time, double vins_time);
+    bool getLidarInitStatus();
 
     // internal
     void clearState();
@@ -140,4 +144,14 @@ class Estimator
     Vector3d relo_relative_t;
     Quaterniond relo_relative_q;
     double relo_relative_yaw;
+
+    // Lidar odometry initialization & scale correction
+    bool lidar_init_done;           // true after initial pose/scale set from lidar
+    Vector3d lidar_init_pos;        // lidar position at the moment of VINS init
+    Matrix3d lidar_init_rot;        // lidar rotation at the moment of VINS init
+    double lidar_init_time;         // timestamp of lidar init sample
+    Vector3d vins_init_pos;         // VINS position when lidar init was applied
+    Matrix3d vins_init_rot;         // VINS rotation when lidar init was applied
+    double vins_init_time;          // VINS timestamp when lidar init was applied
+    bool lidar_init_pose_applied;   // true after initial coordinate alignment applied
 };
