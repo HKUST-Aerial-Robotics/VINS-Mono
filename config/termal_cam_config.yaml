@@ -58,7 +58,7 @@ extrinsicTranslation: !!opencv-matrix
 #feature traker paprameters
 max_cnt: 150            # max feature number (reduced for faster processing)
 min_dist: 15            # min distance between features (larger spacing = fewer features)
-freq: 0                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
+freq: 20                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 2.0        # ransac threshold (thermal: more tolerance for noise)
 fast_threshold: 20      # threshold for AGAST corner detector (higher = fewer but stronger features)
 gftt_quality_level: 0.01 # Shi-Tomasi sensitivity used by the stable tracker
@@ -69,7 +69,7 @@ equalize: 1             # if image is too dark or light, trun on equalize to fin
 fisheye: 0  
 
 #adaptive tracking for high-speed navigation
-enable_velocity_check: 1        # enable velocity-based adaptive feature tracking
+enable_velocity_check: 0        # enable velocity-based adaptive feature tracking
 max_velocity_threshold: 2.5     # m/s - higher threshold to avoid unnecessary boosting
 velocity_boost_features: 50    # reduced boost for speed
 min_parallax_threshold: 3.0     # pixels - minimum parallax (thermal: higher due to lower resolution)
@@ -81,7 +81,7 @@ keyframe_parallax: 10.0  # higher threshold = fewer keyframes = less computation
 
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 0.35          # accelerometer measurement noise standard deviation.
+acc_n: 0.15          # accelerometer measurement noise standard deviation.
 gyr_n: 0.015         # gyroscope measurement noise standard deviation.
 acc_w: 0.003        # accelerometer bias random work noise standard deviation.
 gyr_w: 0.001       # gyroscope bias random work noise standard deviation.

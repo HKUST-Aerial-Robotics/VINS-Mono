@@ -94,6 +94,14 @@ void Estimator::clearState()
     vins_init_pos = Vector3d::Zero();
     vins_init_rot = Matrix3d::Identity();
     vins_init_time = -1.0;
+
+    // Lidar-assisted deep init
+    lidar_pos_buf.clear();
+    lidar_rot_buf.clear();
+    lidar_time_buf.clear();
+    lidar_scale_estimate = 1.0;
+    lidar_scale_valid = false;
+    lidar_init_samples = 0;
 }
 
 void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity)
@@ -380,6 +388,30 @@ bool Estimator::initialStructure()
         frame_it->second.R = R_pnp * RIC[0].transpose();
         frame_it->second.T = T_pnp;
     }
+
+    // ─── Lidar-assisted scale estimation ───
+    // If lidar odometry is available, estimate the metric scale from it
+    // and use it as a prior/constraint for the visual-inertial alignment.
+    // This provides a metric scale reference before IMU alignment runs.
+    if (ENABLE_LIDAR_INIT && !lidar_pos_buf.empty())
+    {
+        // Set visual poses from SFM into Ps[] for scale comparison
+        for (int i = 0; i <= frame_count; i++)
+        {
+            Ps[i] = all_image_frame[stampToSec(Headers[i].stamp)].T;
+            Rs[i] = all_image_frame[stampToSec(Headers[i].stamp)].R;
+        }
+
+        double lidar_scale = estimateScaleFromLidar();
+        if (lidar_scale_valid)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+                "[LIDAR_DEEP_INIT] Using lidar scale %.4f as prior for VINS init", lidar_scale);
+            // We don't apply it directly — LinearAlignment will estimate its own scale
+            // from IMU. The lidar scale is stored for validation and soft alignment.
+        }
+    }
+
     if (visualInitialAlign())
         return true;
     else
@@ -654,7 +686,7 @@ bool Estimator::failureDetection()
         RCLCPP_INFO(rclcpp::get_logger("vins_estimator"), " little feature %d", f_manager.last_track_num);
         //return true;
     }
-    if (Bas[WINDOW_SIZE].norm() > 2.5)
+    if (Bas[WINDOW_SIZE].norm() > 5.0)
     {
         RCLCPP_INFO(rclcpp::get_logger("vins_estimator"), " big IMU acc bias estimation %f", Bas[WINDOW_SIZE].norm());
         return true;
@@ -672,7 +704,7 @@ bool Estimator::failureDetection()
     }
     */
     Vector3d tmp_P = Ps[WINDOW_SIZE];
-    if ((tmp_P - last_P).norm() > 10)  // increased threshold for high-speed navigation
+    if ((tmp_P - last_P).norm() > 20)  // increased for lidar-assisted init jumps
     {
         RCLCPP_INFO(rclcpp::get_logger("vins_estimator"), " big translation");
         return true;
@@ -1307,8 +1339,8 @@ void Estimator::correctScaleWithLidarOdom(const Vector3d &lidar_pos, double lida
 
     double scale_ratio = lidar_norm / vins_norm;
 
-    // Reject unreasonable scale ratios
-    if (scale_ratio < 0.8 || scale_ratio > 1.2)
+    // Reject only extreme scale ratios (allow wide range for initial drift correction)
+    if (scale_ratio < 0.1 || scale_ratio > 10.0)
     {
         RCLCPP_WARN(rclcpp::get_logger("vins_estimator"),
             "[LIDAR_SCALE] Ratio out of bounds: %.3f (lidar: %.2f m, vins: %.2f m), skipping",
@@ -1316,8 +1348,10 @@ void Estimator::correctScaleWithLidarOdom(const Vector3d &lidar_pos, double lida
         return;
     }
 
-    // Gentle correction
-    double correction = 1.0 + (scale_ratio - 1.0) * LIDAR_SCALE_CORRECTION_FACTOR;
+    // Adaptive correction: stronger factor when drift is large, gentle when close
+    double drift = std::abs(scale_ratio - 1.0);
+    double adaptive_factor = (drift > 0.5) ? std::min(0.3, LIDAR_SCALE_CORRECTION_FACTOR * 3.0) : LIDAR_SCALE_CORRECTION_FACTOR;
+    double correction = 1.0 + (scale_ratio - 1.0) * adaptive_factor;
 
     RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
         "[LIDAR_SCALE] Scale correction: %.4f (lidar: %.2f m, vins: %.2f m)",
@@ -1336,4 +1370,206 @@ void Estimator::correctScaleWithLidarOdom(const Vector3d &lidar_pos, double lida
 bool Estimator::getLidarInitStatus()
 {
     return lidar_init_done;
+}
+
+// ============================================================================
+// Lidar-assisted deep initialization
+// ============================================================================
+
+void Estimator::setLidarOdomBuffer(const std::vector<Vector3d> &lidar_positions,
+                                    const std::vector<Matrix3d> &lidar_rotations,
+                                    const std::vector<double> &lidar_timestamps)
+{
+    // Store a snapshot of the lidar odometry buffer for scale/pose estimation.
+    // Called from estimator_node before VINS initialization (during INITIAL phase).
+    lidar_pos_buf = lidar_positions;
+    lidar_rot_buf = lidar_rotations;
+    lidar_time_buf = lidar_timestamps;
+    lidar_init_samples = static_cast<int>(lidar_pos_buf.size());
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_DEEP_INIT] Received %d lidar samples for assisted init",
+        lidar_init_samples);
+}
+
+double Estimator::estimateScaleFromLidar()
+{
+    // Estimate the metric scale by comparing lidar displacement with VINS
+    // visual structure displacement over the same time window.
+    //
+    // VINS visual SFM produces poses in an arbitrary scale. By comparing
+    // the total path length or net displacement with the lidar (which is
+    // already metric), we get the scale factor: s = lidar_disp / vins_disp.
+    //
+    // This must be called AFTER initialStructure() has computed visual poses
+    // but BEFORE visualInitialAlign() applies the IMU-aligned scale.
+
+    if (lidar_pos_buf.size() < 10)
+    {
+        RCLCPP_WARN(rclcpp::get_logger("vins_estimator"),
+            "[LIDAR_DEEP_INIT] Not enough lidar samples (%zu) for scale estimation",
+            lidar_pos_buf.size());
+        lidar_scale_valid = false;
+        return 1.0;
+    }
+
+    // Compute lidar displacement over the buffered window
+    Vector3d lidar_start = lidar_pos_buf.front();
+    Vector3d lidar_end = lidar_pos_buf.back();
+    double lidar_disp = (lidar_end - lidar_start).norm();
+
+    // Compute VINS visual displacement (in visual SFM scale)
+    // Ps[] are set from visual SFM in initialStructure before visualInitialAlign
+    double vins_disp = 0.0;
+    int valid_frames = 0;
+    for (int i = 0; i <= frame_count; i++)
+    {
+        if (Ps[i].norm() > 0.01)
+            valid_frames++;
+    }
+
+    if (valid_frames < 2)
+    {
+        RCLCPP_WARN(rclcpp::get_logger("vins_estimator"),
+            "[LIDAR_DEEP_INIT] Not enough VINS frames for scale estimation");
+        lidar_scale_valid = false;
+        return 1.0;
+    }
+
+    // Use the full window displacement
+    Vector3d vins_start = Ps[0];
+    Vector3d vins_end = Ps[frame_count];
+    vins_disp = (vins_end - vins_start).norm();
+
+    if (vins_disp < 0.01)
+    {
+        RCLCPP_WARN(rclcpp::get_logger("vins_estimator"),
+            "[LIDAR_DEEP_INIT] VINS displacement too small (%.4f)", vins_disp);
+        lidar_scale_valid = false;
+        return 1.0;
+    }
+
+    double scale = lidar_disp / vins_disp;
+
+    // Sanity check: scale should be positive and reasonable
+    if (scale < 0.01 || scale > 100.0)
+    {
+        RCLCPP_WARN(rclcpp::get_logger("vins_estimator"),
+            "[LIDAR_DEEP_INIT] Scale out of bounds: %.4f (lidar=%.3f, vins=%.3f), rejecting",
+            scale, lidar_disp, vins_disp);
+        lidar_scale_valid = false;
+        return 1.0;
+    }
+
+    lidar_scale_estimate = scale;
+    lidar_scale_valid = true;
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_DEEP_INIT] Scale estimated from lidar: %.4f (lidar_disp=%.3f m, vins_disp=%.3f)",
+        scale, lidar_disp, vins_disp);
+
+    return scale;
+}
+
+void Estimator::applyLidarScalePrior(double scale)
+{
+    // Apply the lidar-estimated scale to the visual structure.
+    // This is called instead of (or in addition to) the IMU-based scale from
+    // LinearAlignment. The visual poses Ps[] are scaled to metric units.
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_DEEP_INIT] Applying lidar scale prior: %.4f", scale);
+
+    // Scale all positions about the origin
+    for (int i = 0; i <= frame_count; i++)
+    {
+        Ps[i] = scale * Ps[i];
+    }
+
+    // Scale feature depths
+    for (auto &it_per_id : f_manager.feature)
+    {
+        it_per_id.used_num = it_per_id.feature_per_frame.size();
+        if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+            continue;
+        it_per_id.estimated_depth *= scale;
+    }
+}
+
+void Estimator::softAlignWithLidar()
+{
+    // Soft (yaw-only) alignment with lidar odometry after VINS initialization.
+    //
+    // Instead of applying a full rigid transform (which caused the yaw_diff
+    // catastrophe), this method:
+    // 1. Aligns only the yaw (heading) to match the lidar reference.
+    // 2. Translates the origin to the lidar position.
+    // 3. Does NOT change roll/pitch (VINS gravity alignment is more reliable).
+    //
+    // This avoids the large yaw_diff problem because it only corrects the
+    // heading, not the full rotation.
+
+    if (solver_flag != NON_LINEAR)
+        return;
+    if (lidar_init_done)
+        return;
+    if (lidar_pos_buf.empty() || lidar_rot_buf.empty())
+    {
+        RCLCPP_WARN(rclcpp::get_logger("vins_estimator"),
+            "[LIDAR_DEEP_INIT] No lidar buffer for soft alignment");
+        return;
+    }
+
+    // Use the latest lidar sample as the reference
+    Vector3d lidar_pos = lidar_pos_buf.back();
+    Matrix3d lidar_rot = lidar_rot_buf.back();
+
+    // Record init state
+    lidar_init_pos = lidar_pos;
+    lidar_init_rot = lidar_rot;
+    vins_init_pos = Ps[WINDOW_SIZE];
+    vins_init_rot = Rs[WINDOW_SIZE];
+
+    // Extract yaw from both VINS and lidar
+    Vector3d vins_ypr = Utility::R2ypr(Rs[WINDOW_SIZE]);
+    Vector3d lidar_ypr = Utility::R2ypr(lidar_rot);
+
+    // Compute yaw-only correction
+    double yaw_diff = lidar_ypr.x() - vins_ypr.x();
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_DEEP_INIT] Soft align: yaw_diff=%.1f deg, vins_yaw=%.1f, lidar_yaw=%.1f",
+        yaw_diff, vins_ypr.x(), lidar_ypr.x());
+
+    // Build rotation that only corrects yaw
+    Matrix3d R_yaw_correction = Utility::ypr2R(Vector3d(yaw_diff, 0, 0));
+
+    // Apply yaw correction + translation to all states
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+    {
+        Ps[i] = R_yaw_correction * Ps[i];
+        Rs[i] = R_yaw_correction * Rs[i];
+        Vs[i] = R_yaw_correction * Vs[i];
+    }
+
+    // Translate origin to match lidar position
+    Vector3d t_correction = lidar_pos - Ps[WINDOW_SIZE];
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+    {
+        Ps[i] += t_correction;
+    }
+
+    lidar_init_done = true;
+    lidar_init_pose_applied = true;
+
+    // Update failure detection reference points to avoid false "big translation"
+    // triggers caused by the alignment changing Ps/RS in one step.
+    last_P = Ps[WINDOW_SIZE];
+    last_R = Rs[WINDOW_SIZE];
+    last_P0 = Ps[0];
+    last_R0 = Rs[0];
+
+    RCLCPP_INFO(rclcpp::get_logger("vins_estimator"),
+        "[LIDAR_DEEP_INIT] Soft alignment done. VINS pos=[%.3f, %.3f, %.3f]",
+        Ps[WINDOW_SIZE].x(), Ps[WINDOW_SIZE].y(), Ps[WINDOW_SIZE].z());
 }

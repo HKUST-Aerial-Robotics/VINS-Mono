@@ -70,6 +70,7 @@ struct LidarOdomSample
     Eigen::Matrix3d rot;
 };
 std::queue<LidarOdomSample> lidar_odom_buf;
+std::vector<LidarOdomSample> lidar_odom_history;  // full history for deep init
 std::mutex m_lidar;
 bool lidar_odom_received = false;
 double lidar_first_recv_time = -1.0;
@@ -326,6 +327,10 @@ void lidar_odom_callback(const nav_msgs::msg::Odometry::ConstSharedPtr &odom_msg
     // Keep buffer bounded — store at most 200 samples (~20 s at 10 Hz)
     while (lidar_odom_buf.size() > 200)
         lidar_odom_buf.pop();
+    // Also accumulate full history for deep init (capped at 600 samples ~60s)
+    lidar_odom_history.push_back(sample);
+    if (lidar_odom_history.size() > 600)
+        lidar_odom_history.erase(lidar_odom_history.begin());
     if (lidar_first_recv_time < 0)
         lidar_first_recv_time = sample.time;
     lidar_odom_received = true;
@@ -512,25 +517,45 @@ void process()
             }
             m_odom.unlock();
 
-            // Lidar odometry: initial pose/scale alignment + ongoing scale correction
-            if (ENABLE_LIDAR_INIT && lidar_odom_received && estimator.solver_flag == Estimator::NON_LINEAR)
+            // Lidar odometry: deep integration with initialization + ongoing scale correction
+            if (ENABLE_LIDAR_INIT && lidar_odom_received)
             {
                 double vins_time = stamp_to_sec(img_msg->header.stamp);
-                LidarOdomSample lidar_sample;
-                if (getLidarOdomAtTime(vins_time, lidar_sample))
+
+                if (estimator.solver_flag == Estimator::INITIAL)
                 {
-                    if (!estimator.getLidarInitStatus())
+                    // ─── Deep init phase: feed lidar buffer to estimator ───
+                    // Before VINS initializes, provide the accumulated lidar history
+                    // so the estimator can estimate metric scale and initial pose.
+                    m_lidar.lock();
+                    std::vector<Eigen::Vector3d> lpos;
+                    std::vector<Eigen::Matrix3d> lrot;
+                    std::vector<double> ltime;
+                    for (const auto &s : lidar_odom_history)
                     {
-                        // One-time initial pose & coordinate alignment
-                        estimator.initializeWithLidarOdom(
-                            lidar_sample.pos, lidar_sample.rot,
-                            lidar_sample.time, vins_time);
+                        lpos.push_back(s.pos);
+                        lrot.push_back(s.rot);
+                        ltime.push_back(s.time);
                     }
-                    else
+                    m_lidar.unlock();
+                    estimator.setLidarOdomBuffer(lpos, lrot, ltime);
+                }
+                else if (estimator.solver_flag == Estimator::NON_LINEAR)
+                {
+                    LidarOdomSample lidar_sample;
+                    if (getLidarOdomAtTime(vins_time, lidar_sample))
                     {
-                        // Ongoing gentle scale correction against lidar reference
-                        estimator.correctScaleWithLidarOdom(
-                            lidar_sample.pos, lidar_sample.time, vins_time);
+                        if (!estimator.getLidarInitStatus())
+                        {
+                            // Soft alignment: yaw-only + translation, no full rigid transform
+                            estimator.softAlignWithLidar();
+                        }
+                        else
+                        {
+                            // Ongoing gentle scale correction against lidar reference
+                            estimator.correctScaleWithLidarOdom(
+                                lidar_sample.pos, lidar_sample.time, vins_time);
+                        }
                     }
                 }
             }

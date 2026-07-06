@@ -1,0 +1,109 @@
+# vins_autotune configuration
+# This file defines the tuning search space and node behavior.
+
+# Topics
+vins_odom_topic: "/vins_estimator/odometry"
+ground_truth_topic: "/ground_truth/odom"    # ← укажи свой топик ground truth
+
+# Mode: "monitor" (только метрики) или "tune" (автоподбор + правка YAML)
+mode: "monitor"
+
+# Path to VINS config file (required for tune mode)
+# config_file: "/home/jetson/ros2_ws/src/VINS-Mono-inno/config/fisheye_bag/fisheye_bag_config.yaml"
+
+# Evaluation window per trial (seconds)
+eval_window: 15.0
+
+# Max coordinate-descent passes
+max_passes: 3
+
+# Trajectory buffer length (seconds)
+buffer_window: 30.0
+
+# Max time difference for VINS↔GT synchronization (seconds)
+sync_dt: 0.05
+
+# Metrics publish rate (Hz)
+metrics_rate: 1.0
+
+# Sim3-align trajectories before computing ATE
+align_trajectories: true
+
+# Publish TF for RViz visualization
+publish_tf: true
+
+# ─── Parameter search space ───
+# Each parameter: [current, min, max, step, dtype]
+# dtype: "float" or "int"
+parameters:
+  max_cnt:
+    value: 450
+    min: 250
+    max: 600
+    step: 50
+    dtype: "int"
+    description: "Target number of tracked features"
+
+  min_dist:
+    value: 15
+    min: 10
+    max: 25
+    step: 3
+    dtype: "int"
+    description: "Minimum distance between features (px)"
+
+  F_threshold:
+    value: 2.0
+    min: 1.0
+    max: 3.5
+    step: 0.5
+    dtype: "float"
+    description: "RANSAC fundamental matrix threshold"
+
+  fast_threshold:
+    value: 15
+    min: 7
+    max: 45
+    step: 4
+    dtype: "int"
+    description: "AGAST detector threshold"
+
+  keyframe_parallax:
+    value: 10.0
+    min: 5.0
+    max: 20.0
+    step: 2.5
+    dtype: "float"
+    description: "Keyframe selection parallax threshold (px)"
+
+  acc_n:
+    value: 0.35
+    min: 0.1
+    max: 1.0
+    step: 0.1
+    dtype: "float"
+    description: "Accelerometer noise std (m/s^2/sqrt(Hz))"
+
+  gyr_n:
+    value: 0.015
+    min: 0.005
+    max: 0.05
+    step: 0.005
+    dtype: "float"
+    description: "Gyroscope noise std (rad/s/sqrt(Hz))"
+
+  acc_w:
+    value: 0.003
+    min: 0.001
+    max: 0.01
+    step: 0.001
+    dtype: "float"
+    description: "Accelerometer bias random walk"
+
+  gyr_w:
+    value: 0.001
+    min: 0.0003
+    max: 0.003
+    step: 0.0003
+    dtype: "float"
+    description: "Gyroscope bias random walk"

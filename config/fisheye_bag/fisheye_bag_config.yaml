@@ -25,7 +25,7 @@ projection_parameters:
    v0: 518.71597814251959       # cy
 
 # Extrinsic parameter between IMU and Camera.
-estimate_extrinsic: 0
+estimate_extrinsic: 1
 extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
@@ -42,14 +42,14 @@ extrinsicTranslation: !!opencv-matrix
 
 
 #feature traker paprameters
-max_cnt: 450            # target number of tracked features for a 1280x1024 frame
-min_dist: 15            # preserve spatial distribution; lower values cluster features
+max_cnt: 250            # target number of tracked features for a 1280x1024 frame
+min_dist: 20            # preserve spatial distribution; lower values cluster features
 freq: 25                # leaves CPU headroom while using most of the 30 Hz camera stream
-F_threshold: 2.0        # stricter geometric outlier rejection for a sharp image
+F_threshold: 2.5        # stricter geometric outlier rejection for a sharp image
 
 use_advanced_flow: 1        # stable LK + Shi-Tomasi path; AGAST path is experimental
 #andvanced flow parameters
-fast_threshold: 15      # used only when use_advanced_flow=1 (AGAST)
+fast_threshold: 20      # used only when use_advanced_flow=1 (AGAST)
 use_bidirectional_flow: 0  # used only by advanced flow; disabled in this stable profile
 
 #basic tracking parameters
@@ -57,13 +57,13 @@ gftt_quality_level: 0.01 # Shi-Tomasi sensitivity; lower detects weaker usable c
 
 
 show_track: 1           # publish tracking image as topic
-equalize: 0             # if image is too dark or light, trun on equalize to find enough features
+equalize: 1             # if image is too dark or light, trun on equalize to find enough features
 
 fisheye: 1              # apply a custom valid-pixel mask during feature selection
 fisheye_mask: "config/mask.jpg" # relative to the vins_bringup share directory
 
 #autotune filter
-enable_feature_auto_tuning: 1 # adapt active detector to texture and motion blur
+enable_feature_auto_tuning: 0 # adapt active detector to texture and motion blur
 feature_auto_tune_interval: 5.0 # seconds between adaptation/diagnostic reports
 feature_auto_tune_log: 0       # print [AUTO_TUNE] values to ROS console and log
 fast_threshold_min: 7          # safe AGAST tuning range
@@ -79,13 +79,13 @@ velocity_boost_features: 75     # extra features to add when high velocity detec
 min_parallax_threshold: 5.0     # pixels - minimum parallax for quality tracking
 
 #optimization parameters
-max_solver_time: 0.01   # max solver time (s) - reduced for real-time performance
+max_solver_time: 0.05   # max solver time (s) - reduced for real-time performance
 max_num_iterations: 15   # max solver itrations, to guarantee real time
-keyframe_parallax: 10.0  # keyframe selection threshold (pixel)
+keyframe_parallax: 8.0  # keyframe selection threshold (pixel)
 
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 0.35          # accelerometer measurement noise standard deviation.
+acc_n: 0.15          # accelerometer measurement noise standard deviation.
 gyr_n: 0.015         # gyroscope measurement noise standard deviation.
 acc_w: 0.003        # accelerometer bias random work noise standard deviation.
 gyr_w: 0.001       # gyroscope bias random work noise standard deviation.
@@ -94,7 +94,7 @@ g_norm: 9.805       #
 #loop closure parameters
 loop_closure: 0                    # start loop closure (ОТКЛЮЧЕНО - может вызывать скачки при движении)
 load_previous_pose_graph: 0        # load and reuse previous pose graph
-fast_relocalization: 1             # useful in real-time and large project
+fast_relocalization: 0             # useful in real-time and large project
 pose_graph_save_path: "/tmp/vins_fisheye_output/pose_graph/" # save and load path
 
 #unsynchronization parameters
@@ -122,15 +122,15 @@ imu_acc_max_change: 3.0        # maximum allowed acceleration change (m/s^2) for
 imu_acc_filter_alpha: 0.75       # exponential filter coefficient (0.0-1.0, higher = more smoothing)
 
 #altitude scale correction parameters
-enable_altitude_scale_correction: 1  # enable scale correction using MAVLink altitude
+enable_altitude_scale_correction: 0  # enable scale correction using MAVLink altitude
 altitude_correction_factor: 0.1      # correction strength (0.0-1.0, lower = gentler correction)
 
 #lidar odometry initialization & scale correction parameters
 # Uses an external lidar odometry (e.g. LIO) to initialize the VINS scale and
 # starting coordinate so that both estimators share the same reference frame.
-enable_lidar_init: 1                  # enable lidar-based init + ongoing scale correction
+enable_lidar_init: 1                  # enable lidar-assisted deep init + ongoing scale correction
 lidar_odom_topic: "/lio/odom"         # nav_msgs/msg/Odometry source for init/scale reference
-lidar_init_timeout: 30.0               # seconds to wait for lidar odom before giving up
+lidar_init_timeout: 10.0               # seconds to wait for lidar odom before giving up
 lidar_init_pos_threshold: 1.0         # min displacement (m) before using lidar for scale init
 lidar_scale_correction_factor: 0.05   # ongoing gentle scale correction strength (0.0-1.0)
 lidar_sync_max_dt: 0.1                 # max time diff (s) for lidar-vins sample synchronization

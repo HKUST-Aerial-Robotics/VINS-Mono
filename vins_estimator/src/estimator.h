@@ -39,6 +39,14 @@ class Estimator
     void correctScaleWithLidarOdom(const Vector3d &lidar_pos, double lidar_time, double vins_time);
     bool getLidarInitStatus();
 
+    // Lidar-assisted initialization (deep integration)
+    void setLidarOdomBuffer(const std::vector<Vector3d> &lidar_positions,
+                            const std::vector<Matrix3d> &lidar_rotations,
+                            const std::vector<double> &lidar_timestamps);
+    double estimateScaleFromLidar();
+    void applyLidarScalePrior(double scale);
+    void softAlignWithLidar();
+
     // internal
     void clearState();
     bool initialStructure();
@@ -154,4 +162,12 @@ class Estimator
     Matrix3d vins_init_rot;         // VINS rotation when lidar init was applied
     double vins_init_time;          // VINS timestamp when lidar init was applied
     bool lidar_init_pose_applied;   // true after initial coordinate alignment applied
+
+    // Lidar-assisted deep init: buffer of lidar poses for scale/pose estimation
+    std::vector<Vector3d> lidar_pos_buf;    // lidar positions over time
+    std::vector<Matrix3d> lidar_rot_buf;   // lidar rotations over time
+    std::vector<double> lidar_time_buf;     // lidar timestamps
+    double lidar_scale_estimate;           // scale estimated from lidar (gt/vins displacement)
+    bool lidar_scale_valid;                // true if lidar_scale_estimate is reliable
+    int lidar_init_samples;               // number of lidar samples collected before VINS init
 };
